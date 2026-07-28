@@ -1,0 +1,100 @@
+<div class="page">
+  <header class="hero">
+    <div class="brand">
+      <span class="logo">◆</span>
+      <div>
+        <h1>DevStack</h1>
+        <p class="tagline">Every tool, service &amp; subscription across my projects.</p>
+      </div>
+    </div>
+
+    @if (state() === 'loaded') {
+      <div class="stats">
+        <div class="stat">
+          <span class="stat-value">{{ total() }}</span>
+          <span class="stat-label">tools</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value">{{ paidCount() }}</span>
+          <span class="stat-label">paid</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value">${{ monthlySpend() | number: '1.0-2' }}</span>
+          <span class="stat-label">/ month</span>
+        </div>
+      </div>
+    }
+  </header>
+
+  <!-- LOADING: shimmering skeleton cards -->
+  @if (state() === 'loading') {
+    <div class="grid">
+      @for (s of skeletons; track $index) {
+        <div class="card skeleton">
+          <div class="sk-line sk-title"></div>
+          <div class="sk-line sk-badge"></div>
+          <div class="sk-line"></div>
+          <div class="sk-line short"></div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- ERROR -->
+  @if (state() === 'error') {
+    <div class="message error">
+      <span class="emoji">📡</span>
+      <h2>Couldn't reach the API</h2>
+      <p>{{ errorMessage() }}</p>
+      <button (click)="load()">Try again</button>
+    </div>
+  }
+
+  <!-- LOADED -->
+  @if (state() === 'loaded') {
+    @if (total() === 0) {
+      <div class="message">
+        <span class="emoji">🗂️</span>
+        <h2>No tools yet</h2>
+        <p>Add one via the API and it'll appear here.</p>
+      </div>
+    } @else {
+      <div class="grid">
+        @for (tool of tools(); track tool.id) {
+          <article class="card">
+            <div class="card-top">
+              <h3>{{ tool.name }}</h3>
+              <span class="cost" [class.free]="!tool.isPaid">
+                {{ tool.isPaid ? '$' + (tool.monthlyCost ?? 0) + '/mo' : 'Free' }}
+              </span>
+            </div>
+
+            <span class="category">{{ tool.category }}</span>
+
+            @if (tool.notes) {
+              <p class="notes">{{ tool.notes }}</p>
+            }
+
+            @if (projectTags(tool).length) {
+              <div class="tags">
+                @for (p of projectTags(tool); track p) {
+                  <span class="tag">{{ p }}</span>
+                }
+              </div>
+            }
+
+            @if (tool.url) {
+              <a class="visit" [href]="tool.url" target="_blank" rel="noopener">
+                Visit ↗
+              </a>
+            }
+          </article>
+        }
+      </div>
+    }
+  }
+
+  <footer class="foot">
+    DevStack API · <code>devstack-api.runasp.net</code>
+  </footer>
+</div>
