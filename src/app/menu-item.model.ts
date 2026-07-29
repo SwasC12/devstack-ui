@@ -8,5 +8,6 @@ export interface MenuItem {
   imageUrl?: string | null;
   imagePublicId?: string | null;
   isAvailable: boolean;
+  stockQuantity: number;
   createdAt: string;
 }
