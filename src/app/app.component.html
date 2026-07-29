@@ -24,7 +24,91 @@
         </div>
       </div>
     }
+
+    <button class="add-btn" (click)="toggleForm()">
+      {{ showForm() ? '✕' : '+ Add' }}
+    </button>
   </header>
+
+  <!-- INLINE ADD FORM -->
+  @if (showForm()) {
+    <div class="add-form">
+      <h2 class="form-title">Add a tool</h2>
+
+      <div class="form-body">
+        <div class="form-field">
+          <label>Name <span class="req">*</span></label>
+          <input
+            [value]="formName()"
+            (input)="formName.set($any($event.target).value)"
+            placeholder="e.g. GitHub Copilot"
+          />
+        </div>
+
+        <div class="form-field">
+          <label>Category <span class="req">*</span></label>
+          <input
+            [value]="formCategory()"
+            (input)="formCategory.set($any($event.target).value)"
+            placeholder="e.g. AI, Hosting, CI/CD"
+          />
+        </div>
+
+        <div class="form-field">
+          <label>URL</label>
+          <input
+            [value]="formUrl()"
+            (input)="formUrl.set($any($event.target).value)"
+            placeholder="https://..."
+          />
+        </div>
+
+        <div class="form-field">
+          <label>Notes</label>
+          <input
+            [value]="formNotes()"
+            (input)="formNotes.set($any($event.target).value)"
+            placeholder="Optional notes"
+          />
+        </div>
+
+        <div class="form-field">
+          <label>Projects</label>
+          <input
+            [value]="formProjects()"
+            (input)="formProjects.set($any($event.target).value)"
+            placeholder="Comma-separated project names"
+          />
+        </div>
+
+        <div class="form-field-check">
+          <label class="checkbox-label">
+            <input
+              type="checkbox"
+              [checked]="formIsPaid()"
+              (change)="formIsPaid.set(($any($event.target).checked))"
+            />
+            <span>Paid subscription</span>
+          </label>
+          @if (formIsPaid()) {
+            <input
+              class="cost-input"
+              type="number"
+              step="0.01"
+              placeholder="Monthly cost"
+              [value]="formMonthlyCost()"
+              (input)="formMonthlyCost.set(+($any($event.target).value) || null)"
+            />
+          }
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button class="cancel-btn" (click)="toggleForm()">Cancel</button>
+        <button class="save-btn" (click)="submitTool()">Add Tool</button>
+      </div>
+    </div>
+  }
 
   <!-- LOADING: shimmering skeleton cards -->
   @if (state() === 'loading') {
@@ -56,7 +140,7 @@
       <div class="message">
         <span class="emoji">🗂️</span>
         <h2>No tools yet</h2>
-        <p>Add one via the API and it'll appear here.</p>
+        <p>Add one using the button above and it'll appear here.</p>
       </div>
     } @else {
       <div class="grid">
@@ -64,10 +148,19 @@
           <article class="card">
             <div class="card-top">
               <h3>{{ tool.name }}</h3>
-              <span class="cost" [class.free]="!tool.isPaid">
-                {{ tool.isPaid ? '$' + (tool.monthlyCost ?? 0) + '/mo' : 'Free' }}
-              </span>
+              <button class="delete-btn" (click)="deleteTool(tool.id)" title="Delete tool">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  <line x1="10" y1="11" x2="10" y2="17"></line>
+                  <line x1="14" y1="11" x2="14" y2="17"></line>
+                </svg>
+              </button>
             </div>
+
+            <span class="cost" [class.free]="!tool.isPaid">
+              {{ tool.isPaid ? '$' + (tool.monthlyCost ?? 0) + '/mo' : 'Free' }}
+            </span>
 
             <span class="category">{{ tool.category }}</span>
 

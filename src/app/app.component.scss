@@ -8,6 +8,7 @@
   --accent: #6ea8fe;
   --accent-2: #b892ff;
   --green: #4ade80;
+  --red: #f87171;
   display: block;
   min-height: 100vh;
   color: var(--text);
@@ -26,7 +27,7 @@
   gap: 1.5rem;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2.25rem;
+  margin-bottom: 1.5rem;
 }
 .brand {
   display: flex;
@@ -74,6 +75,132 @@ h1 {
   letter-spacing: 0.05em;
 }
 
+/* ── Add button ───────────────────────────────────── */
+.add-btn {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #0b0d12;
+  border: 0;
+  height: 40px;
+  padding: 0 1.25rem;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+  white-space: nowrap;
+}
+.add-btn:hover {
+  transform: scale(1.04);
+  opacity: 0.9;
+}
+
+/* ── Add form ─────────────────────────────────────── */
+.add-form {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+.form-title {
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--text);
+}
+.req {
+  color: var(--red);
+}
+.form-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+.form-field,
+.form-field-check {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.form-field label {
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.form-field input,
+.cost-input {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.55rem 0.75rem;
+  color: var(--text);
+  font-size: 0.85rem;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+.form-field input:focus,
+.cost-input:focus {
+  border-color: var(--accent);
+}
+.form-field input::placeholder,
+.cost-input::placeholder {
+  color: var(--muted);
+}
+.form-field-check {
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+}
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--muted);
+  user-select: none;
+}
+.checkbox-label input[type='checkbox'] {
+  accent-color: var(--accent);
+  width: 16px;
+  height: 16px;
+}
+.cost-input {
+  width: 140px;
+}
+.form-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+.cancel-btn,
+.save-btn {
+  border: 0;
+  padding: 0.5rem 1.25rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+.cancel-btn {
+  background: var(--panel-2);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+.save-btn {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #0b0d12;
+}
+.cancel-btn:hover,
+.save-btn:hover {
+  opacity: 0.85;
+}
+
 /* ── Grid + cards ─────────────────────────────────── */
 .grid {
   display: grid;
@@ -89,6 +216,7 @@ h1 {
   flex-direction: column;
   gap: 0.6rem;
   transition: transform 0.15s ease, border-color 0.15s ease;
+  position: relative;
 }
 .card:not(.skeleton):hover {
   transform: translateY(-3px);
@@ -97,12 +225,13 @@ h1 {
 .card-top {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: flex-start;
   gap: 0.5rem;
 }
 .card h3 {
   margin: 0;
   font-size: 1.15rem;
+  word-break: break-word;
 }
 .cost {
   font-size: 0.8rem;
@@ -151,6 +280,27 @@ h1 {
 }
 .visit:hover {
   text-decoration: underline;
+}
+
+/* ── Delete button on cards ───────────────────────── */
+.delete-btn {
+  background: none;
+  border: 0;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease;
+  flex-shrink: 0;
+}
+.card:hover .delete-btn {
+  opacity: 1;
+}
+.delete-btn:hover {
+  color: var(--red);
+  background: rgba(248, 113, 113, 0.12);
 }
 
 /* ── Skeleton shimmer ─────────────────────────────── */

@@ -18,4 +18,12 @@ export class ToolService {
   getTools(): Observable<Tool[]> {
     return this.http.get<Tool[]>(`${API_BASE}/tools`);
   }
+
+  createTool(tool: Partial<Tool>): Observable<Tool> {
+    return this.http.post<Tool>(`${API_BASE}/tools`, tool);
+  }
+
+  deleteTool(id: number): Observable<void> {
+    return this.http.delete<void>(`${API_BASE}/tools/${id}`);
+  }
 }

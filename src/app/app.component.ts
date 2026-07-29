@@ -30,6 +30,16 @@ export class AppComponent implements OnInit {
   // Placeholder array so the template can render shimmering skeleton cards.
   readonly skeletons = Array.from({ length: 6 });
 
+  // Inline add-form state
+  readonly showForm = signal(false);
+  readonly formName = signal('');
+  readonly formCategory = signal('');
+  readonly formIsPaid = signal(false);
+  readonly formMonthlyCost = signal<number | null>(null);
+  readonly formUrl = signal('');
+  readonly formNotes = signal('');
+  readonly formProjects = signal('');
+
   ngOnInit(): void {
     this.load();
   }
@@ -46,6 +56,56 @@ export class AppComponent implements OnInit {
         this.state.set('error');
       },
     });
+  }
+
+  toggleForm(): void {
+    this.showForm.update((v) => !v);
+  }
+
+  submitTool(): void {
+    const tool: Partial<Tool> = {
+      name: this.formName(),
+      category: this.formCategory(),
+      isPaid: this.formIsPaid(),
+      monthlyCost: this.formIsPaid() ? this.formMonthlyCost() : null,
+      url: this.formUrl() || null,
+      notes: this.formNotes() || null,
+      projects: this.formProjects() || null,
+    };
+
+    this.toolService.createTool(tool).subscribe({
+      next: (created) => {
+        this.tools.update((list) => [...list, created]);
+        this.resetForm();
+        this.showForm.set(false);
+      },
+      error: (err) => {
+        this.errorMessage.set(err?.message ?? 'Failed to add tool.');
+      },
+    });
+  }
+
+  deleteTool(id: number): void {
+    if (!confirm('Remove this tool?')) return;
+    this.toolService.deleteTool(id).subscribe({
+      next: () => {
+        this.tools.update((list) => list.filter((t) => t.id !== id));
+      },
+      error: (err) => {
+        this.errorMessage.set(err?.message ?? 'Failed to delete tool.');
+        this.state.set('error');
+      },
+    });
+  }
+
+  resetForm(): void {
+    this.formName.set('');
+    this.formCategory.set('');
+    this.formIsPaid.set(false);
+    this.formMonthlyCost.set(null);
+    this.formUrl.set('');
+    this.formNotes.set('');
+    this.formProjects.set('');
   }
 
   // Splits the comma-separated projects string into trimmed tags.
