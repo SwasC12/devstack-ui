@@ -5,13 +5,14 @@ import { MenuItemService } from '../../menu-item.service';
 import { MenuItem } from '../../menu-item.model';
 import { AuthService } from '../../auth.service';
 import { Router } from '@angular/router';
+import { BtnComponent } from '../../btn.component';
 
 interface CartItem { id: number; name: string; price: number; quantity: number; }
 
 @Component({
   selector: 'app-pos',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, BtnComponent],
   template: `
     <!-- Top bar -->
     <div class="pos-bar">
@@ -25,11 +26,11 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
       </div>
       <div class="pos-bar-right">
         @if (shiftActive()) {
-          <button class="bar-btn" (click)="endShift()">End shift</button>
+          <app-btn size="sm" (onClick)="endShift()">End shift</app-btn>
         } @else {
-          <button class="bar-btn primary" (click)="startShift()">Start shift</button>
+          <app-btn size="sm" variant="primary" (onClick)="startShift()">Start shift</app-btn>
         }
-        <button class="bar-btn" (click)="showSettings.set(!showSettings())">Settings</button>
+        <app-btn size="sm" (onClick)="showSettings.set(!showSettings())">Settings</app-btn>
       </div>
     </div>
 
@@ -99,9 +100,9 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
         </div>
         <div class="cart-foot">
           <div class="cart-summary"><span>Total</span><strong>R{{ total() | number:'1.2-2' }}</strong></div>
-          <button class="btn-checkout" [disabled]="cart().length === 0 || busy()" (click)="checkout()">
-            @if (busy()) { Processing… } @else { Place order · R{{ total() | number:'1.2-2' }} }
-          </button>
+          <app-btn variant="primary" [block]="true" [disabled]="cart().length === 0" [loading]="busy()" (onClick)="checkout()">
+            Place order · R{{ total() | number:'1.2-2' }}
+          </app-btn>
         </div>
       </div>
     </div>
@@ -113,9 +114,6 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
     .shift-badge { font-size: 0.7rem; font-weight: 700; padding: 0.15rem 0.5rem; border-radius: 100px; background: var(--muted); color: #fff; }
     .shift-badge.on { background: var(--green); }
     .pos-bar-right { display: flex; gap: 0.375rem; }
-    .bar-btn { padding: 0.35rem 0.85rem; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); font-size: 0.75rem; font-weight: 600; cursor: pointer; color: var(--text-2); font-family: inherit; }
-    .bar-btn:hover { border-color: var(--accent); }
-    .bar-btn.primary { background: var(--accent-2); color: #fff; border-color: var(--accent-2); }
     .settings { padding: 0.75rem 1rem; margin-bottom: 0.75rem; }
     .settings h3 { margin: 0 0 0.5rem; font-size: 0.8125rem; }
     .pw-row { display: flex; gap: 0.5rem; align-items: flex-end; }
@@ -125,8 +123,8 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
     .pos-layout { display: flex; gap: 1.5rem; height: calc(100vh - 180px); }
     .pos-menu { flex: 1; display: flex; flex-direction: column; min-width: 0; }
     .categories { display: flex; gap: 0.375rem; padding-bottom: 0.75rem; overflow-x: auto; flex-shrink: 0; }
-    .cat-chip { padding: 0.5rem 1rem; border-radius: 100px; border: 1.5px solid var(--border); background: var(--surface); color: var(--text-2); font-size: 0.8125rem; font-weight: 600; cursor: pointer; white-space: nowrap; transition: all 0.15s; font-family: inherit; }
-    .cat-chip:hover { border-color: var(--accent); }
+    .cat-chip { padding: 0.55em 1.2em; border-radius: 2em; border: 0.125em solid var(--border); background: transparent; color: var(--text-2); font-size: 0.8125rem; font-weight: 600; cursor: pointer; white-space: nowrap; font-family: inherit; transition: all 300ms cubic-bezier(.23, 1, 0.32, 1); }
+    .cat-chip:hover { border-color: var(--accent-2); color: var(--accent-2); transform: translateY(-1px); }
     .cat-chip.active { background: var(--accent-2); border-color: var(--accent-2); color: #fff; }
     .items { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.75rem; overflow-y: auto; align-content: start; padding-bottom: 1rem; }
     .item { position: relative; display: flex; flex-direction: column; border-radius: var(--radius); overflow: hidden; border: 1.5px solid var(--border); background: var(--surface); cursor: pointer; transition: all 0.12s; padding: 0; box-shadow: var(--shadow-sm); }
@@ -153,16 +151,13 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
     .cart-name { font-size: 0.8125rem; font-weight: 700; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .cart-unit { font-size: 0.6875rem; color: var(--muted); }
     .cart-qty { display: flex; align-items: center; gap: 0.375rem; flex-shrink: 0; }
-    .qty-btn { width: 30px; height: 30px; border: 1.5px solid var(--border); border-radius: 7px; background: var(--bg); cursor: pointer; font-size: 1rem; font-weight: 700; display: flex; align-items: center; justify-content: center; transition: all 0.1s; color: var(--text-2); }
-    .qty-btn:hover { border-color: var(--accent); }
+    .qty-btn { width: 32px; height: 32px; border: 0.125em solid var(--border); border-radius: 0.5em; background: transparent; cursor: pointer; font-size: 0.9rem; font-weight: 700; display: flex; align-items: center; justify-content: center; color: var(--text-2); transition: all 300ms cubic-bezier(.23, 1, 0.32, 1); }
+    .qty-btn:hover { background: var(--text); border-color: var(--text); color: #fff; }
     .qty-val { font-weight: 700; min-width: 1.5rem; text-align: center; font-size: 0.875rem; }
     .cart-total { font-weight: 700; min-width: 4.5rem; text-align: right; font-size: 0.875rem; font-variant-numeric: tabular-nums; }
     .cart-foot { padding: 1rem 1.25rem; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 0.75rem; background: var(--surface-2); }
     .cart-summary { display: flex; justify-content: space-between; align-items: baseline; font-size: 1.05rem; }
     .cart-summary strong { font-size: 1.25rem; color: var(--accent-2); }
-    .btn-checkout { width: 100%; padding: 0.85rem; border-radius: var(--radius-sm); border: 0; background: var(--accent-2); color: #fff; font-size: 1rem; font-weight: 700; cursor: pointer; transition: background 0.15s; font-family: inherit; }
-    .btn-checkout:hover:not(:disabled) { background: var(--accent); }
-    .btn-checkout:disabled { opacity: 0.4; cursor: default; }
   `]
 })
 export class PosComponent implements OnInit {
