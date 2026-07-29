@@ -62,6 +62,21 @@ import { BtnComponent } from '../../btn.component';
               <div class="field"><label>Price (ZAR)</label><input type="number" step="0.01" [(ngModel)]="fPrice" placeholder="0.00" /></div>
               <div class="field"><label>Stock</label><input type="number" [(ngModel)]="fStock" placeholder="0" /></div>
               <div class="field wide"><label>Description</label><input [(ngModel)]="fDesc" placeholder="Short description" /></div>
+              <div class="field wide">
+                <label>Photo</label>
+                <div class="img-upload">
+                  @if (fImageUrl) {
+                    <img [src]="fImageUrl" alt="" class="img-preview" />
+                  }
+                  <input type="file" accept="image/*" (change)="onImageSelected($event)" #fileInput hidden />
+                  <app-btn size="sm" (onClick)="fileInput.click()" [loading]="uploading()">
+                    {{ fImageUrl ? 'Change' : 'Upload' }}
+                  </app-btn>
+                  @if (fImageUrl) {
+                    <app-btn size="sm" variant="danger" (onClick)="clearImage()">Remove</app-btn>
+                  }
+                </div>
+              </div>
               <div class="field chk"><label class="checkbox"><input type="checkbox" [(ngModel)]="fAvail" /> <span>Available</span></label></div>
             </div>
             <div class="form-acts">
@@ -80,14 +95,9 @@ import { BtnComponent } from '../../btn.component';
             <tbody>
               @for (item of items(); track item.id) {
                 <tr>
-                  <td>
-                    <div class="cell-item">
-                      @if (item.imageUrl) { <img [src]="item.imageUrl" alt="" class="thumb" /> }
-                      <div class="cell-info">
-                        <span class="cell-name">{{ item.name }}</span>
-                        @if (item.description) { <span class="cell-desc">{{ item.description }}</span> }
-                      </div>
-                    </div>
+                  <td class="cell-name">
+                    @if (item.imageUrl) { <img [src]="item.imageUrl" alt="" class="thumb" /> }
+                    <span>{{ item.name }}</span>
                   </td>
                   <td><span class="pill">{{ item.category }}</span></td>
                   <td class="num">R{{ item.price | number:'1.2-2' }}</td>
@@ -181,6 +191,8 @@ import { BtnComponent } from '../../btn.component';
     .field label { font-size: 0.68rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
     .field input:not([type]) { padding: 0.6em 0.8em; border: 0.125em solid var(--border); border-radius: 0.75em; font-size: 0.85rem; font-family: inherit; color: var(--text); background: var(--surface); outline: none; transition: border-color 300ms cubic-bezier(.23,1,0.32,1); }
     .field input:focus { border-color: var(--accent); }
+    .img-upload { display: flex; align-items: center; gap: 0.6em; flex-wrap: wrap; }
+    .img-preview { width: 48px; height: 48px; border-radius: 0.6em; object-fit: cover; border: 1px solid var(--border); }
     .checkbox { display: flex; align-items: center; gap: 0.4em; font-size: 0.8125rem !important; text-transform: none !important; cursor: pointer; user-select: none; }
     .checkbox input { width: 1.1em; height: 1.1em; accent-color: var(--accent-2); }
     .sel { padding: 0.6em 0.8em; border: 0.125em solid var(--border); border-radius: 0.75em; font-size: 0.85rem; font-family: inherit; background: var(--surface); color: var(--text); outline: none; }
@@ -188,16 +200,20 @@ import { BtnComponent } from '../../btn.component';
 
     /* ── Table card ── */
     .table-card { background: var(--surface); border: 1px solid var(--border); border-radius: 1.25em; overflow: hidden; }
-    table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
+    table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 0.8125rem; }
     th { padding: 0.75em 1em; text-align: left; font-size: 0.68rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; background: var(--surface-2); border-bottom: 1px solid var(--border); }
-    td { padding: 0.7em 1em; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    th:first-child { width: 35%; }
+    th:nth-child(2) { width: 15%; }
+    th:nth-child(3) { width: 12%; }
+    th:nth-child(4) { width: 10%; }
+    th:nth-child(5) { width: 10%; }
+    th:last-child { width: 18%; }
+    td { padding: 0.7em 1em; border-bottom: 1px solid var(--border); vertical-align: middle; overflow: hidden; text-overflow: ellipsis; word-break: break-word; }
     tr:last-child td { border: 0; }
+    th { overflow: hidden; }
 
-    .cell-item { display: flex; align-items: center; gap: 0.75em; }
-    .thumb { width: 36px; height: 36px; border-radius: 0.6em; object-fit: cover; flex-shrink: 0; background: #f0e8de; }
-    .cell-info { display: flex; flex-direction: column; gap: 0.1em; }
-    .cell-name { font-weight: 700; }
-    .cell-desc { font-size: 0.72rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
+    .thumb { width: 28px; height: 28px; border-radius: 0.5em; object-fit: cover; vertical-align: middle; margin-right: 0.5em; background: #f0e8de; }
+    .cell-name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
     .num { font-variant-numeric: tabular-nums; font-weight: 600; }
     .pill { display: inline-block; background: var(--accent-light); color: var(--accent-2); font-size: 0.68rem; font-weight: 600; padding: 0.15em 0.6em; border-radius: 100px; }
@@ -219,6 +235,7 @@ export class AdminComponent implements OnInit {
   readonly showForm = signal(false);
   readonly editing = signal<MenuItem | null>(null);
   fName = ''; fCategory = ''; fPrice: number | null = null; fStock: number | null = null; fDesc = ''; fAvail = true;
+  fImageUrl = ''; fImagePublicId = ''; readonly uploading = signal(false);
 
   // Users
   readonly users = signal<any[]>([]);
@@ -232,11 +249,24 @@ export class AdminComponent implements OnInit {
   private loadUsers() { this.service.getUsers().subscribe(users => this.users.set(users)); }
 
   openNew() { this.resetInv(); this.showForm.set(true); }
-  edit(item: MenuItem) { this.editing.set(item); this.fName = item.name; this.fCategory = item.category; this.fPrice = item.price; this.fStock = item.stockQuantity; this.fDesc = item.description ?? ''; this.fAvail = item.isAvailable; this.showForm.set(true); }
+  edit(item: MenuItem) { this.editing.set(item); this.fName = item.name; this.fCategory = item.category; this.fPrice = item.price; this.fStock = item.stockQuantity; this.fDesc = item.description ?? ''; this.fAvail = item.isAvailable; this.fImageUrl = item.imageUrl ?? ''; this.fImagePublicId = item.imagePublicId ?? ''; this.showForm.set(true); }
   closeForm() { this.showForm.set(false); this.editing.set(null); }
-  save() { this.service.writeItem({ id: this.editing()?.id ?? 0, name: this.fName, category: this.fCategory, price: this.fPrice ?? 0, stockQuantity: this.fStock ?? 0, description: this.fDesc || null, isAvailable: this.fAvail }).subscribe({ next: () => { this.loadInv(); this.closeForm(); }, error: () => alert('Save failed') }); }
+  save() { this.service.writeItem({ id: this.editing()?.id ?? 0, name: this.fName, category: this.fCategory, price: this.fPrice ?? 0, stockQuantity: this.fStock ?? 0, description: this.fDesc || null, imageUrl: this.fImageUrl || null, imagePublicId: this.fImagePublicId || null, isAvailable: this.fAvail }).subscribe({ next: () => { this.loadInv(); this.closeForm(); }, error: () => alert('Save failed') }); }
   remove(id: number) { if (confirm('Delete this item?')) this.service.deleteItem(id).subscribe({ next: () => this.loadInv() }); }
-  private resetInv() { this.fName = ''; this.fCategory = ''; this.fPrice = null; this.fStock = null; this.fDesc = ''; this.fAvail = true; }
+  private resetInv() { this.fName = ''; this.fCategory = ''; this.fPrice = null; this.fStock = null; this.fDesc = ''; this.fAvail = true; this.fImageUrl = ''; this.fImagePublicId = ''; }
+
+  onImageSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    this.uploading.set(true);
+    this.service.uploadImage(file).subscribe({
+      next: ({ url, publicId }) => { this.fImageUrl = url; this.fImagePublicId = publicId; this.uploading.set(false); },
+      error: () => { this.uploading.set(false); alert('Upload failed'); }
+    });
+  }
+
+  clearImage() { this.fImageUrl = ''; this.fImagePublicId = ''; }
 
   openUserForm() { this.resetUser(); this.showUserForm.set(true); }
   closeUserForm() { this.showUserForm.set(false); }
