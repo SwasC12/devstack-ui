@@ -4,5 +4,10 @@
 // mixed-content issue. Adjust the port if your API runs on a different one.
 export const environment = {
   production: false,
-  apiBase: 'http://localhost:5099/api',
+  apiBase: 'http://localhost:5280/api',
+  cloudinary: {
+    // Same Cloudinary account as production (uploads are unsigned & client-side).
+    cloudName: 'dpuvlgxsa',
+    uploadPreset: 'nvblarup',
+  },
 };
