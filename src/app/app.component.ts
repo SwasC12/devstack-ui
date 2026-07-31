@@ -2,11 +2,12 @@ import { Component, inject } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
 import { finalize } from 'rxjs';
 import { AuthService } from './auth.service';
+import { AppDialogComponent } from './app-dialog.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterModule],
+  imports: [RouterModule, AppDialogComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss',
 })

@@ -7,6 +7,7 @@ import { Category } from '../../category.model';
 import { AuthService } from '../../auth.service';
 import { BtnComponent } from '../../btn.component';
 import { PasswordInputComponent } from '../../password-input.component';
+import { DialogService } from '../../dialog.service';
 
 @Component({
   selector: 'app-admin',
@@ -344,6 +345,7 @@ import { PasswordInputComponent } from '../../password-input.component';
 export class AdminComponent implements OnInit {
   private service = inject(MenuItemService);
   private auth = inject(AuthService);
+  private dialog = inject(DialogService);
   readonly tab = signal<'inventory' | 'categories' | 'users' | 'settings'>('inventory');
 
   // Inventory
@@ -382,10 +384,14 @@ export class AdminComponent implements OnInit {
   edit(item: MenuItem) { this.editing.set(item); this.fName = item.name; this.fCategory = item.category; this.fPrice = item.price; this.fStock = item.stockQuantity; this.fDesc = item.description ?? ''; this.fAvail = item.isAvailable; this.fImageUrl = item.imageUrl ?? ''; this.fImagePublicId = item.imagePublicId ?? ''; this.showForm.set(true); }
   closeForm() { this.showForm.set(false); this.editing.set(null); }
   save() {
-    if (!this.fCategory.trim()) { alert('Choose a category'); return; }
-    this.service.writeItem({ id: this.editing()?.id ?? 0, name: this.fName, category: this.fCategory, price: this.fPrice ?? 0, stockQuantity: this.fStock ?? 0, description: this.fDesc || null, imageUrl: this.fImageUrl || null, imagePublicId: this.fImagePublicId || null, isAvailable: this.fAvail }).subscribe({ next: () => { this.loadInv(); this.closeForm(); }, error: () => alert('Save failed') });
+    if (!this.fCategory.trim()) { this.dialog.toast('Choose a category', 'error'); return; }
+    this.service.writeItem({ id: this.editing()?.id ?? 0, name: this.fName, category: this.fCategory, price: this.fPrice ?? 0, stockQuantity: this.fStock ?? 0, description: this.fDesc || null, imageUrl: this.fImageUrl || null, imagePublicId: this.fImagePublicId || null, isAvailable: this.fAvail }).subscribe({ next: () => { this.loadInv(); this.closeForm(); }, error: () => this.dialog.toast('Save failed', 'error') });
   }
-  remove(id: number) { if (confirm('Delete this item?')) this.service.deleteItem(id).subscribe({ next: () => this.loadInv() }); }
+  remove(id: number) {
+    this.dialog.confirm('Delete item', 'Delete this item?').then(ok => {
+      if (ok) this.service.deleteItem(id).subscribe({ next: () => this.loadInv(), error: () => this.dialog.toast('Delete failed', 'error') });
+    });
+  }
   private resetInv() { this.fName = ''; this.fCategory = ''; this.fPrice = null; this.fStock = null; this.fDesc = ''; this.fAvail = true; this.fImageUrl = ''; this.fImagePublicId = ''; }
 
   onImageSelected(event: Event) {
@@ -395,7 +401,7 @@ export class AdminComponent implements OnInit {
     this.uploading.set(true);
     this.service.uploadImage(file).subscribe({
       next: ({ url, publicId }) => { this.fImageUrl = url; this.fImagePublicId = publicId; this.uploading.set(false); },
-      error: () => { this.uploading.set(false); alert('Upload failed'); }
+      error: () => { this.uploading.set(false); this.dialog.toast('Upload failed', 'error'); }
     });
   }
 
@@ -403,15 +409,20 @@ export class AdminComponent implements OnInit {
 
   openUserForm() { this.resetUser(); this.showUserForm.set(true); }
   closeUserForm() { this.showUserForm.set(false); }
-  saveUser() { this.service.createUser({ username: this.uName, password: this.uPass, displayName: this.uDisplay, role: this.uRole, pin: this.uPin || null }).subscribe({ next: () => { this.loadUsers(); this.closeUserForm(); }, error: (e) => alert(e.error?.error || 'Save failed') }); }
-  removeUser(id: number) { if (confirm('Delete this user?')) this.service.deleteUser(id).subscribe({ next: () => this.loadUsers() }); }
+  saveUser() { this.service.createUser({ username: this.uName, password: this.uPass, displayName: this.uDisplay, role: this.uRole, pin: this.uPin || null }).subscribe({ next: () => { this.loadUsers(); this.closeUserForm(); }, error: (e) => this.dialog.toast(e.error?.error || 'Save failed', 'error') }); }
+  removeUser(id: number) {
+    this.dialog.confirm('Delete user', 'Delete this user?').then(ok => {
+      if (ok) this.service.deleteUser(id).subscribe({ next: () => this.loadUsers(), error: () => this.dialog.toast('Delete failed', 'error') });
+    });
+  }
   setPin(u: any) {
-    const pin = prompt(`Set a ${u.hasPin ? 'new ' : ''}PIN for ${u.displayName} (4-6 digits):`);
-    if (!pin) return;
-    if (!/^\d{4,6}$/.test(pin)) { alert('PIN must be 4-6 digits'); return; }
-    this.service.setUserPin(u.id, pin).subscribe({
-      next: () => this.loadUsers(),
-      error: (e) => alert(e.error?.error || 'Failed')
+    this.dialog.prompt(`Set a ${u.hasPin ? 'new ' : ''}PIN for ${u.displayName}`, '4–6 digits').then(pin => {
+      if (!pin) return;
+      if (!/^\d{4,6}$/.test(pin)) { this.dialog.toast('PIN must be 4-6 digits', 'error'); return; }
+      this.service.setUserPin(u.id, pin).subscribe({
+        next: () => this.loadUsers(),
+        error: (e) => this.dialog.toast(e.error?.error || 'Failed', 'error')
+      });
     });
   }
   private resetUser() { this.uName = ''; this.uPass = ''; this.uDisplay = ''; this.uRole = 'cashier'; this.uPin = ''; }
@@ -433,15 +444,17 @@ export class AdminComponent implements OnInit {
   saveCat() {
     this.service.writeCategory({ id: this.editingCat()?.id ?? 0, name: this.catName }).subscribe({
       next: () => { this.loadCategories(); this.closeCatForm(); },
-      error: (e) => alert(e.error?.error || 'Save failed')
+      error: (e) => this.dialog.toast(e.error?.error || 'Save failed', 'error')
     });
   }
 
   removeCat(cat: Category) {
-    if (!confirm(`Delete category "${cat.name}"?`)) return;
-    this.service.deleteCategory(cat.id).subscribe({
-      next: () => this.loadCategories(),
-      error: (e) => alert(e.error?.error || 'Delete failed')
+    this.dialog.confirm('Delete category', `Delete "${cat.name}"?`).then(ok => {
+      if (!ok) return;
+      this.service.deleteCategory(cat.id).subscribe({
+        next: () => this.loadCategories(),
+        error: (e) => this.dialog.toast(e.error?.error || 'Delete failed', 'error')
+      });
     });
   }
 
@@ -473,7 +486,7 @@ export class AdminComponent implements OnInit {
     this.logoUploading.set(true);
     this.service.uploadImage(file).subscribe({
       next: ({ url }) => { this.brLogoUrl = url; this.logoUploading.set(false); },
-      error: () => { this.logoUploading.set(false); alert('Upload failed'); }
+      error: () => { this.logoUploading.set(false); this.dialog.toast('Upload failed', 'error'); }
     });
   }
 

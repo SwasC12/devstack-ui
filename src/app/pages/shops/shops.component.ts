@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { MenuItemService } from '../../menu-item.service';
 import { BtnComponent } from '../../btn.component';
 import { PasswordInputComponent } from '../../password-input.component';
+import { DialogService } from '../../dialog.service';
 
 @Component({
   selector: 'app-shops',
@@ -88,6 +89,7 @@ import { PasswordInputComponent } from '../../password-input.component';
 })
 export class ShopsComponent implements OnInit {
   private service = inject(MenuItemService);
+  private dialog = inject(DialogService);
 
   readonly shops = signal<any[]>([]);
   readonly showForm = signal(false);
@@ -103,7 +105,7 @@ export class ShopsComponent implements OnInit {
   save() {
     this.service.createShop({ name: this.fName, code: this.fCode, adminUsername: this.fAdminUser, adminPassword: this.fAdminPass, adminDisplayName: this.fAdminDisplay }).subscribe({
       next: () => { this.load(); this.closeForm(); this.reset(); },
-      error: (e) => alert(e.error?.error || 'Save failed')
+      error: (e) => this.dialog.toast(e.error?.error || 'Save failed', 'error')
     });
   }
 

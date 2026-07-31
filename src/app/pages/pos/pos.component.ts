@@ -5,6 +5,7 @@ import { MenuItemService } from '../../menu-item.service';
 import { MenuItem } from '../../menu-item.model';
 import { AuthService } from '../../auth.service';
 import { BtnComponent } from '../../btn.component';
+import { DialogService } from '../../dialog.service';
 
 interface CartItem { id: number; name: string; price: number; quantity: number; }
 
@@ -243,6 +244,7 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
 })
 export class PosComponent implements OnInit {
   private service = inject(MenuItemService);
+  private dialog = inject(DialogService);
   auth = inject(AuthService);
 
   // Items & cart
@@ -351,7 +353,7 @@ export class PosComponent implements OnInit {
     this.busy.set(true);
     this.service.placeOrder(this.cart()).subscribe({
       next: () => { this.busy.set(false); this.cart.set([]); this.load(); this.showComplete(); },
-      error: (e) => { this.busy.set(false); alert(e.error?.error || 'Checkout failed'); this.load(); }
+      error: (e) => { this.busy.set(false); this.dialog.toast(e.error?.error || 'Checkout failed', 'error'); this.load(); }
     });
   }
 

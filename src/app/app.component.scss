@@ -125,10 +125,12 @@
   color: #fff;
 }
 
-/* ── Main ─────────────────────────────────────────────────── */
+/* ── Main ───────────────────────────────────────────────────
+   Fills the tablet edge-to-edge (native feel). The width cap only
+   exists so an oversized desktop window doesn't go absurd. */
 .main {
   flex: 1;
-  max-width: 1280px;
+  max-width: 1600px;
   width: 100%;
   margin: 0 auto;
   padding: 1.5rem;
