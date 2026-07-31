@@ -16,6 +16,8 @@
           <a routerLink="/shops" routerLinkActive="active">Shops</a>
         }
         <button class="nav-btn" (click)="logout()">Logout</button>
+      } @else {
+        <a class="nav-link" routerLink="/login" routerLinkActive="active">Sign in</a>
       }
     </nav>
   </header>
