@@ -3,11 +3,12 @@ import { FormsModule } from '@angular/forms';
 import { AuthService, StaffMember } from '../../auth.service';
 import { Router, RouterModule } from '@angular/router';
 import { BtnComponent } from '../../btn.component';
+import { PasswordInputComponent } from '../../password-input.component';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [FormsModule, BtnComponent, RouterModule],
+  imports: [FormsModule, BtnComponent, RouterModule, PasswordInputComponent],
   template: `
     <div class="login">
       <div class="login-card card">
@@ -24,14 +25,14 @@ import { BtnComponent } from '../../btn.component';
         @if (platform) {
           <!-- Platform owner: no shop code, private URL -->
           <input [(ngModel)]="username" placeholder="Username" (keyup.enter)="login()" autocomplete="username" />
-          <input type="password" [(ngModel)]="password" placeholder="Password" (keyup.enter)="login()" autocomplete="current-password" />
+          <app-password [(ngModel)]="password" placeholder="Password" autocomplete="current-password" (enter)="login()" />
           <app-btn variant="primary" [block]="true" [loading]="busy()" (onClick)="login()">Sign in to platform</app-btn>
           <p class="login-alt"><a routerLink="/login">Shop staff? Sign in here</a></p>
         } @else if (!pinMode()) {
           <!-- Shop staff, password -->
           <input [(ngModel)]="shopCode" placeholder="Shop code" (keyup.enter)="login()" autocomplete="organization" />
           <input [(ngModel)]="username" placeholder="Username" (keyup.enter)="login()" autocomplete="username" />
-          <input type="password" [(ngModel)]="password" placeholder="Password" (keyup.enter)="login()" autocomplete="current-password" />
+          <app-password [(ngModel)]="password" placeholder="Password" autocomplete="current-password" (enter)="login()" />
           <app-btn variant="primary" [block]="true" [loading]="busy()" (onClick)="login()">Sign in</app-btn>
           <button class="link-btn" (click)="enablePin()">Use PIN sign-in</button>
         } @else if (!staffList()) {
@@ -60,8 +61,7 @@ import { BtnComponent } from '../../btn.component';
           <!-- PIN flow: enter PIN -->
           <h3 class="step-title">Enter your PIN</h3>
           <p class="step-sub">{{ pinUser()?.displayName }}</p>
-          <input class="pin-input" type="password" inputmode="numeric" maxlength="6" [(ngModel)]="pin"
-            (keyup.enter)="pinLogin()" autocomplete="off" placeholder="••••" />
+          <app-password [pin]="true" [(ngModel)]="pin" placeholder="••••" inputmode="numeric" [maxlength]="6" (enter)="pinLogin()" />
           <app-btn variant="primary" [block]="true" [loading]="pinBusy()" (onClick)="pinLogin()">Sign in</app-btn>
           <button class="link-btn" (click)="pinUser.set(null); pin = ''">Not you?</button>
         }
@@ -86,7 +86,6 @@ import { BtnComponent } from '../../btn.component';
     .link-btn:hover { text-decoration: underline; }
     .step-title { margin: 0; font-size: 0.9375rem; font-weight: 700; text-align: center; }
     .step-sub { margin: 0 0 0.25rem; font-size: 0.75rem; color: var(--muted); text-align: center; }
-    .pin-input { text-align: center; font-size: 1.25rem; letter-spacing: 0.5em; font-weight: 700; }
     .staff-list { display: flex; flex-direction: column; gap: 0.5rem; max-height: 240px; overflow-y: auto; }
     .staff-btn { display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 0.85rem; border: 1px solid var(--border-hover); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); font-family: inherit; cursor: pointer; transition: all 0.15s ease-out; }
     .staff-btn:hover { border-color: var(--accent); background: var(--surface-3); }

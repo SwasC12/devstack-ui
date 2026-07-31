@@ -3,11 +3,12 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MenuItemService } from '../../menu-item.service';
 import { BtnComponent } from '../../btn.component';
+import { PasswordInputComponent } from '../../password-input.component';
 
 @Component({
   selector: 'app-shops',
   standalone: true,
-  imports: [CommonModule, FormsModule, BtnComponent],
+  imports: [CommonModule, FormsModule, BtnComponent, PasswordInputComponent],
   template: `
     <div class="shops">
       <div class="section-head">
@@ -28,7 +29,7 @@ import { BtnComponent } from '../../btn.component';
             <div class="field"><label>Shop name</label><input [(ngModel)]="fName" placeholder="e.g. Rosebank Coffee" /></div>
             <div class="field"><label>Shop code</label><input [(ngModel)]="fCode" placeholder="e.g. ROSEBANK" (keyup)="fCode = fCode.toUpperCase()" /></div>
             <div class="field"><label>First admin username</label><input [(ngModel)]="fAdminUser" placeholder="e.g. owner" /></div>
-            <div class="field"><label>First admin password</label><input type="password" [(ngModel)]="fAdminPass" placeholder="Min 6 chars" /></div>
+            <div class="field"><label>First admin password</label><app-password [(ngModel)]="fAdminPass" placeholder="Min 10 · upper + lower + digit" autocomplete="new-password" /></div>
             <div class="field"><label>Admin display name</label><input [(ngModel)]="fAdminDisplay" placeholder="e.g. Jane" /></div>
           </div>
           <div class="form-acts">

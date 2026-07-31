@@ -6,11 +6,12 @@ import { MenuItem } from '../../menu-item.model';
 import { Category } from '../../category.model';
 import { AuthService } from '../../auth.service';
 import { BtnComponent } from '../../btn.component';
+import { PasswordInputComponent } from '../../password-input.component';
 
 @Component({
   selector: 'app-admin',
   standalone: true,
-  imports: [CommonModule, FormsModule, BtnComponent],
+  imports: [CommonModule, FormsModule, BtnComponent, PasswordInputComponent],
   template: `
     <div class="admin">
       <!-- Tabs -->
@@ -191,10 +192,10 @@ import { BtnComponent } from '../../btn.component';
             </div>
             <div class="form-grid">
               <div class="field"><label>Username</label><input [(ngModel)]="uName" placeholder="e.g. cashier1" /></div>
-              <div class="field"><label>Password</label><input type="password" [(ngModel)]="uPass" placeholder="Min 10 · upper + lower + digit" /></div>
+              <div class="field"><label>Password</label><app-password [(ngModel)]="uPass" placeholder="Min 10 · upper + lower + digit" autocomplete="new-password" /></div>
               <div class="field"><label>Display name</label><input [(ngModel)]="uDisplay" placeholder="e.g. Jane" /></div>
               <div class="field"><label>Role</label><select [(ngModel)]="uRole" class="sel"><option value="cashier">Cashier</option><option value="admin">Admin</option></select></div>
-              <div class="field"><label>PIN (optional)</label><input type="password" maxlength="6" inputmode="numeric" [(ngModel)]="uPin" placeholder="4–6 digits" /></div>
+              <div class="field"><label>PIN (optional)</label><app-password [pin]="true" [maxlength]="6" inputmode="numeric" [(ngModel)]="uPin" placeholder="4–6 digits" /></div>
             </div>
             <div class="form-acts">
               <app-btn size="sm" (onClick)="closeUserForm()">Cancel</app-btn>
@@ -235,8 +236,8 @@ import { BtnComponent } from '../../btn.component';
           <div class="form-grid">
             <div class="field"><label>Username</label><input [(ngModel)]="acUsername" /></div>
             <div class="field"><label>Display name</label><input [(ngModel)]="acDisplay" /></div>
-            <div class="field"><label>Current password</label><input type="password" [(ngModel)]="acCurrent" autocomplete="current-password" /></div>
-            <div class="field"><label>New password (optional)</label><input type="password" [(ngModel)]="acNew" autocomplete="new-password" /></div>
+            <div class="field"><label>Current password</label><app-password [(ngModel)]="acCurrent" autocomplete="current-password" /></div>
+            <div class="field"><label>New password (optional)</label><app-password [(ngModel)]="acNew" autocomplete="new-password" /></div>
           </div>
           @if (acMsg()) { <p class="form-msg" [class.err]="acErr()">{{ acMsg() }}</p> }
           <div class="form-acts">
