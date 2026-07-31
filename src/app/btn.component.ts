@@ -27,9 +27,9 @@ import { Component, Input, Output, EventEmitter } from '@angular/core';
       gap: 0.4em;
       margin: 0;
       padding: 0.75em 1.8em;
-      border: 0.125em solid var(--border);
-      border-radius: 0.9375em;
-      background: transparent;
+      border: 0.125em solid transparent;
+      border-radius: var(--radius-sm);
+      background: var(--surface-2);
       color: var(--text-2);
       font-family: inherit;
       font-size: 0.875rem;
@@ -40,15 +40,15 @@ import { Component, Input, Output, EventEmitter } from '@angular/core';
       user-select: none;
       -webkit-user-select: none;
       touch-action: manipulation;
-      transition: all 300ms cubic-bezier(.23, 1, 0.32, 1);
+      transition: all 0.15s ease-out;
       white-space: nowrap;
     }
     .app-btn:hover:not(:disabled) {
       color: #fff;
-      background: var(--text);
-      border-color: var(--text);
-      box-shadow: rgba(0,0,0,0.15) 0 6px 12px;
-      transform: translateY(-2px);
+      background: var(--surface-3);
+      border-color: var(--surface-3);
+      box-shadow: var(--shadow-sm);
+      transform: translateY(-1px);
     }
     .app-btn:active:not(:disabled) {
       box-shadow: none;
@@ -59,19 +59,21 @@ import { Component, Input, Output, EventEmitter } from '@angular/core';
       opacity: 0.35;
     }
 
-    /* Primary */
+    /* Primary — filled caramel */
     .app-btn.primary {
-      border-color: var(--accent-2);
-      color: var(--accent-2);
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
     }
     .app-btn.primary:hover:not(:disabled) {
-      background: var(--accent-2);
-      border-color: var(--accent-2);
+      background: var(--accent-hover);
+      border-color: var(--accent-hover);
       color: #fff;
     }
 
     /* Danger */
     .app-btn.danger {
+      background: transparent;
       border-color: var(--red);
       color: var(--red);
     }

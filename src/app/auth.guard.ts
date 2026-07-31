@@ -18,6 +18,14 @@ export const posGuard = () => {
   return router.parseUrl('/menu');
 };
 
+// Superadmin only → /shops
+export const superAdminGuard = () => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+  if (auth.getUser()?.role === 'superadmin') return true;
+  return router.parseUrl('/menu');
+};
+
 // Logged-out only → /login
 export const loginGuard = () => {
   const auth = inject(AuthService);

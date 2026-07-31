@@ -17,12 +17,21 @@ export class AppComponent {
     return this.auth.getUser()?.role === 'admin';
   }
 
+  get isSuperAdmin(): boolean {
+    return this.auth.getUser()?.role === 'superadmin';
+  }
+
+  get shop() {
+    return this.auth.getShop();
+  }
+
   get isEmployee(): boolean {
     return this.auth.isLoggedIn && !this.isAdmin;
   }
 
   logout(): void {
+    const isSuper = this.auth.getUser()?.role === 'superadmin';
     this.auth.logout();
-    this.router.navigate(['/menu']);
+    this.router.navigate([isSuper ? '/platform' : '/menu']);
   }
 }

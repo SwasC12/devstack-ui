@@ -49,7 +49,7 @@ import { MenuItem } from '../../menu-item.model';
     .item:hover { box-shadow: var(--shadow-md); }
     .item.sold { opacity: 0.5; }
     .img { width: 100%; height: 110px; object-fit: cover; display: block; }
-    .img.placeholder { display: flex; align-items: center; justify-content: center; font-size: 2.5rem; background: #f0e8de; }
+    .img.placeholder { display: flex; align-items: center; justify-content: center; font-size: 2.5rem; background: var(--surface-2); }
     .body { padding: 0.625rem; }
     .top { display: flex; justify-content: space-between; align-items: baseline; gap: 0.375rem; }
     .name { font-size: 0.8125rem; font-weight: 700; }

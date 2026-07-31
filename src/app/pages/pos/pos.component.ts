@@ -14,15 +14,24 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
   standalone: true,
   imports: [CommonModule, FormsModule, BtnComponent],
   template: `
-    <!-- Top bar -->
+    <!-- Top bar: logo · search · shift/settings -->
     <div class="pos-bar">
       <div class="pos-bar-left">
-        <span class="pos-user">{{ auth.getUser()?.displayName }}</span>
-        @if (shiftActive()) {
-          <span class="shift-badge on">Shift on</span>
-        } @else {
-          <span class="shift-badge">Clocked out</span>
-        }
+        @if (shopInfo()?.logoUrl) { <img [src]="shopInfo()?.logoUrl" alt="" class="pos-logo" /> }
+        <div class="pos-user-wrap">
+          <span class="pos-user">{{ auth.getUser()?.displayName }}</span>
+          @if (shiftActive()) {
+            <span class="shift-badge on">Shift on</span>
+          } @else {
+            <span class="shift-badge">Clocked out</span>
+          }
+        </div>
+      </div>
+      <div class="pos-search">
+        <span class="search-ic">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
+        </span>
+        <input [(ngModel)]="search" placeholder="Search drinks…" />
       </div>
       <div class="pos-bar-right">
         @if (shiftActive()) {
@@ -49,18 +58,32 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
       </div>
     }
 
-    <!-- Main POS layout -->
-    <div class="pos-layout">
-      <div class="pos-menu">
-        <div class="categories">
-          @for (cat of categories; track cat) {
-            <button class="cat-chip" [class.active]="cat === activeCat" (click)="activeCat = cat">{{ cat }}</button>
-          }
+    <!-- Order complete -->
+    @if (complete()) {
+      <div class="complete">
+        <div class="complete-card">
+          <span class="complete-check">✓</span>
+          <strong>Order Complete</strong>
         </div>
+      </div>
+    }
+
+    <!-- Main POS layout: categories · products · current order -->
+    <div class="pos-layout">
+      <aside class="cats">
+        @for (cat of categories; track cat) {
+          <button class="cat-btn" [class.active]="cat === activeCat" (click)="activeCat = cat">{{ cat }}</button>
+        }
+      </aside>
+
+      <div class="pos-menu">
+        @if (searching()) {
+          <p class="results-hint">{{ filtered().length }} result{{ filtered().length === 1 ? '' : 's' }} for “{{ search }}”</p>
+        }
         <div class="items">
           @for (item of filtered(); track item.id) {
-            <button class="item" [class.sold]="!item.isAvailable || item.stockQuantity < 1"
-              (click)="addToCart(item)" [disabled]="!item.isAvailable || item.stockQuantity < 1">
+            <button class="item" [class.sold]="!item.isAvailable || item.stockQuantity < 1 || inCartAtStock(item.id)"
+              (click)="addToCart(item)" [disabled]="!item.isAvailable || item.stockQuantity < 1 || inCartAtStock(item.id)">
               @if (item.imageUrl) { <img [src]="item.imageUrl" alt="" class="item-img" /> }
               @else { <div class="item-img placeholder">☕</div> }
               <div class="item-body">
@@ -69,11 +92,17 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
               </div>
               @if (!item.isAvailable || item.stockQuantity < 1) { <span class="item-badge">Sold out</span> }
             </button>
+          } @empty {
+            <div class="items-empty">
+              <span class="empty-ic">☕</span>
+              <p>No products here</p>
+              <p class="sub">Add products in the admin panel.</p>
+            </div>
           }
         </div>
       </div>
 
-      <!-- Cart -->
+      <!-- Current order — always visible, never hidden -->
       <div class="cart">
         <div class="cart-head">
           <h2 class="cart-title">Current order</h2>
@@ -81,7 +110,11 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
         </div>
         <div class="cart-items">
           @if (cart().length === 0) {
-            <div class="cart-empty"><span style="font-size:2rem;">🛒</span><p>Tap items to add them here.</p></div>
+            <div class="cart-empty">
+              <span class="empty-ic">🛒</span>
+              <p>No items yet</p>
+              <p class="sub">Tap a drink to begin.</p>
+            </div>
           }
           @for (ci of cart(); track ci.id) {
             <div class="cart-row">
@@ -92,72 +125,108 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
               <div class="cart-qty">
                 <button class="qty-btn" (click)="updateQty(ci.id, -1)">−</button>
                 <span class="qty-val">{{ ci.quantity }}</span>
-                <button class="qty-btn" (click)="updateQty(ci.id, 1)">+</button>
+                <button class="qty-btn" [disabled]="ci.quantity >= stockOf(ci.id)" (click)="updateQty(ci.id, 1)">+</button>
               </div>
               <span class="cart-total">R{{ (ci.price * ci.quantity) | number:'1.2-2' }}</span>
             </div>
           }
         </div>
         <div class="cart-foot">
+          <div class="cart-subtotal"><span>Subtotal</span><span>R{{ total() | number:'1.2-2' }}</span></div>
           <div class="cart-summary"><span>Total</span><strong>R{{ total() | number:'1.2-2' }}</strong></div>
-          <app-btn variant="primary" [block]="true" [disabled]="cart().length === 0" [loading]="busy()" (onClick)="checkout()">
-            Place order · R{{ total() | number:'1.2-2' }}
-          </app-btn>
+          <button class="btn-checkout" (click)="checkout()" [disabled]="cart().length === 0 || busy()">
+            {{ busy() ? 'Placing order…' : 'Checkout · R' + (total() | number:'1.2-2') }}
+          </button>
         </div>
       </div>
     </div>
   `,
   styles: [`
-    .pos-bar { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; margin-bottom: 0.75rem; }
-    .pos-bar-left { display: flex; align-items: center; gap: 0.75rem; }
-    .pos-user { font-weight: 700; font-size: 0.9rem; color: var(--accent-2); }
-    .shift-badge { font-size: 0.7rem; font-weight: 700; padding: 0.15rem 0.5rem; border-radius: 100px; background: var(--muted); color: #fff; }
-    .shift-badge.on { background: var(--green); }
+    /* ── Top bar ── */
+    .pos-bar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 0.5rem 0; margin-bottom: 0.75rem; }
+    .pos-bar-left { display: flex; align-items: center; gap: 0.75rem; min-width: 0; }
+    .pos-logo { height: 34px; width: 34px; border-radius: 10px; object-fit: cover; border: 1px solid var(--border); background: var(--surface-2); }
+    .pos-user-wrap { display: flex; align-items: center; gap: 0.6rem; }
+    .pos-user { font-weight: 700; font-size: 0.9375rem; color: var(--text); white-space: nowrap; }
+    .shift-badge { font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: var(--radius-pill); background: var(--surface-2); color: var(--text-2); }
+    .shift-badge.on { background: var(--green-bg); color: var(--green); }
     .pos-bar-right { display: flex; gap: 0.375rem; }
+
+    .pos-search { flex: 1; max-width: 460px; margin: 0 auto; position: relative; }
+    .pos-search input { width: 100%; padding: 0.55rem 0.9rem 0.55rem 2.35rem; border-radius: var(--radius-pill); background: var(--surface-2); border: 1px solid var(--border-hover); color: var(--text); font-size: 0.875rem; font-family: inherit; outline: none; transition: border-color 0.15s; }
+    .pos-search input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(200,135,56,0.15); }
+    .pos-search input::placeholder { color: var(--muted); }
+    .search-ic { position: absolute; left: 0.85rem; top: 50%; transform: translateY(-50%); color: var(--muted); display: flex; pointer-events: none; }
+
     .settings { padding: 0.75rem 1rem; margin-bottom: 0.75rem; }
-    .settings h3 { margin: 0 0 0.5rem; font-size: 0.8125rem; }
+    .settings h3 { margin: 0 0 0.5rem; font-size: 0.875rem; }
     .pw-row { display: flex; gap: 0.5rem; align-items: flex-end; }
-    .pw-row input { padding: 0.45rem 0.65rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.8rem; font-family: inherit; outline: none; width: 160px; }
+    .pw-row input { padding: 0.45rem 0.65rem; border: 1px solid var(--border-hover); border-radius: var(--radius-sm); font-size: 0.8rem; font-family: inherit; outline: none; background: var(--surface-2); color: var(--text); width: 160px; }
     .pw-row input:focus { border-color: var(--accent); }
     .pw-msg { margin: 0.5rem 0 0; font-size: 0.78rem; color: var(--green); }
-    .pos-layout { display: flex; gap: 1.5rem; height: calc(100vh - 180px); }
+
+    /* ── Main layout: categories · products · cart ── */
+    .pos-layout { display: flex; gap: 1rem; height: calc(100vh - 175px); }
+
+    .cats { width: 150px; flex-shrink: 0; display: flex; flex-direction: column; gap: 0.5rem; overflow-y: auto; padding-bottom: 0.5rem; }
+    .cat-btn { text-align: left; padding: 0.9rem 1rem; border-radius: var(--radius-sm); border: 0; background: var(--surface); color: var(--text-2); font-size: 0.875rem; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.15s ease-out; }
+    .cat-btn:hover { background: var(--surface-2); color: var(--text); }
+    .cat-btn.active { background: var(--accent); color: #fff; }
+
     .pos-menu { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-    .categories { display: flex; gap: 0.375rem; padding-bottom: 0.75rem; overflow-x: auto; flex-shrink: 0; }
-    .cat-chip { padding: 0.55em 1.2em; border-radius: 2em; border: 0.125em solid var(--border); background: transparent; color: var(--text-2); font-size: 0.8125rem; font-weight: 600; cursor: pointer; white-space: nowrap; font-family: inherit; transition: all 300ms cubic-bezier(.23, 1, 0.32, 1); }
-    .cat-chip:hover { border-color: var(--accent-2); color: var(--accent-2); transform: translateY(-1px); }
-    .cat-chip.active { background: var(--accent-2); border-color: var(--accent-2); color: #fff; }
-    .items { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.75rem; overflow-y: auto; align-content: start; padding-bottom: 1rem; }
-    .item { position: relative; display: flex; flex-direction: column; border-radius: var(--radius); overflow: hidden; border: 1.5px solid var(--border); background: var(--surface); cursor: pointer; transition: all 0.12s; padding: 0; box-shadow: var(--shadow-sm); }
+    .results-hint { margin: 0 0 0.5rem; font-size: 0.8rem; color: var(--muted); }
+    .items { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.875rem; overflow-y: auto; align-content: start; padding-bottom: 1rem; }
+    .item { position: relative; display: flex; flex-direction: column; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); background: var(--surface); cursor: pointer; transition: all 0.15s ease-out; padding: 0; box-shadow: var(--shadow-sm); min-height: 232px; }
     .item:hover:not(:disabled) { border-color: var(--accent); box-shadow: var(--shadow-md); transform: translateY(-2px); }
-    .item:active:not(:disabled) { transform: scale(0.97); }
+    .item:active:not(:disabled) { transform: scale(0.98); }
     .item.sold { opacity: 0.45; }
     .item:disabled { cursor: default; }
-    .item-img { width: 100%; height: 110px; object-fit: cover; display: block; background: #f0e8de; }
-    .item-img.placeholder { display: flex; align-items: center; justify-content: center; font-size: 2.5rem; }
-    .item-body { padding: 0.625rem; display: flex; flex-direction: column; gap: 0.125rem; }
-    .item-name { font-size: 0.8125rem; font-weight: 700; line-height: 1.3; }
-    .item-price { font-size: 0.9375rem; font-weight: 700; color: var(--accent); }
-    .item-badge { position: absolute; top: 6px; left: 6px; background: var(--red); color: #fff; font-size: 0.625rem; font-weight: 700; padding: 0.125rem 0.4rem; border-radius: 5px; }
-    .cart { width: 340px; flex-shrink: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); display: flex; flex-direction: column; overflow: hidden; }
+    .item-img { width: 100%; height: 180px; object-fit: cover; display: block; background: var(--surface-2); }
+    .item-img.placeholder { display: flex; align-items: center; justify-content: center; font-size: 3rem; }
+    .item-body { padding: 0.75rem; display: flex; flex-direction: column; gap: 0.25rem; }
+    .item-name { font-size: 0.9375rem; font-weight: 700; line-height: 1.3; color: var(--text); }
+    .item-price { font-size: 1.0625rem; font-weight: 700; color: var(--accent-hover); }
+    .item-badge { position: absolute; top: 8px; left: 8px; background: var(--red); color: #fff; font-size: 0.625rem; font-weight: 700; padding: 0.2rem 0.55rem; border-radius: var(--radius-pill); }
+    .items-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.25rem; padding: 3rem 0; color: var(--muted); }
+    .items-empty p { margin: 0; font-size: 0.9375rem; font-weight: 600; color: var(--text-2); }
+    .items-empty .sub { font-size: 0.8125rem; font-weight: 500; color: var(--muted); }
+
+    /* ── Current order — the heavy panel ── */
+    .cart { width: 360px; flex-shrink: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); display: flex; flex-direction: column; overflow: hidden; }
     .cart-head { padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-    .cart-title { margin: 0; font-size: 0.9375rem; font-weight: 700; color: var(--text); }
+    .cart-title { margin: 0; font-size: 1rem; font-weight: 700; color: var(--text); }
     .cart-count { font-size: 0.75rem; color: var(--muted); font-weight: 600; }
     .cart-items { flex: 1; overflow-y: auto; padding: 0.25rem 1.25rem; }
-    .cart-empty { text-align: center; padding: 2.5rem 0; color: var(--muted); font-size: 0.8125rem; }
-    .cart-empty p { margin: 0.5rem 0 0; }
-    .cart-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.625rem 0; border-bottom: 1px solid var(--border); }
+    .cart-empty { text-align: center; padding: 2.5rem 0; color: var(--muted); }
+    .cart-empty p { margin: 0.5rem 0 0; font-weight: 600; color: var(--text-2); }
+    .cart-empty .sub { font-weight: 500; color: var(--muted); }
+    .empty-ic { font-size: 2.25rem; line-height: 1; }
+    .cart-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 0; border-bottom: 1px solid var(--border); }
     .cart-row:last-child { border: 0; }
     .cart-info { flex: 1; min-width: 0; }
-    .cart-name { font-size: 0.8125rem; font-weight: 700; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cart-name { font-size: 0.875rem; font-weight: 700; color: var(--text); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .cart-unit { font-size: 0.6875rem; color: var(--muted); }
     .cart-qty { display: flex; align-items: center; gap: 0.375rem; flex-shrink: 0; }
-    .qty-btn { width: 32px; height: 32px; border: 0.125em solid var(--border); border-radius: 0.5em; background: transparent; cursor: pointer; font-size: 0.9rem; font-weight: 700; display: flex; align-items: center; justify-content: center; color: var(--text-2); transition: all 300ms cubic-bezier(.23, 1, 0.32, 1); }
-    .qty-btn:hover { background: var(--text); border-color: var(--text); color: #fff; }
-    .qty-val { font-weight: 700; min-width: 1.5rem; text-align: center; font-size: 0.875rem; }
-    .cart-total { font-weight: 700; min-width: 4.5rem; text-align: right; font-size: 0.875rem; font-variant-numeric: tabular-nums; }
-    .cart-foot { padding: 1rem 1.25rem; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 0.75rem; background: var(--surface-2); }
-    .cart-summary { display: flex; justify-content: space-between; align-items: baseline; font-size: 1.05rem; }
-    .cart-summary strong { font-size: 1.25rem; color: var(--accent-2); }
+    .qty-btn { width: 34px; height: 34px; border: 0; border-radius: var(--radius-sm); background: var(--surface-2); cursor: pointer; font-size: 1rem; font-weight: 700; display: flex; align-items: center; justify-content: center; color: var(--text-2); transition: all 0.15s ease-out; }
+    .qty-btn:hover:not(:disabled) { background: var(--accent); color: #fff; }
+    .qty-btn:disabled { opacity: 0.35; cursor: default; }
+    .qty-val { font-weight: 700; min-width: 1.5rem; text-align: center; font-size: 0.875rem; color: var(--text); }
+    .cart-total { font-weight: 700; min-width: 4.5rem; text-align: right; font-size: 0.875rem; font-variant-numeric: tabular-nums; color: var(--text); }
+    .cart-foot { padding: 1rem 1.25rem; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 0.5rem; background: var(--surface-2); }
+    .cart-subtotal, .cart-summary { display: flex; justify-content: space-between; align-items: baseline; }
+    .cart-subtotal { font-size: 0.8125rem; color: var(--text-2); }
+    .cart-summary { font-size: 1rem; }
+    .cart-summary strong { font-size: 1.375rem; font-weight: 800; color: var(--text); }
+    .btn-checkout { margin-top: 0.25rem; padding: 0.9rem 1rem; border: 0; border-radius: var(--radius-sm); background: var(--accent); color: #fff; font-family: inherit; font-size: 1rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease-out; }
+    .btn-checkout:hover:not(:disabled) { background: var(--accent-hover); transform: translateY(-1px); }
+    .btn-checkout:disabled { opacity: 0.35; pointer-events: none; }
+
+    /* ── Order complete ── */
+    .complete { position: fixed; inset: 0; background: rgba(24,24,24,0.72); display: flex; align-items: center; justify-content: center; z-index: 500; }
+    .complete-card { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; background: var(--surface); border: 1px solid var(--accent); border-radius: var(--radius-lg); padding: 2.5rem 3rem; box-shadow: var(--shadow-lg); }
+    .complete-check { width: 72px; height: 72px; border-radius: 50%; background: var(--green); color: #fff; font-size: 2.25rem; display: flex; align-items: center; justify-content: center; animation: pop 0.3s ease-out; }
+    .complete-card strong { font-size: 1.25rem; color: var(--text); }
+    @keyframes pop { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
   `]
 })
 export class PosComponent implements OnInit {
@@ -171,21 +240,46 @@ export class PosComponent implements OnInit {
   readonly busy = signal(false);
   activeCat = 'Hot Drinks';
 
+  // Search (top bar, always visible)
+  search = '';
+
+  // Shop branding (logo)
+  readonly shopInfo = signal<any>(null);
+
   // Shift
   readonly shiftActive = signal(false);
+
+  // Order complete overlay
+  readonly complete = signal(false);
 
   // Settings / password
   readonly showSettings = signal(false);
   pwCurrent = ''; pwNew = ''; readonly pwBusy = signal(false); readonly pwMsg = signal('');
 
   get categories(): string[] { return [...new Set(this.items.map(i => i.category))].sort(); }
-  readonly filtered = () => this.items.filter(i => i.category === this.activeCat);
+  searching(): boolean { return this.search.trim().length > 0; }
+
+  // Search takes over from categories while text is typed; otherwise filter by the active category.
+  readonly filtered = () => {
+    const q = this.search.trim().toLowerCase();
+    return q
+      ? this.items.filter(i => i.name.toLowerCase().includes(q))
+      : this.items.filter(i => i.category === this.activeCat);
+  };
   readonly total = () => this.cart().reduce((s, i) => s + i.price * i.quantity, 0);
 
-  ngOnInit() { this.load(); this.checkShift(); }
+  // Stock guardrails — the cart can never exceed what we have.
+  stockOf(id: number): number { return this.items.find(i => i.id === id)?.stockQuantity ?? 0; }
+  inCartAtStock(id: number): boolean {
+    const inCart = this.cart().find(i => i.id === id);
+    return inCart ? inCart.quantity >= this.stockOf(id) : false;
+  }
+
+  ngOnInit() { this.load(); this.checkShift(); this.loadShop(); }
 
   private load() { this.service.getItems().subscribe(items => this.items = items); }
   private checkShift() { this.service.getActiveShift().subscribe(s => this.shiftActive.set(s.active)); }
+  private loadShop() { this.service.getShopInfo().subscribe(s => this.shopInfo.set(s)); }
 
   startShift() { this.service.startShift().subscribe(() => this.shiftActive.set(true)); }
   endShift() { this.service.endShift().subscribe(() => this.shiftActive.set(false)); }
@@ -201,21 +295,33 @@ export class PosComponent implements OnInit {
   addToCart(item: MenuItem) {
     this.cart.update(c => {
       const exist = c.find(i => i.id === item.id);
+      const nextQty = (exist?.quantity ?? 0) + 1;
+      if (nextQty > item.stockQuantity) return c; // can't add more than in stock
       return exist ? c.map(i => i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i)
         : [...c, { id: item.id, name: item.name, price: item.price, quantity: 1 }];
     });
   }
 
   updateQty(id: number, delta: number) {
-    this.cart.update(c => c.map(i => i.id === id ? { ...i, quantity: Math.max(0, i.quantity + delta) } : i).filter(i => i.quantity > 0));
+    this.cart.update(c => c.map(i => {
+      if (i.id !== id) return i;
+      const max = this.stockOf(id);
+      return { ...i, quantity: Math.min(Math.max(0, i.quantity + delta), max) };
+    }).filter(i => i.quantity > 0));
   }
 
   checkout() {
-    if (this.cart().length === 0) return;
+    if (this.cart().length === 0 || this.busy()) return;
     this.busy.set(true);
     this.service.placeOrder(this.cart()).subscribe({
-      next: () => { this.cart.set([]); this.busy.set(false); this.load(); },
-      error: () => { this.busy.set(false); alert('Checkout failed'); }
+      next: () => { this.busy.set(false); this.cart.set([]); this.load(); this.showComplete(); },
+      error: (e) => { this.busy.set(false); alert(e.error?.error || 'Checkout failed'); this.load(); }
     });
+  }
+
+  // Brief success moment, then straight back to a clean POS.
+  private showComplete() {
+    this.complete.set(true);
+    setTimeout(() => this.complete.set(false), 1600);
   }
 }
