@@ -31,13 +31,9 @@ import { BtnComponent } from '../../btn.component';
           {{ platform ? 'Sign in to platform' : 'Sign in' }}
         </app-btn>
 
-        <p class="login-alt">
-          @if (platform) {
-            <a routerLink="/login">Shop staff? Sign in here</a>
-          } @else {
-            <a routerLink="/platform">Platform owner? Sign in here</a>
-          }
-        </p>
+        @if (platform) {
+          <p class="login-alt"><a routerLink="/login">Shop staff? Sign in here</a></p>
+        }
       </div>
     </div>
   `,

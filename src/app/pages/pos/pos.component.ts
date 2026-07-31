@@ -4,7 +4,6 @@ import { FormsModule } from '@angular/forms';
 import { MenuItemService } from '../../menu-item.service';
 import { MenuItem } from '../../menu-item.model';
 import { AuthService } from '../../auth.service';
-import { Router } from '@angular/router';
 import { BtnComponent } from '../../btn.component';
 
 interface CartItem { id: number; name: string; price: number; quantity: number; }
@@ -14,142 +13,143 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
   standalone: true,
   imports: [CommonModule, FormsModule, BtnComponent],
   template: `
-    <!-- Top bar: logo · search · shift/settings -->
-    <div class="pos-bar">
-      <div class="pos-bar-left">
-        @if (shopInfo()?.logoUrl) { <img [src]="shopInfo()?.logoUrl" alt="" class="pos-logo" /> }
-        <div class="pos-user-wrap">
-          <span class="pos-user">{{ auth.getUser()?.displayName }}</span>
-          @if (shiftActive()) {
+    <!-- Not on shift: one big, obvious clock-in screen. No POS until you're in. -->
+    @if (!shiftActive()) {
+      <div class="clockin">
+        <div class="clockin-card">
+          @if (shopInfo()?.logoUrl) { <img [src]="shopInfo()?.logoUrl" alt="" class="clockin-logo" /> }
+          @else { <div class="clockin-logo placeholder">☕</div> }
+          <h2>{{ auth.getUser()?.displayName }}</h2>
+          <p class="clockin-sub">{{ shopInfo()?.name || 'CoffeeShop Pro' }}</p>
+          <button class="btn-start" (click)="startShift()" [disabled]="startingShift()">
+            {{ startingShift() ? 'Starting…' : 'Start shift' }}
+          </button>
+        </div>
+      </div>
+    } @else {
+      <!-- Top bar: logo · search · end shift -->
+      <div class="pos-bar">
+        <div class="pos-bar-left">
+          @if (shopInfo()?.logoUrl) { <img [src]="shopInfo()?.logoUrl" alt="" class="pos-logo" /> }
+          <div class="pos-user-wrap">
+            <span class="pos-user">{{ auth.getUser()?.displayName }}</span>
             <span class="shift-badge on">Shift on</span>
-          } @else {
-            <span class="shift-badge">Clocked out</span>
-          }
+          </div>
         </div>
-      </div>
-      <div class="pos-search">
-        <span class="search-ic">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
-        </span>
-        <input [(ngModel)]="search" placeholder="Search drinks…" />
-      </div>
-      <div class="pos-bar-right">
-        @if (shiftActive()) {
+        <div class="pos-search">
+          <span class="search-ic">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
+          </span>
+          <input [(ngModel)]="search" placeholder="Search drinks…" />
+        </div>
+        <div class="pos-bar-right">
           <app-btn size="sm" (onClick)="endShift()">End shift</app-btn>
-        } @else {
-          <app-btn size="sm" variant="primary" (onClick)="startShift()">Start shift</app-btn>
-        }
-        <app-btn size="sm" (onClick)="showSettings.set(!showSettings())">Settings</app-btn>
-      </div>
-    </div>
-
-    <!-- Settings panel -->
-    @if (showSettings()) {
-      <div class="settings card">
-        <h3>Change password</h3>
-        <div class="pw-row">
-          <input type="password" [(ngModel)]="pwCurrent" placeholder="Current password" />
-          <input type="password" [(ngModel)]="pwNew" placeholder="New password" />
-          <button class="btn btn-sm btn-primary" (click)="changePw()" [disabled]="!pwCurrent || !pwNew">
-            {{ pwBusy() ? 'Saving…' : 'Update' }}
-          </button>
-        </div>
-        @if (pwMsg()) { <p class="pw-msg">{{ pwMsg() }}</p> }
-      </div>
-    }
-
-    <!-- Order complete -->
-    @if (complete()) {
-      <div class="complete">
-        <div class="complete-card">
-          <span class="complete-check">✓</span>
-          <strong>Order Complete</strong>
         </div>
       </div>
-    }
 
-    <!-- Main POS layout: categories · products · current order -->
-    <div class="pos-layout">
-      <aside class="cats">
-        @for (cat of categories; track cat) {
-          <button class="cat-btn" [class.active]="cat === activeCat" (click)="activeCat = cat">{{ cat }}</button>
-        }
-      </aside>
+      <!-- Order complete -->
+      @if (complete()) {
+        <div class="complete">
+          <div class="complete-card">
+            <span class="complete-check">✓</span>
+            <strong>Order Complete</strong>
+          </div>
+        </div>
+      }
 
-      <div class="pos-menu">
-        @if (searching()) {
-          <p class="results-hint">{{ filtered().length }} result{{ filtered().length === 1 ? '' : 's' }} for “{{ search }}”</p>
-        }
-        <div class="items">
-          @for (item of filtered(); track item.id) {
-            <button class="item" [class.sold]="!item.isAvailable || item.stockQuantity < 1 || inCartAtStock(item.id)"
-              (click)="addToCart(item)" [disabled]="!item.isAvailable || item.stockQuantity < 1 || inCartAtStock(item.id)">
-              @if (item.imageUrl) { <img [src]="item.imageUrl" alt="" class="item-img" /> }
-              @else { <div class="item-img placeholder">☕</div> }
-              <div class="item-body">
-                <span class="item-name">{{ item.name }}</span>
-                <span class="item-price">R{{ item.price | number:'1.2-2' }}</span>
+      <!-- Main POS layout: categories · products · current order -->
+      <div class="pos-layout">
+        <aside class="cats">
+          @for (cat of categories; track cat) {
+            <button class="cat-btn" [class.active]="cat === activeCat" (click)="activeCat = cat">{{ cat }}</button>
+          }
+        </aside>
+
+        <div class="pos-menu">
+          @if (searching()) {
+            <p class="results-hint">{{ filtered().length }} result{{ filtered().length === 1 ? '' : 's' }} for “{{ search }}”</p>
+          }
+          <div class="items">
+            @for (item of filtered(); track item.id) {
+              <button class="item" [class.sold]="!item.isAvailable || item.stockQuantity < 1 || inCartAtStock(item.id)"
+                (click)="addToCart(item)" [disabled]="!item.isAvailable || item.stockQuantity < 1 || inCartAtStock(item.id)">
+                @if (item.imageUrl) { <img [src]="item.imageUrl" alt="" class="item-img" /> }
+                @else { <div class="item-img placeholder">☕</div> }
+                <div class="item-body">
+                  <span class="item-name">{{ item.name }}</span>
+                  <span class="item-price">R{{ item.price | number:'1.2-2' }}</span>
+                </div>
+                @if (!item.isAvailable || item.stockQuantity < 1) { <span class="item-badge">Sold out</span> }
+              </button>
+            } @empty {
+              <div class="items-empty">
+                <span class="empty-ic">☕</span>
+                <p>No products here</p>
+                <p class="sub">Add products in the admin panel.</p>
               </div>
-              @if (!item.isAvailable || item.stockQuantity < 1) { <span class="item-badge">Sold out</span> }
+            }
+          </div>
+        </div>
+
+        <!-- Current order — always visible, never hidden -->
+        <div class="cart">
+          <div class="cart-head">
+            <h2 class="cart-title">Current order</h2>
+            @if (cart().length) { <span class="cart-count">{{ cart().length }} item{{ cart().length !== 1 ? 's' : '' }}</span> }
+          </div>
+          <div class="cart-items">
+            @if (cart().length === 0) {
+              <div class="cart-empty">
+                <span class="empty-ic">🛒</span>
+                <p>No items yet</p>
+                <p class="sub">Tap a drink to begin.</p>
+              </div>
+            }
+            @for (ci of cart(); track ci.id) {
+              <div class="cart-row">
+                <div class="cart-info">
+                  <span class="cart-name">{{ ci.name }}</span>
+                  <span class="cart-unit">R{{ ci.price | number:'1.2-2' }} ea</span>
+                </div>
+                <div class="cart-qty">
+                  <button class="qty-btn" (click)="updateQty(ci.id, -1)">−</button>
+                  <span class="qty-val">{{ ci.quantity }}</span>
+                  <button class="qty-btn" [disabled]="ci.quantity >= stockOf(ci.id)" (click)="updateQty(ci.id, 1)">+</button>
+                </div>
+                <span class="cart-total">R{{ (ci.price * ci.quantity) | number:'1.2-2' }}</span>
+              </div>
+            }
+          </div>
+          <div class="cart-foot">
+            <div class="cart-subtotal"><span>Subtotal</span><span>R{{ total() | number:'1.2-2' }}</span></div>
+            <div class="cart-summary"><span>Total</span><strong>R{{ total() | number:'1.2-2' }}</strong></div>
+            <button class="btn-checkout" (click)="checkout()" [disabled]="cart().length === 0 || busy()">
+              {{ busy() ? 'Placing order…' : 'Checkout · R' + (total() | number:'1.2-2') }}
             </button>
-          } @empty {
-            <div class="items-empty">
-              <span class="empty-ic">☕</span>
-              <p>No products here</p>
-              <p class="sub">Add products in the admin panel.</p>
-            </div>
-          }
+          </div>
         </div>
       </div>
-
-      <!-- Current order — always visible, never hidden -->
-      <div class="cart">
-        <div class="cart-head">
-          <h2 class="cart-title">Current order</h2>
-          @if (cart().length) { <span class="cart-count">{{ cart().length }} item{{ cart().length !== 1 ? 's' : '' }}</span> }
-        </div>
-        <div class="cart-items">
-          @if (cart().length === 0) {
-            <div class="cart-empty">
-              <span class="empty-ic">🛒</span>
-              <p>No items yet</p>
-              <p class="sub">Tap a drink to begin.</p>
-            </div>
-          }
-          @for (ci of cart(); track ci.id) {
-            <div class="cart-row">
-              <div class="cart-info">
-                <span class="cart-name">{{ ci.name }}</span>
-                <span class="cart-unit">R{{ ci.price | number:'1.2-2' }} ea</span>
-              </div>
-              <div class="cart-qty">
-                <button class="qty-btn" (click)="updateQty(ci.id, -1)">−</button>
-                <span class="qty-val">{{ ci.quantity }}</span>
-                <button class="qty-btn" [disabled]="ci.quantity >= stockOf(ci.id)" (click)="updateQty(ci.id, 1)">+</button>
-              </div>
-              <span class="cart-total">R{{ (ci.price * ci.quantity) | number:'1.2-2' }}</span>
-            </div>
-          }
-        </div>
-        <div class="cart-foot">
-          <div class="cart-subtotal"><span>Subtotal</span><span>R{{ total() | number:'1.2-2' }}</span></div>
-          <div class="cart-summary"><span>Total</span><strong>R{{ total() | number:'1.2-2' }}</strong></div>
-          <button class="btn-checkout" (click)="checkout()" [disabled]="cart().length === 0 || busy()">
-            {{ busy() ? 'Placing order…' : 'Checkout · R' + (total() | number:'1.2-2') }}
-          </button>
-        </div>
-      </div>
-    </div>
+    }
   `,
   styles: [`
+    /* ── Clock-in gate ── */
+    .clockin { display: flex; align-items: center; justify-content: center; height: calc(100vh - 120px); }
+    .clockin-card { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; padding: 3rem 3.5rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); text-align: center; }
+    .clockin-logo { width: 76px; height: 76px; border-radius: 20px; object-fit: cover; border: 1px solid var(--border); background: var(--surface-2); }
+    .clockin-logo.placeholder { display: flex; align-items: center; justify-content: center; font-size: 2.25rem; }
+    .clockin-card h2 { margin: 0.75rem 0 0; font-size: 1.375rem; color: var(--text); }
+    .clockin-sub { margin: 0 0 1rem; font-size: 0.8125rem; color: var(--muted); }
+    .btn-start { margin-top: 0.5rem; padding: 0.9rem 3rem; border: 0; border-radius: var(--radius-sm); background: var(--accent); color: #fff; font-family: inherit; font-size: 1.0625rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease-out; }
+    .btn-start:hover:not(:disabled) { background: var(--accent-hover); transform: translateY(-1px); }
+    .btn-start:disabled { opacity: 0.5; }
+
     /* ── Top bar ── */
     .pos-bar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 0.5rem 0; margin-bottom: 0.75rem; }
     .pos-bar-left { display: flex; align-items: center; gap: 0.75rem; min-width: 0; }
     .pos-logo { height: 34px; width: 34px; border-radius: 10px; object-fit: cover; border: 1px solid var(--border); background: var(--surface-2); }
     .pos-user-wrap { display: flex; align-items: center; gap: 0.6rem; }
     .pos-user { font-weight: 700; font-size: 0.9375rem; color: var(--text); white-space: nowrap; }
-    .shift-badge { font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: var(--radius-pill); background: var(--surface-2); color: var(--text-2); }
-    .shift-badge.on { background: var(--green-bg); color: var(--green); }
+    .shift-badge { font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: var(--radius-pill); background: var(--green-bg); color: var(--green); }
     .pos-bar-right { display: flex; gap: 0.375rem; }
 
     .pos-search { flex: 1; max-width: 460px; margin: 0 auto; position: relative; }
@@ -157,13 +157,6 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
     .pos-search input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(200,135,56,0.15); }
     .pos-search input::placeholder { color: var(--muted); }
     .search-ic { position: absolute; left: 0.85rem; top: 50%; transform: translateY(-50%); color: var(--muted); display: flex; pointer-events: none; }
-
-    .settings { padding: 0.75rem 1rem; margin-bottom: 0.75rem; }
-    .settings h3 { margin: 0 0 0.5rem; font-size: 0.875rem; }
-    .pw-row { display: flex; gap: 0.5rem; align-items: flex-end; }
-    .pw-row input { padding: 0.45rem 0.65rem; border: 1px solid var(--border-hover); border-radius: var(--radius-sm); font-size: 0.8rem; font-family: inherit; outline: none; background: var(--surface-2); color: var(--text); width: 160px; }
-    .pw-row input:focus { border-color: var(--accent); }
-    .pw-msg { margin: 0.5rem 0 0; font-size: 0.78rem; color: var(--green); }
 
     /* ── Main layout: categories · products · cart ── */
     .pos-layout { display: flex; gap: 1rem; height: calc(100vh - 175px); }
@@ -232,7 +225,6 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
 export class PosComponent implements OnInit {
   private service = inject(MenuItemService);
   auth = inject(AuthService);
-  private router = inject(Router);
 
   // Items & cart
   items: MenuItem[] = [];
@@ -248,13 +240,10 @@ export class PosComponent implements OnInit {
 
   // Shift
   readonly shiftActive = signal(false);
+  readonly startingShift = signal(false);
 
   // Order complete overlay
   readonly complete = signal(false);
-
-  // Settings / password
-  readonly showSettings = signal(false);
-  pwCurrent = ''; pwNew = ''; readonly pwBusy = signal(false); readonly pwMsg = signal('');
 
   get categories(): string[] { return [...new Set(this.items.map(i => i.category))].sort(); }
   searching(): boolean { return this.search.trim().length > 0; }
@@ -281,16 +270,15 @@ export class PosComponent implements OnInit {
   private checkShift() { this.service.getActiveShift().subscribe(s => this.shiftActive.set(s.active)); }
   private loadShop() { this.service.getShopInfo().subscribe(s => this.shopInfo.set(s)); }
 
-  startShift() { this.service.startShift().subscribe(() => this.shiftActive.set(true)); }
-  endShift() { this.service.endShift().subscribe(() => this.shiftActive.set(false)); }
-
-  changePw() {
-    this.pwBusy.set(true); this.pwMsg.set('');
-    this.service.changePassword(this.pwCurrent, this.pwNew).subscribe({
-      next: () => { this.pwMsg.set('Password updated.'); this.pwCurrent = ''; this.pwNew = ''; this.pwBusy.set(false); },
-      error: (e) => { this.pwMsg.set(e.error?.error || 'Failed'); this.pwBusy.set(false); }
+  startShift() {
+    this.startingShift.set(true);
+    this.service.startShift().subscribe({
+      next: () => { this.startingShift.set(false); this.shiftActive.set(true); },
+      error: () => this.startingShift.set(false)
     });
   }
+
+  endShift() { this.service.endShift().subscribe(() => this.shiftActive.set(false)); }
 
   addToCart(item: MenuItem) {
     this.cart.update(c => {
