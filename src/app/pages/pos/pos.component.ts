@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, effect, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MenuItemService } from '../../menu-item.service';
@@ -40,7 +40,7 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
           <span class="search-ic">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
           </span>
-          <input [(ngModel)]="search" placeholder="Search drinks…" />
+          <input [(ngModel)]="search" (ngModelChange)="onSearch()" placeholder="Search drinks…" />
         </div>
         <div class="pos-bar-right">
           <app-btn size="sm" (onClick)="endShift()">End shift</app-btn>
@@ -67,8 +67,21 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
 
         <div class="pos-menu">
           @if (searching()) {
-            <p class="results-hint">{{ filtered().length }} result{{ filtered().length === 1 ? '' : 's' }} for “{{ search }}”</p>
+            <p class="results-hint">{{ filtered().length }} result{{ filtered().length === 1 ? '' : 's' }} for “{{ query() }}”</p>
           }
+          @if (loading()) {
+            <div class="items">
+              @for (s of skeletonCards(); track s) {
+                <div class="item skel">
+                  <div class="item-img shimmer"></div>
+                  <div class="item-body">
+                    <span class="sk-line shimmer" style="width:70%"></span>
+                    <span class="sk-line shimmer" style="width:40%"></span>
+                  </div>
+                </div>
+              }
+            </div>
+          } @else {
           <div class="items">
             @for (item of filtered(); track item.id) {
               <button class="item" [class.sold]="!item.isAvailable || item.stockQuantity < 1 || inCartAtStock(item.id)"
@@ -89,6 +102,7 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
               </div>
             }
           </div>
+          }
         </div>
 
         <!-- Current order — always visible, never hidden -->
@@ -183,6 +197,11 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
     .items-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.25rem; padding: 3rem 0; color: var(--muted); }
     .items-empty p { margin: 0; font-size: 0.9375rem; font-weight: 600; color: var(--text-2); }
     .items-empty .sub { font-size: 0.8125rem; font-weight: 500; color: var(--muted); }
+    .item.skel { pointer-events: none; }
+    .sk-line { display: block; height: 12px; border-radius: 6px; background: var(--surface-2); margin-bottom: 0.4rem; }
+    .shimmer { position: relative; overflow: hidden; }
+    .shimmer::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.07), transparent); animation: shimmer 1.4s ease-in-out infinite; }
+    @keyframes shimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
 
     /* ── Current order — the heavy panel ── */
     .cart { width: 360px; flex-shrink: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); display: flex; flex-direction: column; overflow: hidden; }
@@ -230,10 +249,18 @@ export class PosComponent implements OnInit {
   items: MenuItem[] = [];
   readonly cart = signal<CartItem[]>([]);
   readonly busy = signal(false);
+  readonly loading = signal(true);
   activeCat = 'Hot Drinks';
 
-  // Search (top bar, always visible)
+  // Search (top bar, always visible) — debounced 200ms so typing doesn't thrash.
   search = '';
+  readonly query = signal('');
+  private searchTimer: any;
+
+  // Crash recovery: the cart survives an unexpected reload/termination.
+  private readonly cartKey = 'pos_cart';
+  private readonly persistCart = effect(() =>
+    sessionStorage.setItem(this.cartKey, JSON.stringify(this.cart())));
 
   // Shop branding (logo)
   readonly shopInfo = signal<any>(null);
@@ -246,16 +273,23 @@ export class PosComponent implements OnInit {
   readonly complete = signal(false);
 
   get categories(): string[] { return [...new Set(this.items.map(i => i.category))].sort(); }
-  searching(): boolean { return this.search.trim().length > 0; }
+  searching(): boolean { return this.query().trim().length > 0; }
+
+  // Debounce the keystrokes, then publish the query.
+  onSearch() {
+    clearTimeout(this.searchTimer);
+    this.searchTimer = setTimeout(() => this.query.set(this.search), 200);
+  }
 
   // Search takes over from categories while text is typed; otherwise filter by the active category.
   readonly filtered = () => {
-    const q = this.search.trim().toLowerCase();
+    const q = this.query().trim().toLowerCase();
     return q
       ? this.items.filter(i => i.name.toLowerCase().includes(q))
       : this.items.filter(i => i.category === this.activeCat);
   };
   readonly total = () => this.cart().reduce((s, i) => s + i.price * i.quantity, 0);
+  skeletonCards(): number[] { return [0, 1, 2, 3, 4, 5, 6, 7]; }
 
   // Stock guardrails — the cart can never exceed what we have.
   stockOf(id: number): number { return this.items.find(i => i.id === id)?.stockQuantity ?? 0; }
@@ -264,9 +298,23 @@ export class PosComponent implements OnInit {
     return inCart ? inCart.quantity >= this.stockOf(id) : false;
   }
 
-  ngOnInit() { this.load(); this.checkShift(); this.loadShop(); }
+  ngOnInit() { this.restoreCart(); this.load(); this.checkShift(); this.loadShop(); }
 
-  private load() { this.service.getItems().subscribe(items => this.items = items); }
+  private load() {
+    this.loading.set(true);
+    this.service.getItems().subscribe(items => {
+      this.items = items;
+      this.loading.set(false);
+    });
+  }
+
+  // Restore an in-flight cart after a crash/reload so no sale is lost mid-keystroke.
+  private restoreCart() {
+    try {
+      const raw = sessionStorage.getItem(this.cartKey);
+      if (raw) this.cart.set(JSON.parse(raw));
+    } catch { /* corrupted or unavailable — start clean */ }
+  }
   private checkShift() { this.service.getActiveShift().subscribe(s => this.shiftActive.set(s.active)); }
   private loadShop() { this.service.getShopInfo().subscribe(s => this.shopInfo.set(s)); }
 

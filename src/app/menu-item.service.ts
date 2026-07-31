@@ -73,8 +73,12 @@ export class MenuItemService {
     return this.http.get<any[]>(`${API}/users`);
   }
 
-  createUser(data: { username: string; password: string; displayName: string; role: string }): Observable<any> {
+  createUser(data: { username: string; password: string; displayName: string; role: string; pin?: string | null }): Observable<any> {
     return this.http.post(`${API}/users`, data);
+  }
+
+  setUserPin(id: number, pin: string): Observable<void> {
+    return this.http.post<void>(`${API}/users/${id}/pin`, { pin });
   }
 
   deleteUser(id: number): Observable<void> {

@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, tap } from 'rxjs';
+import { Observable, tap, finalize } from 'rxjs';
 import { environment } from '../environments/environment';
 
 export interface LoginResponse {
@@ -13,21 +13,23 @@ export interface LoginResponse {
   shopCode?: string | null;
 }
 
-const TOKEN_KEY = 'pos_token';
+export interface StaffMember { id: number; displayName: string; role: string; }
+
 const USER_KEY = 'pos_user';
 const SHOP_KEY = 'pos_shop';
+// Security note: the ACCESS token is held in MEMORY only — never localStorage.
+// The REFRESH token lives in an HttpOnly cookie the server manages, so a page
+// reload restores the session through /auth/refresh instead of a stored token.
+// Only non-secret display context (user + shop) lives in localStorage.
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private http = inject(HttpClient);
+  private _token: string | null = null;
+  private ready: Promise<void> | null = null;
 
-  get isLoggedIn(): boolean {
-    return !!localStorage.getItem(TOKEN_KEY);
-  }
-
-  get token(): string | null {
-    return localStorage.getItem(TOKEN_KEY);
-  }
+  get isLoggedIn(): boolean { return !!this._token; }
+  get token(): string | null { return this._token; }
 
   getUser(): { username: string; displayName: string; role: string } | null {
     const raw = localStorage.getItem(USER_KEY);
@@ -40,46 +42,72 @@ export class AuthService {
     return raw ? JSON.parse(raw) : null;
   }
 
-  // Shop staff login — shop code always required (superadmins have no shop).
+  // Restore a session from the refresh cookie. Run once at startup and awaited
+  // by every route guard so a reload never flashes the login screen.
+  ensureReady(): Promise<void> {
+    if (!this.ready) {
+      this.ready = new Promise(resolve => {
+        if (this._token) { resolve(); return; }
+        this.refresh().subscribe({ next: () => resolve(), error: () => resolve() });
+      });
+    }
+    return this.ready;
+  }
+
   login(shopCode: string, username: string, password: string): Observable<LoginResponse> {
     return this.http.post<LoginResponse>(`${environment.apiBase}/auth/login`, { shopCode, username, password })
       .pipe(tap(res => this.storeSession(res)));
   }
 
-  // Platform owner login — separate endpoint, no shop code.
   superadminLogin(username: string, password: string): Observable<LoginResponse> {
     return this.http.post<LoginResponse>(`${environment.apiBase}/auth/superadmin-login`, { username, password })
       .pipe(tap(res => this.storeSession(res)));
   }
 
+  // Fast cashier sign-in: staff list, tap a name, enter the PIN.
+  getStaff(shopCode: string): Observable<StaffMember[]> {
+    return this.http.post<StaffMember[]>(`${environment.apiBase}/auth/staff`, { shopCode });
+  }
+
+  pinLogin(shopCode: string, userId: number, pin: string): Observable<LoginResponse> {
+    return this.http.post<LoginResponse>(`${environment.apiBase}/auth/pin-login`, { shopCode, userId, pin })
+      .pipe(tap(res => this.storeSession(res)));
+  }
+
+  refresh(): Observable<LoginResponse> {
+    return this.http.post<LoginResponse>(`${environment.apiBase}/auth/refresh`, {})
+      .pipe(tap(res => this.storeSession(res)));
+  }
+
+  logout(): Observable<void> {
+    return this.http.post<void>(`${environment.apiBase}/auth/logout`, {})
+      .pipe(finalize(() => this.clearSession()));
+  }
+
+  // Public so the interceptor can force-clear when a refresh fails.
+  clearSession(): void {
+    this._token = null;
+    localStorage.removeItem(USER_KEY);
+    localStorage.removeItem(SHOP_KEY);
+  }
+
   // Self-service account update — username, display name and optionally password.
-  // Updates the stored session so the change is visible system-wide immediately.
   updateProfile(currentPassword: string, username: string, displayName: string, newPassword: string): Observable<{ username: string; displayName: string }> {
     return this.http.post<{ username: string; displayName: string }>(`${environment.apiBase}/auth/profile`, {
       currentPassword, username, displayName, newPassword: newPassword || null
     }).pipe(tap(res => {
       const user = this.getUser();
-      localStorage.setItem(USER_KEY, JSON.stringify({
-        username: res.username,
-        displayName: res.displayName,
-        role: user?.role ?? 'admin'
-      }));
+      localStorage.setItem(USER_KEY, JSON.stringify({ username: res.username, displayName: res.displayName, role: user?.role ?? 'admin' }));
     }));
   }
 
   private storeSession(res: LoginResponse): void {
-    localStorage.setItem(TOKEN_KEY, res.token);
+    this._token = res.token;
     localStorage.setItem(USER_KEY, JSON.stringify({ username: res.username, displayName: res.displayName, role: res.role }));
     if (res.shopId != null) {
       localStorage.setItem(SHOP_KEY, JSON.stringify({ id: res.shopId, name: res.shopName, code: res.shopCode }));
     } else {
       localStorage.removeItem(SHOP_KEY);
     }
-  }
-
-  logout(): void {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
-    localStorage.removeItem(SHOP_KEY);
   }
 }

@@ -191,9 +191,10 @@ import { BtnComponent } from '../../btn.component';
             </div>
             <div class="form-grid">
               <div class="field"><label>Username</label><input [(ngModel)]="uName" placeholder="e.g. cashier1" /></div>
-              <div class="field"><label>Password</label><input type="password" [(ngModel)]="uPass" placeholder="Min 6 chars" /></div>
+              <div class="field"><label>Password</label><input type="password" [(ngModel)]="uPass" placeholder="Min 10 · upper + lower + digit" /></div>
               <div class="field"><label>Display name</label><input [(ngModel)]="uDisplay" placeholder="e.g. Jane" /></div>
               <div class="field"><label>Role</label><select [(ngModel)]="uRole" class="sel"><option value="cashier">Cashier</option><option value="admin">Admin</option></select></div>
+              <div class="field"><label>PIN (optional)</label><input type="password" maxlength="6" inputmode="numeric" [(ngModel)]="uPin" placeholder="4–6 digits" /></div>
             </div>
             <div class="form-acts">
               <app-btn size="sm" (onClick)="closeUserForm()">Cancel</app-btn>
@@ -210,8 +211,11 @@ import { BtnComponent } from '../../btn.component';
                 <tr>
                   <td><strong>{{ u.username }}</strong></td>
                   <td>{{ u.displayName }}</td>
-                  <td><span class="pill">{{ u.role }}</span></td>
-                  <td class="cell-acts"><app-btn size="sm" variant="danger" (onClick)="removeUser(u.id)">Delete</app-btn></td>
+                  <td><span class="pill">{{ u.role }}</span> @if (u.hasPin) { <span class="pill pin">PIN ✓</span> }</td>
+                  <td class="cell-acts">
+                    <app-btn size="sm" (onClick)="setPin(u)">{{ u.hasPin ? 'Change PIN' : 'Set PIN' }}</app-btn>
+                    <app-btn size="sm" variant="danger" (onClick)="removeUser(u.id)">Delete</app-btn>
+                  </td>
                 </tr>
               }
             </tbody>
@@ -322,6 +326,7 @@ import { BtnComponent } from '../../btn.component';
 
     .num { font-variant-numeric: tabular-nums; font-weight: 600; }
     .pill { display: inline-block; background: var(--accent-light); color: var(--accent-2); font-size: 0.68rem; font-weight: 600; padding: 0.15em 0.6em; border-radius: 100px; }
+    .pill.pin { background: var(--green-bg); color: var(--green); margin-left: 0.3em; }
     .stock { font-weight: 700; font-variant-numeric: tabular-nums; }
     .stock.low { color: var(--accent); }
     .stock.out { color: var(--red); }
@@ -351,7 +356,7 @@ export class AdminComponent implements OnInit {
   // Users
   readonly users = signal<any[]>([]);
   readonly showUserForm = signal(false);
-  uName = ''; uPass = ''; uDisplay = ''; uRole: 'cashier' | 'admin' = 'cashier';
+  uName = ''; uPass = ''; uDisplay = ''; uRole: 'cashier' | 'admin' = 'cashier'; uPin = '';
 
   // Categories
   readonly categories = signal<Category[]>([]);
@@ -397,9 +402,18 @@ export class AdminComponent implements OnInit {
 
   openUserForm() { this.resetUser(); this.showUserForm.set(true); }
   closeUserForm() { this.showUserForm.set(false); }
-  saveUser() { this.service.createUser({ username: this.uName, password: this.uPass, displayName: this.uDisplay, role: this.uRole }).subscribe({ next: () => { this.loadUsers(); this.closeUserForm(); }, error: (e) => alert(e.error?.error || 'Save failed') }); }
+  saveUser() { this.service.createUser({ username: this.uName, password: this.uPass, displayName: this.uDisplay, role: this.uRole, pin: this.uPin || null }).subscribe({ next: () => { this.loadUsers(); this.closeUserForm(); }, error: (e) => alert(e.error?.error || 'Save failed') }); }
   removeUser(id: number) { if (confirm('Delete this user?')) this.service.deleteUser(id).subscribe({ next: () => this.loadUsers() }); }
-  private resetUser() { this.uName = ''; this.uPass = ''; this.uDisplay = ''; this.uRole = 'cashier'; }
+  setPin(u: any) {
+    const pin = prompt(`Set a ${u.hasPin ? 'new ' : ''}PIN for ${u.displayName} (4-6 digits):`);
+    if (!pin) return;
+    if (!/^\d{4,6}$/.test(pin)) { alert('PIN must be 4-6 digits'); return; }
+    this.service.setUserPin(u.id, pin).subscribe({
+      next: () => this.loadUsers(),
+      error: (e) => alert(e.error?.error || 'Failed')
+    });
+  }
+  private resetUser() { this.uName = ''; this.uPass = ''; this.uDisplay = ''; this.uRole = 'cashier'; this.uPin = ''; }
 
   // ── Categories ────────────────────────────────────────────
 

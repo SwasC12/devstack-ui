@@ -1,13 +1,38 @@
 import { HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
+import { Router } from '@angular/router';
+import { catchError, switchMap, throwError } from 'rxjs';
 import { AuthService } from './auth.service';
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const auth = inject(AuthService);
-  const token = auth.token;
+  const router = inject(Router);
+  const isApi = req.url.includes('/api/');
+  const isRefresh = req.url.includes('/auth/refresh');
 
-  if (token && req.url.includes('/api/')) {
-    req = req.clone({ setHeaders: { Authorization: `Bearer ${token}` } });
+  // Every API call carries the refresh cookie; authenticated calls add the
+  // in-memory access token as a Bearer header.
+  let clone = req;
+  if (isApi) {
+    clone = clone.clone({ withCredentials: true });
+    if (auth.token) clone = clone.clone({ setHeaders: { Authorization: `Bearer ${auth.token}` } });
   }
-  return next(req);
+
+  return next(clone).pipe(
+    catchError(err => {
+      // Access token expired → try one refresh, then replay the request.
+      if (err.status === 401 && isApi && !isRefresh && auth.token) {
+        return auth.refresh().pipe(
+          switchMap(res => next(clone.clone({ setHeaders: { Authorization: `Bearer ${res.token}` } }))),
+          catchError(() => {
+            const wasSuper = auth.getUser()?.role === 'superadmin';
+            auth.clearSession();
+            router.navigateByUrl(wasSuper ? '/platform' : '/login');
+            return throwError(() => err);
+          })
+        );
+      }
+      return throwError(() => err);
+    })
+  );
 };

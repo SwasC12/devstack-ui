@@ -1,5 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
+import { finalize } from 'rxjs';
 import { AuthService } from './auth.service';
 
 @Component({
@@ -31,7 +32,8 @@ export class AppComponent {
 
   logout(): void {
     const isSuper = this.auth.getUser()?.role === 'superadmin';
-    this.auth.logout();
-    this.router.navigate([isSuper ? '/platform' : '/menu']);
+    this.auth.logout()
+      .pipe(finalize(() => this.router.navigate([isSuper ? '/platform' : '/menu'])))
+      .subscribe();
   }
 }
