@@ -1,7 +1,7 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AuthService, StaffMember } from '../../auth.service';
-import { Router, RouterModule } from '@angular/router';
+import { Router, ActivatedRoute, RouterModule } from '@angular/router';
 import { BtnComponent } from '../../btn.component';
 import { PasswordInputComponent } from '../../password-input.component';
 
@@ -94,9 +94,10 @@ import { PasswordInputComponent } from '../../password-input.component';
     .staff-role { font-size: 0.6875rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
   `]
 })
-export class LoginComponent {
+export class LoginComponent implements OnInit {
   private auth = inject(AuthService);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
   shopCode = '';
   username = '';
   password = '';
@@ -109,6 +110,13 @@ export class LoginComponent {
   readonly pinUser = signal<StaffMember | null>(null);
   readonly pinBusy = signal(false);
   pin = '';
+
+  ngOnInit() {
+    // Shift handover lands here with ?pin=1 — skip straight to PIN sign-in.
+    this.route.queryParamMap.subscribe(p => {
+      if (p.get('pin') === '1' && !this.platform) this.enablePin();
+    });
+  }
 
   // One component serves two routes: /login (shop staff) and /platform
   // (superadmin). The URL decides the mode.

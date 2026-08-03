@@ -1,12 +1,14 @@
 import { HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { catchError, switchMap, throwError } from 'rxjs';
+import { catchError, finalize, switchMap, throwError } from 'rxjs';
 import { AuthService } from './auth.service';
+import { LoadingService } from './loading.service';
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const auth = inject(AuthService);
   const router = inject(Router);
+  const loading = inject(LoadingService);
   const isApi = req.url.includes('/api/');
   const isRefresh = req.url.includes('/auth/refresh');
 
@@ -18,7 +20,11 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
     if (auth.token) clone = clone.clone({ setHeaders: { Authorization: `Bearer ${auth.token}` } });
   }
 
+  // Global loader: counter-based, so concurrent calls stay visible together.
+  if (isApi) loading.show();
+
   return next(clone).pipe(
+    finalize(() => { if (isApi) loading.hide(); }),
     catchError(err => {
       // Access token expired → try one refresh, then replay the request.
       if (err.status === 401 && isApi && !isRefresh && auth.token) {

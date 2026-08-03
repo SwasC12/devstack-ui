@@ -1,6 +1,8 @@
 import { Component, effect, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
+import { finalize } from 'rxjs';
 import { MenuItemService } from '../../menu-item.service';
 import { MenuItem } from '../../menu-item.model';
 import { AuthService } from '../../auth.service';
@@ -25,6 +27,8 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
           <button class="btn-start" (click)="startShift()" [disabled]="startingShift()">
             {{ startingShift() ? 'Starting…' : 'Start shift' }}
           </button>
+          <!-- Handover: the next cashier taps here → straight to PIN sign-in -->
+          <button class="btn-switch" (click)="switchUser()">Switch user</button>
         </div>
       </div>
     } @else {
@@ -157,6 +161,8 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
     .btn-start { margin-top: 0.5rem; padding: 0.9rem 3rem; border: 0; border-radius: var(--radius-sm); background: var(--accent); color: #fff; font-family: inherit; font-size: 1.0625rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease-out; }
     .btn-start:hover:not(:disabled) { background: var(--accent-hover); transform: translateY(-1px); }
     .btn-start:disabled { opacity: 0.5; }
+    .btn-switch { margin-top: 0.5rem; padding: 0.55rem 2rem; border: 1px solid var(--border-hover); border-radius: var(--radius-sm); background: transparent; color: var(--text-2); font-family: inherit; font-size: 0.8125rem; font-weight: 600; cursor: pointer; transition: all 0.15s ease-out; }
+    .btn-switch:hover { border-color: var(--accent); color: var(--text); background: var(--surface-2); }
 
     /* ── Top bar ── */
     .pos-bar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 0.5rem 0; margin-bottom: 0.75rem; }
@@ -245,6 +251,7 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
 export class PosComponent implements OnInit {
   private service = inject(MenuItemService);
   private dialog = inject(DialogService);
+  private router = inject(Router);
   auth = inject(AuthService);
 
   // Items & cart
@@ -330,6 +337,14 @@ export class PosComponent implements OnInit {
       next: () => { this.startingShift.set(false); this.shiftActive.set(true); },
       error: (e) => { this.startingShift.set(false); this.dialog.toast(e.error?.error || 'Could not start shift', 'error'); }
     });
+  }
+
+  // Handover: sign the current user out and drop the next cashier straight
+  // into PIN sign-in (login page opens in PIN mode via ?pin=1).
+  switchUser() {
+    this.auth.logout()
+      .pipe(finalize(() => this.router.navigate(['/login'], { queryParams: { pin: 1 } })))
+      .subscribe();
   }
 
   endShift() {
