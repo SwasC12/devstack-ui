@@ -72,6 +72,11 @@ export class MenuItemService {
     return this.http.get(`${API}/orders/summary`);
   }
 
+  // Owner analytics: daily series, per-cashier, per-category for the last N days.
+  getAnalytics(days: number): Observable<any> {
+    return this.http.get(`${API}/orders/analytics?days=${days}`);
+  }
+
   // ── Users ───────────────────────────────────────────────
 
   getUsers(): Observable<any[]> {

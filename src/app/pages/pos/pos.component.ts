@@ -188,11 +188,14 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
           }
         </div>
 
-        <!-- Current order — always visible, never hidden -->
-        <div class="cart">
-          <div class="cart-head">
+        <!-- Current order — always visible, never hidden. On narrow screens the
+             whole panel becomes a bottom drawer whose header stays peeking. -->
+        <div class="cart" [class.cart-open]="cartOpen()">
+          <div class="cart-head" (click)="toggleCart()">
             <h2 class="cart-title">Current order</h2>
+            <span class="cart-head-total">R{{ total() | number:'1.2-2' }}</span>
             @if (cart().length) { <span class="cart-count">{{ cart().length }} item{{ cart().length !== 1 ? 's' : '' }}</span> }
+            <span class="cart-chev">{{ cartOpen() ? '▾' : '▴' }}</span>
           </div>
           <div class="cart-items">
             @if (cart().length === 0) {
@@ -261,7 +264,7 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
     .pos-layout { display: flex; gap: 1rem; height: calc(100vh - 175px); }
 
     .cats { width: 150px; flex-shrink: 0; display: flex; flex-direction: column; gap: 0.5rem; overflow-y: auto; padding-bottom: 0.5rem; }
-    .cat-btn { text-align: left; padding: 0.9rem 1rem; border-radius: var(--radius-sm); border: 0; background: var(--surface); color: var(--text-2); font-size: 0.875rem; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.15s ease-out; }
+    .cat-btn { text-align: left; padding: 0.9rem 1rem; border-radius: var(--radius-sm); border: 0; background: var(--surface); color: var(--text-2); font-size: 0.875rem; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.15s ease-out; min-height: 48px; }
     .cat-btn:hover { background: var(--surface-2); color: var(--text); }
     .cat-btn.active { background: var(--accent); color: #fff; }
 
@@ -290,9 +293,11 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
 
     /* ── Current order — the heavy panel ── */
     .cart { width: 360px; flex-shrink: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); display: flex; flex-direction: column; overflow: hidden; }
-    .cart-head { padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .cart-head { padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; }
     .cart-title { margin: 0; font-size: 1rem; font-weight: 700; color: var(--text); }
+    .cart-head-total { margin-left: auto; font-weight: 800; font-size: 0.9375rem; color: var(--accent-2); font-variant-numeric: tabular-nums; }
     .cart-count { font-size: 0.75rem; color: var(--muted); font-weight: 600; }
+    .cart-chev { display: none; font-size: 0.8rem; color: var(--muted); }
     .cart-items { flex: 1; overflow-y: auto; padding: 0.25rem 1.25rem; }
     .cart-empty { text-align: center; padding: 2.5rem 0; color: var(--muted); }
     .cart-empty p { margin: 0.5rem 0 0; font-weight: 600; color: var(--text-2); }
@@ -304,7 +309,7 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
     .cart-name { font-size: 0.875rem; font-weight: 700; color: var(--text); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .cart-unit { font-size: 0.6875rem; color: var(--muted); }
     .cart-qty { display: flex; align-items: center; gap: 0.375rem; flex-shrink: 0; }
-    .qty-btn { width: 34px; height: 34px; border: 0; border-radius: var(--radius-sm); background: var(--surface-2); cursor: pointer; font-size: 1rem; font-weight: 700; display: flex; align-items: center; justify-content: center; color: var(--text-2); transition: all 0.15s ease-out; }
+        .qty-btn { width: 44px; height: 44px; border: 0; border-radius: var(--radius-sm); background: var(--surface-2); cursor: pointer; font-size: 1.125rem; font-weight: 700; display: flex; align-items: center; justify-content: center; color: var(--text-2); transition: all 0.15s ease-out; }
     .qty-btn:hover:not(:disabled) { background: var(--accent); color: #fff; }
     .qty-btn:disabled { opacity: 0.35; cursor: default; }
     .qty-val { font-weight: 700; min-width: 1.5rem; text-align: center; font-size: 0.875rem; color: var(--text); }
@@ -318,7 +323,28 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
     .btn-checkout:hover:not(:disabled) { background: var(--accent-hover); transform: translateY(-1px); }
     .btn-checkout:disabled { opacity: 0.35; pointer-events: none; }
 
-    /* ── Order complete ── */
+    /* ── Tablets / narrow screens: cart becomes a bottom drawer, categories
+       become a horizontal chip row, touch targets stay big. ── */
+    @media (max-width: 1024px) {
+      .pos-layout { flex-direction: column; height: auto; gap: 0.5rem; }
+      .cats { flex-direction: row; width: 100%; overflow-x: auto; padding-bottom: 0.25rem; }
+      .cat-btn { white-space: nowrap; }
+      .pos-menu { flex: none; height: calc(100vh - 300px); }
+      .cart {
+        position: fixed;
+        left: 0; right: 0; bottom: 0;
+        width: 100%;
+        max-height: 72vh;
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+        transform: translateY(calc(100% - 58px)); /* header peeks when closed */
+        transition: transform 0.25s ease;
+        z-index: 400;
+        box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.35);
+      }
+      .cart.cart-open { transform: translateY(0); }
+      .cart-head { cursor: pointer; padding: 0.85rem 1.25rem; }
+      .cart-chev { display: inline-block; }
+    }
     .complete { position: fixed; inset: 0; background: rgba(24,24,24,0.72); display: flex; align-items: center; justify-content: center; z-index: 500; }
     .complete-card { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; background: var(--surface); border: 1px solid var(--accent); border-radius: var(--radius-lg); padding: 2.5rem 3rem; box-shadow: var(--shadow-lg); }
     .complete-check { width: 72px; height: 72px; border-radius: 50%; background: var(--green); color: #fff; font-size: 2.25rem; display: flex; align-items: center; justify-content: center; animation: pop 0.3s ease-out; }
@@ -372,6 +398,10 @@ export class PosComponent implements OnInit {
   readonly busy = signal(false);
   readonly loading = signal(true);
   activeCat = 'Hot Drinks';
+  // Bottom drawer on narrow screens (open by default on wide screens).
+  readonly cartOpen = signal(typeof window !== 'undefined' && window.innerWidth > 1024);
+
+  toggleCart() { this.cartOpen.update(v => !v); }
 
   // Search (top bar, always visible) — debounced 200ms so typing doesn't thrash.
   search = '';

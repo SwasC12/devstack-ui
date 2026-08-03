@@ -22,6 +22,7 @@ import { ReceiptViewComponent } from '../../receipt-view.component';
         <button class="tab" [class.active]="tab() === 'categories'" (click)="tab.set('categories')">Categories</button>
         <button class="tab" [class.active]="tab() === 'users'" (click)="tab.set('users')">Users</button>
         <button class="tab" [class.active]="tab() === 'orders'" (click)="tab.set('orders')">Orders</button>
+        <button class="tab" [class.active]="tab() === 'analytics'" (click)="openAnalytics()">Analytics</button>
         <button class="tab" [class.active]="tab() === 'settings'" (click)="tab.set('settings')">Settings</button>
       </div>
 
@@ -105,7 +106,12 @@ import { ReceiptViewComponent } from '../../receipt-view.component';
         <!-- Table -->
         <div class="inv-toolbar">
           <input class="inv-search" [(ngModel)]="invQuery" placeholder="Search items…" />
-          @if (invQuery.trim()) {
+          <div class="inv-filters">
+            <button class="chip" [class.on]="invFilter() === 'all'" (click)="invFilter.set('all')">All</button>
+            <button class="chip" [class.on]="invFilter() === 'low'" (click)="invFilter.set('low')">Low stock</button>
+            <button class="chip" [class.on]="invFilter() === 'out'" (click)="invFilter.set('out')">Out</button>
+          </div>
+          @if (invQuery.trim() || invFilter() !== 'all') {
             <span class="inv-count">{{ filteredItems().length }} of {{ items().length }}</span>
           }
         </div>
@@ -305,6 +311,73 @@ import { ReceiptViewComponent } from '../../receipt-view.component';
         }
       }
 
+      <!-- ───── ANALYTICS ───── -->
+      @if (tab() === 'analytics') {
+        <div class="section-head">
+          <h2 class="page-title">Analytics</h2>
+          <div class="periods">
+            @for (d of [7, 14, 30, 90]; track d) {
+              <button class="chip" [class.on]="analyticsDays() === d" (click)="loadAnalytics(d)">{{ d }}d</button>
+            }
+          </div>
+        </div>
+
+        @if (analytics(); as a) {
+          <div class="metrics">
+            <div class="metric"><div class="m-val">R{{ a.totals.revenue | number:'1.2-2' }}</div><div class="m-lbl">Revenue</div></div>
+            <div class="metric"><div class="m-val">{{ a.totals.orders }}</div><div class="m-lbl">Orders</div></div>
+            <div class="metric"><div class="m-val">{{ a.totals.items }}</div><div class="m-lbl">Items sold</div></div>
+          </div>
+
+          <!-- Daily revenue bars -->
+          @if (a.daily.length) {
+            <div class="chart-card">
+              <div class="chart">
+                @for (day of a.daily; track day.date) {
+                  <div class="bar-col" [title]="day.date + ' · R' + (day.revenue | number:'1.2-2')">
+                    <div class="bar" [style.height.%]="barPct(day.revenue, a.daily)"></div>
+                    <span class="bar-lbl">{{ day.date.slice(5) }}</span>
+                  </div>
+                }
+              </div>
+            </div>
+          } @else {
+            <p class="hint" style="margin:1rem 0;">No sales in this period yet.</p>
+          }
+
+          <div class="split">
+            <div class="table-card">
+              <h3 class="sub-h">By cashier</h3>
+              <table class="simple">
+                <thead><tr><th>Cashier</th><th>Orders</th><th>Revenue</th></tr></thead>
+                <tbody>
+                  @for (c of a.cashiers; track c.name) {
+                    <tr><td><strong>{{ c.name }}</strong></td><td>{{ c.orders }}</td><td class="num">R{{ c.revenue | number:'1.2-2' }}</td></tr>
+                  } @empty {
+                    <tr><td colspan="3" class="muted-td">No sales yet.</td></tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+            <div class="table-card">
+              <h3 class="sub-h">By category</h3>
+              <table class="simple">
+                <thead><tr><th>Category</th><th>Qty</th><th>Revenue</th></tr></thead>
+                <tbody>
+                  @for (c of a.categories; track c.name) {
+                    <tr><td><strong>{{ c.name }}</strong></td><td>{{ c.quantity }}</td><td class="num">R{{ c.revenue | number:'1.2-2' }}</td></tr>
+                  } @empty {
+                    <tr><td colspan="3" class="muted-td">No sales yet.</td></tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        } @else {
+          <p class="hint">Loading analytics…</p>
+        }
+      }
+
       <!-- ───── SETTINGS ───── -->
       @if (tab() === 'settings') {
         <div class="section-head">
@@ -363,10 +436,26 @@ import { ReceiptViewComponent } from '../../receipt-view.component';
     .section-head .page-title { margin: 0; }
 
     /* ── Inventory toolbar ── */
-    .inv-toolbar { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
+    .inv-toolbar { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
     .inv-search { flex: 1; max-width: 320px; padding: 0.55rem 0.85rem; border: 1px solid var(--border-hover); border-radius: var(--radius-sm); font-size: 0.85rem; font-family: inherit; color: var(--text); background: var(--surface-2); outline: none; }
     .inv-search:focus { border-color: var(--accent); }
+    .inv-filters { display: flex; gap: 0.4rem; }
     .inv-count { font-size: 0.75rem; color: var(--muted); font-weight: 600; }
+    .chip { padding: 0.45rem 0.9rem; border: 1px solid var(--border-hover); border-radius: var(--radius-pill); background: var(--surface-2); color: var(--text-2); font-family: inherit; font-size: 0.75rem; font-weight: 700; cursor: pointer; }
+    .chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+    /* ── Analytics ── */
+    .periods { display: flex; gap: 0.4rem; }
+    .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: 1.25em; padding: 1.25em; margin-bottom: 1.25rem; overflow-x: auto; }
+    .chart { display: flex; align-items: flex-end; gap: 4px; height: 160px; min-width: 420px; }
+    .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 0.3rem; }
+    .bar { width: 100%; max-width: 34px; border-radius: 6px 6px 0 0; background: linear-gradient(180deg, var(--accent-2), var(--accent)); min-height: 2px; transition: height 0.3s ease; }
+    .bar-lbl { font-size: 0.6rem; color: var(--muted); white-space: nowrap; transform: rotate(-45deg); }
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .sub-h { margin: 0.9rem 1rem 0.4rem; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+    table.simple th:nth-child(1) { width: 45%; }
+    .muted-td { color: var(--muted); text-align: center; padding: 1.25rem !important; }
+    @media (max-width: 720px) { .split { grid-template-columns: 1fr; } }
 
     /* ── Metrics ── */
     .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin-bottom: 1.5rem; }
@@ -457,11 +546,13 @@ export class AdminComponent implements OnInit {
   private service = inject(MenuItemService);
   private auth = inject(AuthService);
   private dialog = inject(DialogService);
-  readonly tab = signal<'inventory' | 'categories' | 'users' | 'orders' | 'settings'>('inventory');
+  readonly tab = signal<'inventory' | 'categories' | 'users' | 'orders' | 'analytics' | 'settings'>('inventory');
 
   // Inventory
   readonly items = signal<MenuItem[]>([]);
   invQuery = '';
+  readonly invFilter = signal<'all' | 'low' | 'out'>('all');
+  readonly LOW_STOCK = 10;
   readonly summary = signal<any>(null);
   readonly showForm = signal(false);
   readonly editing = signal<MenuItem | null>(null);
@@ -493,6 +584,10 @@ export class AdminComponent implements OnInit {
   readonly ordersBusy = signal(false);
   shopInfo: any = null;
 
+  // Analytics
+  readonly analytics = signal<any | null>(null);
+  readonly analyticsDays = signal(14);
+
   ngOnInit() { this.loadInv(); this.loadSum(); this.loadUsers(); this.loadCategories(); this.loadSettings(); this.loadOrders(); this.loadShopInfo(); }
 
   private loadShopInfo() { this.service.getShopInfo().subscribe(s => this.shopInfo = s); }
@@ -504,9 +599,13 @@ export class AdminComponent implements OnInit {
   // Live filter over name + category; empty query shows everything.
   filteredItems(): MenuItem[] {
     const q = this.invQuery.trim().toLowerCase();
-    if (!q) return this.items();
-    return this.items().filter(i =>
-      i.name.toLowerCase().includes(q) || i.category.toLowerCase().includes(q));
+    const f = this.invFilter();
+    return this.items().filter(i => {
+      if (q && !(i.name.toLowerCase().includes(q) || i.category.toLowerCase().includes(q))) return false;
+      if (f === 'low' && i.stockQuantity >= this.LOW_STOCK) return false;
+      if (f === 'out' && i.stockQuantity >= 1) return false;
+      return true;
+    });
   }
 
   openNew() { this.resetInv(); this.showForm.set(true); }
@@ -573,6 +672,23 @@ export class AdminComponent implements OnInit {
       },
       error: () => this.ordersBusy.set(false)
     });
+  }
+
+  // ── Analytics ─────────────────────────────────────────────
+
+  openAnalytics() {
+    this.tab.set('analytics');
+    if (!this.analytics()) this.loadAnalytics(this.analyticsDays());
+  }
+
+  loadAnalytics(days: number) {
+    this.analyticsDays.set(days);
+    this.service.getAnalytics(days).subscribe(a => this.analytics.set(a));
+  }
+
+  barPct(revenue: number, daily: any[]): number {
+    const max = Math.max(...daily.map(d => d.revenue), 1);
+    return Math.max(2, Math.round((revenue / max) * 100));
   }
 
   voidOrder(o: any) {
