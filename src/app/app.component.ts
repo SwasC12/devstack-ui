@@ -7,11 +7,12 @@ import { AuthService } from './auth.service';
 import { AppDialogComponent } from './app-dialog.component';
 import { AppLoaderComponent } from './app-loader.component';
 import { LoadingService } from './loading.service';
+import { AppLogoComponent } from './app-logo.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterModule, AppDialogComponent, AppLoaderComponent],
+  imports: [RouterModule, AppDialogComponent, AppLoaderComponent, AppLogoComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss',
 })

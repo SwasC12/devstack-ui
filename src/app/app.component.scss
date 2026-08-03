@@ -42,6 +42,14 @@
 
 .shell { min-height: 100vh; display: flex; flex-direction: column; }
 
+/* Global niceties: selection tint, slim themed scrollbars. */
+::selection { background: var(--accent); color: #fff; }
+* { scrollbar-width: thin; scrollbar-color: var(--surface-3) transparent; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-hover); }
+
 /* ── Top bar ──────────────────────────────────────────────── */
 .top-bar {
   display: flex;
@@ -49,7 +57,9 @@
   justify-content: space-between;
   padding: 0 1.5rem;
   height: 56px;
-  background: var(--bg);
+  background: rgba(24, 24, 24, 0.82);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
@@ -68,7 +78,7 @@
 }
 
 .logo { font-size: 1.3rem; }
-.logo-img { width: 28px; height: 28px; border-radius: 8px; object-fit: cover; }
+.logo-img { width: 28px; height: 28px; border-radius: 8px; display: block; color: var(--accent-2); }
 
 .nav-links {
   display: flex;

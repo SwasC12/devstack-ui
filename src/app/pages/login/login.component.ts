@@ -4,16 +4,17 @@ import { AuthService, StaffMember } from '../../auth.service';
 import { Router, ActivatedRoute, RouterModule } from '@angular/router';
 import { BtnComponent } from '../../btn.component';
 import { PasswordInputComponent } from '../../password-input.component';
+import { AppLogoComponent } from '../../app-logo.component';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [FormsModule, BtnComponent, RouterModule, PasswordInputComponent],
+  imports: [FormsModule, BtnComponent, RouterModule, PasswordInputComponent, AppLogoComponent],
   template: `
     <div class="login">
       <div class="login-card card">
         <div class="login-header">
-          <img src="/favicon.png" alt="" class="login-logo" />
+          <div class="login-logo"><app-logo [size]="40" /></div>
           <h2>{{ platform ? 'Platform sign in' : 'Shop sign in' }}</h2>
           <p class="login-sub">{{ platform ? 'DevStack — platform owner access' : 'CoffeeShop Pro' }}</p>
         </div>
@@ -69,10 +70,10 @@ import { PasswordInputComponent } from '../../password-input.component';
     </div>
   `,
   styles: [`
-    .login { display: flex; justify-content: center; padding-top: 4rem; }
-    .login-card { padding: 2rem; width: 340px; display: flex; flex-direction: column; gap: 0.875rem; box-shadow: var(--shadow-lg); }
+    .login { display: flex; justify-content: center; padding-top: 4rem; background: radial-gradient(1100px 520px at 50% -12%, rgba(200,135,56,0.14), transparent 62%); min-height: calc(100vh - 56px); }
+    .login-card { padding: 2rem; width: 340px; display: flex; flex-direction: column; gap: 0.875rem; box-shadow: var(--shadow-lg); border: 1px solid var(--border); }
     .login-header { text-align: center; margin-bottom: 0.25rem; }
-    .login-logo { width: 64px; height: 64px; border-radius: 12px; object-fit: cover; display: block; margin: 0 auto 0.5rem; box-shadow: var(--shadow-sm); }
+    .login-logo { width: 64px; height: 64px; border-radius: 16px; background: linear-gradient(135deg, var(--accent), var(--accent-hover)); color: #fff; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.5rem; box-shadow: var(--shadow-md); }
     .login-card h2 { margin: 0; font-size: 1.125rem; font-weight: 700; }
     .login-sub { margin: 0.25rem 0 0; font-size: 0.75rem; color: var(--muted); }
     input { padding: 0.6rem 0.75rem; border: 1px solid var(--border-hover); border-radius: var(--radius-sm); font-size: 0.875rem; font-family: inherit; color: var(--text); background: var(--surface-2); outline: none; transition: border-color 0.15s; }

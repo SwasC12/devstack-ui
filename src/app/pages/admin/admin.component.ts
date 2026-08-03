@@ -568,6 +568,7 @@ import { ReceiptViewComponent } from '../../receipt-view.component';
     th:last-child { width: 18%; }
     td { padding: 0.7em 1em; border-bottom: 1px solid var(--border); vertical-align: middle; overflow: hidden; text-overflow: ellipsis; word-break: break-word; }
     tr:last-child td { border: 0; }
+    tbody tr:hover td { background: var(--surface-2); }
     th { overflow: hidden; }
 
     .thumb { width: 28px; height: 28px; border-radius: 0.5em; object-fit: cover; vertical-align: middle; margin-right: 0.5em; background: var(--surface-2); }

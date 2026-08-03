@@ -9,20 +9,21 @@ import { AuthService } from '../../auth.service';
 import { BtnComponent } from '../../btn.component';
 import { DialogService } from '../../dialog.service';
 import { ReceiptViewComponent } from '../../receipt-view.component';
+import { AppLogoComponent } from '../../app-logo.component';
 
 interface CartItem { id: number; name: string; price: number; quantity: number; }
 
 @Component({
   selector: 'app-pos',
   standalone: true,
-  imports: [CommonModule, FormsModule, BtnComponent, ReceiptViewComponent],
+  imports: [CommonModule, FormsModule, BtnComponent, ReceiptViewComponent, AppLogoComponent],
   template: `
     <!-- Not on shift: one big, obvious clock-in screen. No POS until you're in. -->
     @if (!shiftActive()) {
       <div class="clockin">
         <div class="clockin-card">
           @if (shopInfo()?.logoUrl) { <img [src]="shopInfo()?.logoUrl" alt="" class="clockin-logo" /> }
-          @else { <div class="clockin-logo placeholder">☕</div> }
+          @else { <div class="clockin-logo placeholder"><app-logo [size]="40" /></div> }
           <h2>{{ auth.getUser()?.displayName }}</h2>
           <p class="clockin-sub">{{ shopInfo()?.name || 'CoffeeShop Pro' }}</p>
           <button class="btn-start" (click)="startShift()" [disabled]="startingShift()">
@@ -93,7 +94,7 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
               <button class="item" [class.sold]="!item.isAvailable || item.stockQuantity < 1 || inCartAtStock(item.id)"
                 (click)="addToCart(item)" [disabled]="!item.isAvailable || item.stockQuantity < 1 || inCartAtStock(item.id)">
                 @if (item.imageUrl) { <img [src]="item.imageUrl" alt="" class="item-img" /> }
-                @else { <div class="item-img placeholder">☕</div> }
+                @else { <div class="item-img placeholder"><app-logo [size]="54" /></div> }
                 <div class="item-body">
                   <span class="item-name">{{ item.name }}</span>
                   <span class="item-price">R{{ item.price | number:'1.2-2' }}</span>
@@ -262,7 +263,7 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
     .clockin { display: flex; align-items: center; justify-content: center; height: calc(100vh - 120px); }
     .clockin-card { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; padding: 3rem 3.5rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); text-align: center; }
     .clockin-logo { width: 76px; height: 76px; border-radius: 20px; object-fit: cover; border: 1px solid var(--border); background: var(--surface-2); }
-    .clockin-logo.placeholder { display: flex; align-items: center; justify-content: center; font-size: 2.25rem; }
+    .clockin-logo.placeholder { display: flex; align-items: center; justify-content: center; color: var(--accent-2); background: linear-gradient(135deg, var(--surface-2), var(--surface-3)); }
     .clockin-card h2 { margin: 0.75rem 0 0; font-size: 1.375rem; color: var(--text); }
     .clockin-sub { margin: 0 0 1rem; font-size: 0.8125rem; color: var(--muted); }
     .btn-start { margin-top: 0.5rem; padding: 0.9rem 3rem; border: 0; border-radius: var(--radius-sm); background: var(--accent); color: #fff; font-family: inherit; font-size: 1.0625rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease-out; }
@@ -302,8 +303,9 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
     .item:active:not(:disabled) { transform: scale(0.98); }
     .item.sold { opacity: 0.45; }
     .item:disabled { cursor: default; }
-    .item-img { width: 100%; height: 180px; object-fit: cover; display: block; background: var(--surface-2); }
-    .item-img.placeholder { display: flex; align-items: center; justify-content: center; font-size: 3rem; }
+    .item-img { width: 100%; height: 180px; object-fit: cover; display: block; background: var(--surface-2); transition: transform 0.3s ease; }
+    .item-img.placeholder { display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--surface-2), var(--surface-3)); color: var(--muted); }
+    .item:hover .item-img { transform: scale(1.045); }
     .item-body { padding: 0.75rem; display: flex; flex-direction: column; gap: 0.25rem; }
     .item-name { font-size: 0.9375rem; font-weight: 700; line-height: 1.3; color: var(--text); }
     .item-price { font-size: 1.0625rem; font-weight: 700; color: var(--accent-hover); }
