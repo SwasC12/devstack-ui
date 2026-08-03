@@ -63,83 +63,6 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
         </div>
       }
 
-      <!-- Receipt after checkout -->
-      @if (lastOrder(); as o) {
-        <div class="complete">
-          <div class="complete-card receipt-wrap">
-            <app-receipt [order]="o" [shop]="shopInfo()" [cashierName]="auth.getUser()?.displayName ?? ''" />
-            <app-btn variant="primary" size="sm" (onClick)="closeReceipt()">New order</app-btn>
-          </div>
-        </div>
-      }
-
-      <!-- Shift summary after clock-out -->
-      @if (shiftSummary(); as s) {
-        <div class="complete">
-          <div class="complete-card summary-card">
-            <span class="complete-check">⏱</span>
-            <strong>Shift over — well done!</strong>
-            <div class="sum-grid">
-              <div class="sum-cell"><span class="sum-val">{{ s.orderCount }}</span><span class="sum-lbl">Orders</span></div>
-              <div class="sum-cell"><span class="sum-val">{{ s.itemCount }}</span><span class="sum-lbl">Items sold</span></div>
-              <div class="sum-cell"><span class="sum-val">R{{ s.revenue | number:'1.2-2' }}</span><span class="sum-lbl">Revenue</span></div>
-              <div class="sum-cell"><span class="sum-val">R{{ s.averageOrder | number:'1.2-2' }}</span><span class="sum-lbl">Avg order</span></div>
-            </div>
-            <app-btn variant="primary" (onClick)="shiftSummary.set(null)">Done</app-btn>
-          </div>
-        </div>
-      }
-
-      <!-- Payment sheet -->
-      @if (paymentOpen()) {
-        <div class="complete">
-          <div class="complete-card pay-card">
-            <div class="pay-head">
-              <h3>Payment</h3>
-              <app-btn size="sm" (onClick)="paymentOpen.set(false)">✕</app-btn>
-            </div>
-            <div class="pay-total">
-              <span class="pay-total-lbl">Total due</span>
-              <span class="pay-total-val">R{{ total() | number:'1.2-2' }}</span>
-            </div>
-
-            <!-- Method toggle -->
-            <div class="pay-methods">
-              <button class="pay-method" [class.on]="payMethod() === 'cash'" (click)="payMethod.set('cash')">💵 Cash</button>
-              <button class="pay-method" [class.on]="payMethod() === 'card'" (click)="payMethod.set('card')">💳 Card</button>
-            </div>
-
-            @if (payMethod() === 'cash') {
-              <!-- Tendered amount + change -->
-              <div class="pay-received">
-                <span class="pay-received-lbl">Received</span>
-                <span class="pay-received-val">R{{ receivedText() || '0' }}</span>
-              </div>
-              <div class="pay-quick">
-                <button class="qk" (click)="setQuick('exact')">Exact</button>
-                <button class="qk" (click)="setQuick('50')">R50</button>
-                <button class="qk" (click)="setQuick('100')">R100</button>
-                <button class="qk" (click)="setQuick('200')">R200</button>
-              </div>
-              <div class="pay-keys">
-                @for (k of ['1','2','3','4','5','6','7','8','9','.','0','⌫']; track k) {
-                  <button class="pk" (click)="pressKey(k)">{{ k }}</button>
-                }
-              </div>
-              @if (change() > 0) {
-                <div class="pay-change"><span>Change</span><strong>R{{ change() | number:'1.2-2' }}</strong></div>
-              }
-            } @else {
-              <p class="pay-card-note">Take the card payment on the terminal, then confirm.</p>
-            }
-
-            <button class="btn-checkout" [disabled]="busy() || !canConfirm()" (click)="confirmPayment()">
-              {{ busy() ? 'Placing order…' : payMethod() === 'cash' ? 'Charge R' + (total() | number:'1.2-2') : 'Confirm card payment' }}
-            </button>
-          </div>
-        </div>
-      }
-
       <!-- Main POS layout: categories · products · current order -->
       <div class="pos-layout">
         <aside class="cats">
@@ -227,6 +150,86 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
               {{ busy() ? 'Placing order…' : 'Checkout · R' + (total() | number:'1.2-2') }}
             </button>
           </div>
+        </div>
+      </div>
+    }
+
+    <!-- Overlays at the ROOT so they render on the clock-in screen too —
+         the shift summary must pop up the moment a shift ENDS. -->
+
+    <!-- Receipt after checkout -->
+    @if (lastOrder(); as o) {
+      <div class="complete">
+        <div class="complete-card receipt-wrap">
+          <app-receipt [order]="o" [shop]="shopInfo()" [cashierName]="auth.getUser()?.displayName ?? ''" />
+          <app-btn variant="primary" size="sm" (onClick)="closeReceipt()">New order</app-btn>
+        </div>
+      </div>
+    }
+
+    <!-- Shift summary after clock-out -->
+    @if (shiftSummary(); as s) {
+      <div class="complete">
+        <div class="complete-card summary-card">
+          <span class="complete-check">⏱</span>
+          <strong>Shift over — well done!</strong>
+          <div class="sum-grid">
+            <div class="sum-cell"><span class="sum-val">{{ s.orderCount }}</span><span class="sum-lbl">Orders</span></div>
+            <div class="sum-cell"><span class="sum-val">{{ s.itemCount }}</span><span class="sum-lbl">Items sold</span></div>
+            <div class="sum-cell"><span class="sum-val">R{{ s.revenue | number:'1.2-2' }}</span><span class="sum-lbl">Revenue</span></div>
+            <div class="sum-cell"><span class="sum-val">R{{ s.averageOrder | number:'1.2-2' }}</span><span class="sum-lbl">Avg order</span></div>
+          </div>
+          <app-btn variant="primary" (onClick)="shiftSummary.set(null)">Done</app-btn>
+        </div>
+      </div>
+    }
+
+    <!-- Payment sheet -->
+    @if (paymentOpen()) {
+      <div class="complete">
+        <div class="complete-card pay-card">
+          <div class="pay-head">
+            <h3>Payment</h3>
+            <app-btn size="sm" (onClick)="paymentOpen.set(false)">✕</app-btn>
+          </div>
+          <div class="pay-total">
+            <span class="pay-total-lbl">Total due</span>
+            <span class="pay-total-val">R{{ total() | number:'1.2-2' }}</span>
+          </div>
+
+          <!-- Method toggle -->
+          <div class="pay-methods">
+            <button class="pay-method" [class.on]="payMethod() === 'cash'" (click)="payMethod.set('cash')">💵 Cash</button>
+            <button class="pay-method" [class.on]="payMethod() === 'card'" (click)="payMethod.set('card')">💳 Card</button>
+          </div>
+
+          @if (payMethod() === 'cash') {
+            <!-- Tendered amount + change -->
+            <div class="pay-received">
+              <span class="pay-received-lbl">Received</span>
+              <span class="pay-received-val">R{{ receivedText() || '0' }}</span>
+            </div>
+            <div class="pay-quick">
+              <button class="qk" (click)="setQuick('exact')">Exact</button>
+              <button class="qk" (click)="setQuick('50')">R50</button>
+              <button class="qk" (click)="setQuick('100')">R100</button>
+              <button class="qk" (click)="setQuick('200')">R200</button>
+            </div>
+            <div class="pay-keys">
+              @for (k of ['1','2','3','4','5','6','7','8','9','.','0','⌫']; track k) {
+                <button class="pk" (click)="pressKey(k)">{{ k }}</button>
+              }
+            </div>
+            @if (change() > 0) {
+              <div class="pay-change"><span>Change</span><strong>R{{ change() | number:'1.2-2' }}</strong></div>
+            }
+          } @else {
+            <p class="pay-card-note">Take the card payment on the terminal, then confirm.</p>
+          }
+
+          <button class="btn-checkout" [disabled]="busy() || !canConfirm()" (click)="confirmPayment()">
+            {{ busy() ? 'Placing order…' : payMethod() === 'cash' ? 'Charge R' + (total() | number:'1.2-2') : 'Confirm card payment' }}
+          </button>
         </div>
       </div>
     }
