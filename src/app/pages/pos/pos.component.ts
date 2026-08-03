@@ -321,18 +321,23 @@ export class PosComponent implements OnInit {
       if (raw) this.cart.set(JSON.parse(raw));
     } catch { /* corrupted or unavailable — start clean */ }
   }
-  private checkShift() { this.service.getActiveShift().subscribe(s => this.shiftActive.set(s.active)); }
+  private checkShift() { this.service.getActiveShift().subscribe({ next: s => this.shiftActive.set(s.active), error: () => this.dialog.toast('Could not check shift status', 'error') }); }
   private loadShop() { this.service.getShopInfo().subscribe(s => this.shopInfo.set(s)); }
 
   startShift() {
     this.startingShift.set(true);
     this.service.startShift().subscribe({
       next: () => { this.startingShift.set(false); this.shiftActive.set(true); },
-      error: () => this.startingShift.set(false)
+      error: (e) => { this.startingShift.set(false); this.dialog.toast(e.error?.error || 'Could not start shift', 'error'); }
     });
   }
 
-  endShift() { this.service.endShift().subscribe(() => this.shiftActive.set(false)); }
+  endShift() {
+    this.service.endShift().subscribe({
+      next: () => this.shiftActive.set(false),
+      error: (e) => this.dialog.toast(e.error?.error || 'Could not end shift', 'error')
+    });
+  }
 
   addToCart(item: MenuItem) {
     this.cart.update(c => {
