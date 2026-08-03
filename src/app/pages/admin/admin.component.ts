@@ -20,6 +20,7 @@ import { DialogService } from '../../dialog.service';
         <button class="tab" [class.active]="tab() === 'inventory'" (click)="tab.set('inventory')">Inventory</button>
         <button class="tab" [class.active]="tab() === 'categories'" (click)="tab.set('categories')">Categories</button>
         <button class="tab" [class.active]="tab() === 'users'" (click)="tab.set('users')">Users</button>
+        <button class="tab" [class.active]="tab() === 'orders'" (click)="tab.set('orders')">Orders</button>
         <button class="tab" [class.active]="tab() === 'settings'" (click)="tab.set('settings')">Settings</button>
       </div>
 
@@ -101,13 +102,19 @@ import { DialogService } from '../../dialog.service';
         }
 
         <!-- Table -->
+        <div class="inv-toolbar">
+          <input class="inv-search" [(ngModel)]="invQuery" placeholder="Search items…" />
+          @if (invQuery.trim()) {
+            <span class="inv-count">{{ filteredItems().length }} of {{ items().length }}</span>
+          }
+        </div>
         <div class="table-card">
           <table>
             <thead>
               <tr><th>Item</th><th>Category</th><th>Price</th><th>Stock</th><th>Status</th><th></th></tr>
             </thead>
             <tbody>
-              @for (item of items(); track item.id) {
+              @for (item of filteredItems(); track item.id) {
                 <tr>
                   <td class="cell-name">
                     @if (item.imageUrl) { <img [src]="item.imageUrl" alt="" class="thumb" /> }
@@ -225,6 +232,64 @@ import { DialogService } from '../../dialog.service';
         </div>
       }
 
+      <!-- ───── ORDERS ───── -->
+      @if (tab() === 'orders') {
+        <div class="section-head">
+          <h2 class="page-title">Orders</h2>
+          <app-btn size="sm" (onClick)="loadOrders()" [loading]="ordersBusy()">Refresh</app-btn>
+        </div>
+
+        @if (selectedOrder(); as o) {
+          <div class="form-sheet">
+            <div class="form-head">
+              <h3>Order #{{ o.id }} · {{ o.createdAt | date:'short' }}</h3>
+              <app-btn size="sm" (onClick)="selectedOrder.set(null)">✕</app-btn>
+            </div>
+            <div class="order-meta">
+              <span>Cashier: <strong>{{ o.cashierName || '—' }}</strong></span>
+              <span>Status: <span class="status-pill" [class.voided]="o.voidedAt">{{ o.voidedAt ? 'Voided' : 'Paid' }}</span></span>
+              @if (o.voidedAt) {
+                <span class="void-reason">Reason: {{ o.voidReason }}</span>
+              }
+            </div>
+            <div class="order-items">
+              @for (line of o.items; track line.id) {
+                <div class="order-line">
+                  <span class="ol-name">{{ line.quantity }} × {{ line.name }}</span>
+                  <span class="ol-price">R{{ (line.price * line.quantity) | number:'1.2-2' }}</span>
+                </div>
+              }
+            </div>
+            <div class="order-total"><span>Total</span><strong>R{{ o.total | number:'1.2-2' }}</strong></div>
+            @if (!o.voidedAt) {
+              <div class="form-acts">
+                <app-btn variant="danger" size="sm" (onClick)="voidOrder(o)">Void order</app-btn>
+              </div>
+            }
+          </div>
+        }
+
+        <div class="table-card">
+          <table class="orders">
+            <thead><tr><th>Order</th><th>Time</th><th>Cashier</th><th>Items</th><th>Total</th><th>Status</th></tr></thead>
+            <tbody>
+              @for (o of orders(); track o.id) {
+                <tr class="order-row" [class.row-voided]="o.voidedAt" (click)="selectedOrder.set(o)">
+                  <td><strong>#{{ o.id }}</strong></td>
+                  <td>{{ o.createdAt | date:'short' }}</td>
+                  <td>{{ o.cashierName || '—' }}</td>
+                  <td>{{ o.items.length }}</td>
+                  <td class="num">R{{ o.total | number:'1.2-2' }}</td>
+                  <td><span class="status-pill" [class.voided]="o.voidedAt">{{ o.voidedAt ? 'Voided' : 'Paid' }}</span></td>
+                </tr>
+              } @empty {
+                <tr><td colspan="6" style="color:var(--muted);text-align:center;padding:1.5rem;">No orders yet.</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+
       <!-- ───── SETTINGS ───── -->
       @if (tab() === 'settings') {
         <div class="section-head">
@@ -281,6 +346,12 @@ import { DialogService } from '../../dialog.service';
     /* ── Section head ── */
     .section-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; }
     .section-head .page-title { margin: 0; }
+
+    /* ── Inventory toolbar ── */
+    .inv-toolbar { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
+    .inv-search { flex: 1; max-width: 320px; padding: 0.55rem 0.85rem; border: 1px solid var(--border-hover); border-radius: var(--radius-sm); font-size: 0.85rem; font-family: inherit; color: var(--text); background: var(--surface-2); outline: none; }
+    .inv-search:focus { border-color: var(--accent); }
+    .inv-count { font-size: 0.75rem; color: var(--muted); font-weight: 600; }
 
     /* ── Metrics ── */
     .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin-bottom: 1.5rem; }
@@ -340,16 +411,38 @@ import { DialogService } from '../../dialog.service';
     table.cats th:nth-child(1) { width: 40%; }
     table.cats th:nth-child(2) { width: 30%; }
     table.cats th:nth-child(3) { width: 30%; }
+
+    /* ── Orders ── */
+    table.orders th:nth-child(1) { width: 10%; }
+    table.orders th:nth-child(2) { width: 20%; }
+    table.orders th:nth-child(3) { width: 18%; }
+    table.orders th:nth-child(4) { width: 10%; }
+    table.orders th:nth-child(5) { width: 14%; }
+    table.orders th:last-child { width: 12%; }
+    .order-row { cursor: pointer; }
+    .order-row:hover td { background: var(--surface-2); }
+    .row-voided td { opacity: 0.5; }
+    .status-pill { display: inline-block; background: var(--green-bg); color: var(--green); font-size: 0.68rem; font-weight: 700; padding: 0.15em 0.6em; border-radius: 100px; }
+    .status-pill.voided { background: var(--red-bg); color: var(--red); }
+    .order-meta { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; font-size: 0.8125rem; color: var(--text-2); margin-bottom: 0.75rem; }
+    .order-meta strong { color: var(--text); }
+    .void-reason { color: var(--red); font-weight: 600; }
+    .order-items { border-top: 1px solid var(--border); padding-top: 0.5rem; }
+    .order-line { display: flex; justify-content: space-between; padding: 0.3rem 0; font-size: 0.8125rem; color: var(--text-2); }
+    .ol-price { font-variant-numeric: tabular-nums; color: var(--text); font-weight: 600; }
+    .order-total { display: flex; justify-content: space-between; align-items: baseline; border-top: 1px solid var(--border); margin-top: 0.5rem; padding-top: 0.75rem; font-size: 0.9375rem; }
+    .order-total strong { font-size: 1.25rem; font-weight: 800; color: var(--text); }
   `]
 })
 export class AdminComponent implements OnInit {
   private service = inject(MenuItemService);
   private auth = inject(AuthService);
   private dialog = inject(DialogService);
-  readonly tab = signal<'inventory' | 'categories' | 'users' | 'settings'>('inventory');
+  readonly tab = signal<'inventory' | 'categories' | 'users' | 'orders' | 'settings'>('inventory');
 
   // Inventory
   readonly items = signal<MenuItem[]>([]);
+  invQuery = '';
   readonly summary = signal<any>(null);
   readonly showForm = signal(false);
   readonly editing = signal<MenuItem | null>(null);
@@ -374,11 +467,24 @@ export class AdminComponent implements OnInit {
   readonly brMsg = signal(''); readonly brErr = signal(false); readonly brBusy = signal(false);
   readonly logoUploading = signal(false);
 
-  ngOnInit() { this.loadInv(); this.loadSum(); this.loadUsers(); this.loadCategories(); this.loadSettings(); }
+  // Orders
+  readonly orders = signal<any[]>([]);
+  readonly selectedOrder = signal<any | null>(null);
+  readonly ordersBusy = signal(false);
+
+  ngOnInit() { this.loadInv(); this.loadSum(); this.loadUsers(); this.loadCategories(); this.loadSettings(); this.loadOrders(); }
 
   private loadInv() { this.service.getItems().subscribe(items => this.items.set(items)); }
   private loadSum() { this.service.getSummary().subscribe(s => this.summary.set(s)); }
   private loadUsers() { this.service.getUsers().subscribe(users => this.users.set(users)); }
+
+  // Live filter over name + category; empty query shows everything.
+  filteredItems(): MenuItem[] {
+    const q = this.invQuery.trim().toLowerCase();
+    if (!q) return this.items();
+    return this.items().filter(i =>
+      i.name.toLowerCase().includes(q) || i.category.toLowerCase().includes(q));
+  }
 
   openNew() { this.resetInv(); this.showForm.set(true); }
   edit(item: MenuItem) { this.editing.set(item); this.fName = item.name; this.fCategory = item.category; this.fPrice = item.price; this.fStock = item.stockQuantity; this.fDesc = item.description ?? ''; this.fAvail = item.isAvailable; this.fImageUrl = item.imageUrl ?? ''; this.fImagePublicId = item.imagePublicId ?? ''; this.showForm.set(true); }
@@ -426,6 +532,44 @@ export class AdminComponent implements OnInit {
     });
   }
   private resetUser() { this.uName = ''; this.uPass = ''; this.uDisplay = ''; this.uRole = 'cashier'; this.uPin = ''; }
+
+  // ── Orders ─────────────────────────────────────────────
+
+  loadOrders() {
+    this.ordersBusy.set(true);
+    this.service.getOrders().subscribe({
+      next: (orders) => {
+        this.orders.set(orders);
+        // Keep the open detail in sync (e.g. after a void elsewhere).
+        const sel = this.selectedOrder();
+        if (sel) {
+          const fresh = orders.find(o => o.id === sel.id);
+          this.selectedOrder.set(fresh ?? null);
+        }
+        this.ordersBusy.set(false);
+      },
+      error: () => this.ordersBusy.set(false)
+    });
+  }
+
+  voidOrder(o: any) {
+    this.dialog.prompt('Void order', `Void order #${o.id} (R${o.total.toFixed(2)})? Stock is returned to inventory.`, {
+      inputType: 'text',
+      placeholder: 'Reason (e.g. wrong order)'
+    }).then(reason => {
+      const r = reason?.trim();
+      if (!r) return;
+      this.service.voidOrder(o.id, r).subscribe({
+        next: () => {
+          this.dialog.toast(`Order #${o.id} voided`, 'success');
+          this.loadOrders();
+          this.loadSum();
+          this.loadInv(); // stock was restored
+        },
+        error: (e) => this.dialog.toast(e.error?.error || 'Void failed', 'error')
+      });
+    });
+  }
 
   // ── Categories ────────────────────────────────────────────
 

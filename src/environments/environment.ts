@@ -5,10 +5,9 @@ export const environment = {
   production: true,
   apiBase: 'https://devstack-api.runasp.net/api',
   cloudinary: {
-    // Your Cloudinary cloud name and an UNSIGNED upload preset.
-    // Create the preset in Cloudinary: Settings → Upload → Upload presets →
-    // add one with Signing Mode = "Unsigned".
-    cloudName: 'YOUR_CLOUD_NAME',
-    uploadPreset: 'YOUR_UNSIGNED_PRESET',
+    // Same Cloudinary account as development — uploads are unsigned and
+    // client-side, so the cloud name + preset are public by design.
+    cloudName: 'dpuvlgxsa',
+    uploadPreset: 'nvblarup',
   },
 };

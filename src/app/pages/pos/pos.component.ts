@@ -307,6 +307,10 @@ export class PosComponent implements OnInit {
     this.service.getItems().subscribe(items => {
       this.items = items;
       this.loading.set(false);
+      // The default category is a guess ('Hot Drinks'); snap to the first real
+      // one so a shop without it never stares at an empty grid.
+      const cats = this.categories;
+      if (cats.length && !cats.includes(this.activeCat)) this.activeCat = cats[0];
     });
   }
 

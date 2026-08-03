@@ -1,4 +1,4 @@
-import { Component, effect, inject } from '@angular/core';
+import { Component, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DialogService, DialogState } from './dialog.service';
 
@@ -22,15 +22,24 @@ import { DialogService, DialogState } from './dialog.service';
               <h3 class="panel-title">{{ s.title }}</h3>
               <p class="panel-msg">{{ s.message }}</p>
               @if (s.kind === 'prompt') {
-                <input class="panel-input" type="password" inputmode="numeric" maxlength="6"
-                  [(ngModel)]="promptValue" (keyup.enter)="ok()" autocomplete="off" placeholder="••••" />
+                <input class="panel-input" [class.reveal]="s.inputType === 'text'"
+                  [type]="s.inputType === 'pin' ? 'password' : 'text'"
+                  [attr.inputmode]="s.inputType === 'pin' ? 'numeric' : null"
+                  [maxlength]="s.inputType === 'pin' ? 6 : null"
+                  [(ngModel)]="promptValue" (keyup.enter)="ok()" autocomplete="off" [placeholder]="s.placeholder" />
+              }
+              @if (s.kind === 'reveal') {
+                <div class="reveal-row">
+                  <input class="panel-input reveal" [value]="s.value" readonly (focus)="onRevealFocus($event)" />
+                  <button type="button" class="btn ghost copy" (click)="copyReveal(s.value)">{{ copied() ? 'Copied ✓' : 'Copy' }}</button>
+                </div>
               }
               <div class="panel-actions">
-                @if (s.kind !== 'alert') {
+                @if (s.kind !== 'alert' && s.kind !== 'reveal') {
                   <button type="button" class="btn ghost" (click)="cancel()">Cancel</button>
                 }
                 <button type="button" class="btn primary" (click)="ok()">
-                  {{ s.kind === 'confirm' ? 'Delete' : s.kind === 'prompt' ? 'Set' : 'OK' }}
+                  {{ s.kind === 'confirm' ? 'Delete' : s.kind === 'prompt' ? 'Set' : 'Done' }}
                 </button>
               </div>
             </div>
@@ -101,6 +110,9 @@ import { DialogService, DialogState } from './dialog.service';
       outline: none;
     }
     .panel-input:focus { border-color: var(--accent); }
+    .panel-input.reveal { letter-spacing: 0.06em; font-size: 1rem; user-select: all; }
+    .reveal-row { position: relative; margin-bottom: 1.25rem; }
+    .reveal-row .copy { position: absolute; right: 0.35rem; top: 50%; transform: translateY(-50%); padding: 0.4em 0.8em; font-size: 0.75rem; }
     .panel-actions { display: flex; gap: 0.625rem; justify-content: flex-end; }
     .btn {
       padding: 0.65em 1.5em;
@@ -126,10 +138,22 @@ export class AppDialogComponent {
   private dialog = inject(DialogService);
   state = this.dialog.state;
   promptValue = '';
+  readonly copied = signal(false);
+  private copyTimer: any;
 
   constructor() {
     // Clear the prompt input each time a new prompt opens.
     effect(() => { if (this.dialog.state()?.kind === 'prompt') this.promptValue = ''; });
+  }
+
+  onRevealFocus(e: Event) { (e.target as HTMLInputElement).select(); }
+
+  copyReveal(value: string) {
+    navigator.clipboard?.writeText(value).then(() => {
+      this.copied.set(true);
+      clearTimeout(this.copyTimer);
+      this.copyTimer = setTimeout(() => this.copied.set(false), 2000);
+    }).catch(() => { /* clipboard unavailable — user can still select the text */ });
   }
 
   ok() {

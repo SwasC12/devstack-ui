@@ -107,13 +107,33 @@ export class MenuItemService {
 
   // ── Shops ────────────────────────────────────────────
 
-  // Superadmin: all shops.
+  // Superadmin: all shops with lifecycle status + usage stats.
   getShops(): Observable<any[]> {
     return this.http.get<any[]>(`${API}/shops`);
   }
 
   createShop(data: { name: string; code: string; adminUsername: string; adminPassword: string; adminDisplayName: string }): Observable<any> {
     return this.http.post(`${API}/shops`, data);
+  }
+
+  // Superadmin: suspend (false) or reactivate (true) a tenant.
+  setShopStatus(id: number, isActive: boolean): Observable<any> {
+    return this.http.put(`${API}/shops/${id}/status`, { isActive });
+  }
+
+  // Superadmin: fresh random password for the shop's first admin, returned once.
+  resetShopAdminPassword(id: number): Observable<{ password: string; username: string; displayName: string }> {
+    return this.http.post<{ password: string; username: string; displayName: string }>(`${API}/shops/${id}/reset-admin-password`, {});
+  }
+
+  // ── Orders (admin history) ────────────────────────────
+
+  getOrders(): Observable<any[]> {
+    return this.http.get<any[]>(`${API}/orders`);
+  }
+
+  voidOrder(id: number, reason: string): Observable<void> {
+    return this.http.post<void>(`${API}/orders/${id}/void`, { reason });
   }
 
   // Current shop (any logged-in shop user): branding shown in the POS.
