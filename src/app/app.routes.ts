@@ -2,10 +2,8 @@ import { Routes } from '@angular/router';
 import { authGuard, posGuard, loginGuard, superAdminGuard } from './auth.guard';
 
 export const routes: Routes = [
-  { path: '', redirectTo: '/menu', pathMatch: 'full' },
-
-  // Public
-  { path: 'menu', loadComponent: () => import('./pages/customer-menu/customer-menu.component').then(m => m.CustomerMenuComponent) },
+  // No public menu — the app is a shop tool. Signed-in users land on the POS.
+  { path: '', redirectTo: '/pos', pathMatch: 'full' },
 
   // Login — only when logged out
   { path: 'login', loadComponent: () => import('./pages/login/login.component').then(m => m.LoginComponent), canActivate: [loginGuard] },

@@ -4,6 +4,7 @@ import { AuthService } from './auth.service';
 
 // All guards first let the auth service restore a session from the refresh
 // cookie (no-op once initialized), so a hard reload keeps you where you were.
+// Denied users go to the login page (there is no public menu anymore).
 
 // Admin only → /admin
 export const authGuard = async () => {
@@ -11,7 +12,7 @@ export const authGuard = async () => {
   const router = inject(Router);
   await auth.ensureReady();
   if (auth.getUser()?.role === 'admin') return true;
-  return router.parseUrl('/menu');
+  return router.parseUrl('/login');
 };
 
 // Any logged-in user → /pos
@@ -20,7 +21,7 @@ export const posGuard = async () => {
   const router = inject(Router);
   await auth.ensureReady();
   if (auth.isLoggedIn) return true;
-  return router.parseUrl('/menu');
+  return router.parseUrl('/login');
 };
 
 // Superadmin only → /shops
@@ -29,7 +30,7 @@ export const superAdminGuard = async () => {
   const router = inject(Router);
   await auth.ensureReady();
   if (auth.getUser()?.role === 'superadmin') return true;
-  return router.parseUrl('/menu');
+  return router.parseUrl('/login');
 };
 
 // Logged-out only → login pages
@@ -38,5 +39,5 @@ export const loginGuard = async () => {
   const router = inject(Router);
   await auth.ensureReady();
   if (!auth.isLoggedIn) return true;
-  return router.parseUrl('/menu');
+  return router.parseUrl('/pos');
 };

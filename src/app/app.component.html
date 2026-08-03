@@ -5,7 +5,6 @@
       <span>CoffeeShop Pro</span>
     </a>
     <nav class="nav-links">
-      <a routerLink="/menu" routerLinkActive="active">Menu</a>
       @if (auth.isLoggedIn) {
         @if (shop) { <span class="shop-badge">{{ shop.name }}</span> }
         <a routerLink="/pos" routerLinkActive="active">POS</a>

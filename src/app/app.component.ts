@@ -49,7 +49,7 @@ export class AppComponent {
   logout(): void {
     const isSuper = this.auth.getUser()?.role === 'superadmin';
     this.auth.logout()
-      .pipe(finalize(() => this.router.navigate([isSuper ? '/platform' : '/menu'])))
+      .pipe(finalize(() => this.router.navigate([isSuper ? '/platform' : '/login'])))
       .subscribe();
   }
 }
