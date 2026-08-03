@@ -145,9 +145,15 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
           </div>
           <div class="cart-foot">
             <div class="cart-subtotal"><span>Subtotal</span><span>R{{ total() | number:'1.2-2' }}</span></div>
-            <div class="cart-summary"><span>Total</span><strong>R{{ total() | number:'1.2-2' }}</strong></div>
+            @if (selectedDiscount(); as d) {
+              <div class="cart-discount"><span>{{ d.name }}</span><span>−R{{ discountAmount() | number:'1.2-2' }}</span></div>
+              <button class="link-clear" (click)="selectedDiscount.set(null)">Remove discount</button>
+            } @else if (liveDiscounts().length) {
+              <button class="disc-btn" (click)="discountOpen.set(true)">🏷 Add discount</button>
+            }
+            <div class="cart-summary"><span>Total</span><strong>R{{ netTotal() | number:'1.2-2' }}</strong></div>
             <button class="btn-checkout" (click)="checkout()" [disabled]="cart().length === 0 || busy()">
-              {{ busy() ? 'Placing order…' : 'Checkout · R' + (total() | number:'1.2-2') }}
+              {{ busy() ? 'Placing order…' : 'Checkout · R' + (netTotal() | number:'1.2-2') }}
             </button>
           </div>
         </div>
@@ -184,6 +190,23 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
       </div>
     }
 
+    <!-- Discount picker -->
+    @if (discountOpen()) {
+      <div class="complete">
+        <div class="complete-card pick-card">
+          <div class="pay-head"><h3>Discounts &amp; specials</h3><app-btn size="sm" (onClick)="discountOpen.set(false)">✕</app-btn></div>
+          @for (d of liveDiscounts(); track d.id) {
+            <button class="pick-row" (click)="applyDiscount(d)">
+              <span class="pick-name">{{ d.name }}</span>
+              <span class="pick-val">{{ d.type === 'percent' ? d.value + '% off' : 'R' + (d.value | number:'1.2-2') + ' off' }}</span>
+            </button>
+          } @empty {
+            <p class="hint" style="margin:0.5rem 0;">No discounts live right now.</p>
+          }
+        </div>
+      </div>
+    }
+
     <!-- Payment sheet -->
     @if (paymentOpen()) {
       <div class="complete">
@@ -194,7 +217,7 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
           </div>
           <div class="pay-total">
             <span class="pay-total-lbl">Total due</span>
-            <span class="pay-total-val">R{{ total() | number:'1.2-2' }}</span>
+            <span class="pay-total-val">R{{ netTotal() | number:'1.2-2' }}</span>
           </div>
 
           <!-- Method toggle -->
@@ -228,7 +251,7 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
           }
 
           <button class="btn-checkout" [disabled]="busy() || !canConfirm()" (click)="confirmPayment()">
-            {{ busy() ? 'Placing order…' : payMethod() === 'cash' ? 'Charge R' + (total() | number:'1.2-2') : 'Confirm card payment' }}
+            {{ busy() ? 'Placing order…' : payMethod() === 'cash' ? 'Charge R' + (netTotal() | number:'1.2-2') : 'Confirm card payment' }}
           </button>
         </div>
       </div>
@@ -319,6 +342,15 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
     .cart-total { font-weight: 700; min-width: 4.5rem; text-align: right; font-size: 0.875rem; font-variant-numeric: tabular-nums; color: var(--text); }
     .cart-foot { padding: 1rem 1.25rem; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 0.5rem; background: var(--surface-2); }
     .cart-subtotal, .cart-summary { display: flex; justify-content: space-between; align-items: baseline; }
+    .cart-discount { display: flex; justify-content: space-between; align-items: baseline; color: var(--green); font-size: 0.8125rem; font-weight: 700; }
+    .link-clear { border: 0; background: transparent; color: var(--muted); font-family: inherit; font-size: 0.6875rem; cursor: pointer; text-decoration: underline; align-self: flex-start; }
+    .disc-btn { padding: 0.5rem; border: 1px dashed var(--border-hover); border-radius: var(--radius-sm); background: transparent; color: var(--accent-2); font-family: inherit; font-size: 0.8125rem; font-weight: 700; cursor: pointer; }
+    .disc-btn:hover { border-color: var(--accent); background: var(--accent-light); }
+    .pick-card { width: 360px; max-width: 94vw; padding: 1.5rem; gap: 0.5rem; align-items: stretch; }
+    .pick-row { display: flex; justify-content: space-between; align-items: center; padding: 0.8rem 1rem; border: 1px solid var(--border-hover); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); font-family: inherit; cursor: pointer; }
+    .pick-row:hover { border-color: var(--accent); }
+    .pick-name { font-weight: 700; font-size: 0.875rem; }
+    .pick-val { color: var(--accent-2); font-weight: 700; font-size: 0.8125rem; }
     .cart-subtotal { font-size: 0.8125rem; color: var(--text-2); }
     .cart-summary { font-size: 1rem; }
     .cart-summary strong { font-size: 1.375rem; font-weight: 800; color: var(--text); }
@@ -432,6 +464,11 @@ export class PosComponent implements OnInit {
   readonly receivedText = signal('');
   readonly lastOrder = signal<any | null>(null);
 
+  // Discounts / specials
+  readonly discounts = signal<any[]>([]);
+  readonly selectedDiscount = signal<any | null>(null);
+  readonly discountOpen = signal(false);
+
   // Shift summary (shown at clock-out)
   readonly shiftSummary = signal<any | null>(null);
 
@@ -461,7 +498,7 @@ export class PosComponent implements OnInit {
     return inCart ? inCart.quantity >= this.stockOf(id) : false;
   }
 
-  ngOnInit() { this.restoreCart(); this.load(); this.checkShift(); this.loadShop(); }
+  ngOnInit() { this.restoreCart(); this.load(); this.checkShift(); this.loadShop(); this.loadDiscounts(); }
 
   private load() {
     this.loading.set(true);
@@ -536,11 +573,27 @@ export class PosComponent implements OnInit {
     }).filter(i => i.quantity > 0));
   }
 
+  // ── Discounts / specials ──────────────────────────────
+
+  private loadDiscounts() { this.service.getDiscounts().subscribe(ds => this.discounts.set(ds)); }
+
+  liveDiscounts(): any[] { return this.discounts().filter(d => d.isLive); }
+
+  discountAmount(): number {
+    const d = this.selectedDiscount();
+    if (!d) return 0;
+    return d.type === 'percent' ? Math.round(this.total() * d.value) / 100 : Math.min(d.value, this.total());
+  }
+
+  netTotal(): number { return Math.max(0, this.total() - this.discountAmount()); }
+
+  applyDiscount(d: any) { this.selectedDiscount.set(d); this.discountOpen.set(false); }
+
   // ── Till / payment ──────────────────────────────────────
 
   readonly received = () => parseFloat(this.receivedText()) || 0;
-  readonly change = () => Math.max(0, this.received() - this.total());
-  readonly canConfirm = () => this.payMethod() === 'card' || this.received() >= this.total();
+  readonly change = () => Math.max(0, this.received() - this.netTotal());
+  readonly canConfirm = () => this.payMethod() === 'card' || this.received() >= this.netTotal();
 
   pressKey(k: string) {
     if (k === '⌫') this.receivedText.update(t => t.slice(0, -1));
@@ -576,11 +629,12 @@ export class PosComponent implements OnInit {
     this.service.placeOrder(this.cart(), {
       method: this.payMethod(),
       amountReceived: this.payMethod() === 'cash' ? this.received() : null
-    }).subscribe({
+    }, this.selectedDiscount()?.id ?? null).subscribe({
       next: (order) => {
         this.busy.set(false);
         this.paymentOpen.set(false);
         this.cart.set([]);
+        this.selectedDiscount.set(null);
         this.load();
         this.lastOrder.set(order);
       },

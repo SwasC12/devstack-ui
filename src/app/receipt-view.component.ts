@@ -1,5 +1,6 @@
-import { Component, Input } from '@angular/core';
+import { Component, Input, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import * as QRCode from 'qrcode';
 
 // Reusable receipt: thermal-paper style, print-ready (the whole receipt is a
 // .receipt-print element, isolated by the global @media print rules). Used by
@@ -28,6 +29,9 @@ import { CommonModule } from '@angular/common';
           </div>
         }
       </div>
+      @if (order.discountAmount > 0) {
+        <div class="r-disc"><span>Discount ({{ order.discountName }})</span><span>−R{{ order.discountAmount | number:'1.2-2' }}</span></div>
+      }
       <div class="r-total"><span>Total</span><strong>R{{ order.total | number:'1.2-2' }}</strong></div>
       <div class="r-pay">
         <span>Paid: {{ order.paymentMethod === 'cash' ? 'Cash' : 'Card' }}</span>
@@ -37,6 +41,12 @@ import { CommonModule } from '@angular/common';
         }
       </div>
       <p class="r-thanks">Thank you! ☕</p>
+      @if (qrDataUrl) {
+        <div class="r-qr">
+          <img [src]="qrDataUrl" alt="Receipt QR" />
+          <span class="r-qr-sub">Scan for receipt</span>
+        </div>
+      }
     </div>
     <button class="r-print-btn" (click)="print()">🖨 Print</button>
   `,
@@ -60,6 +70,10 @@ import { CommonModule } from '@angular/common';
     .r-line { display: flex; justify-content: space-between; gap: 1rem; padding: 0.18rem 0; }
     .r-line span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .r-total { display: flex; justify-content: space-between; border-top: 1px dashed #999; margin-top: 0.4rem; padding-top: 0.5rem; font-size: 0.95rem; }
+    .r-disc { display: flex; justify-content: space-between; font-size: 0.78rem; padding: 0.2rem 0; }
+    .r-qr { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; margin-top: 0.9rem; padding-top: 0.7rem; border-top: 1px dashed #999; }
+    .r-qr img { width: 132px; height: 132px; border-radius: 6px; }
+    .r-qr-sub { font-size: 0.65rem; opacity: 0.6; }
     .r-pay { display: flex; flex-direction: column; gap: 0.15rem; font-size: 0.72rem; opacity: 0.8; margin-top: 0.5rem; }
     .r-thanks { text-align: center; margin: 0.8rem 0 0; font-size: 0.75rem; }
     .r-print-btn {
@@ -80,10 +94,28 @@ import { CommonModule } from '@angular/common';
     @media print { .r-print-btn { display: none; } }
   `]
 })
-export class ReceiptViewComponent {
+export class ReceiptViewComponent implements OnInit {
   @Input() order: any = null;
   @Input() shop: any = null;
   @Input() cashierName = '';
 
+  qrDataUrl: string | null = null;
+
+  ngOnInit() { this.renderQr(); }
+
   print() { window.print(); }
+
+  // QR is generated CLIENT-SIDE (qrcode lib, pure JS) — zero backend load.
+  private renderQr() {
+    if (!this.order) return;
+    const text = [
+      this.shop?.name || 'CoffeeShop Pro',
+      `Order #${this.order.id}`,
+      `Total: R${Number(this.order.total).toFixed(2)}`,
+      this.order.createdAt ? new Date(this.order.createdAt).toLocaleString() : ''
+    ].filter(Boolean).join('\n');
+    QRCode.toDataURL(text, { width: 132, margin: 1, color: { dark: '#111111', light: '#fdfdf7' } })
+      .then(url => this.qrDataUrl = url)
+      .catch(() => this.qrDataUrl = null);
+  }
 }

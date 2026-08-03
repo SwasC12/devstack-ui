@@ -23,6 +23,7 @@ import { ReceiptViewComponent } from '../../receipt-view.component';
         <button class="tab" [class.active]="tab() === 'users'" (click)="tab.set('users')">Users</button>
         <button class="tab" [class.active]="tab() === 'orders'" (click)="tab.set('orders')">Orders</button>
         <button class="tab" [class.active]="tab() === 'analytics'" (click)="openAnalytics()">Analytics</button>
+        <button class="tab" [class.active]="tab() === 'discounts'" (click)="tab.set('discounts')">Discounts</button>
         <button class="tab" [class.active]="tab() === 'settings'" (click)="tab.set('settings')">Settings</button>
       </div>
 
@@ -378,6 +379,77 @@ import { ReceiptViewComponent } from '../../receipt-view.component';
         }
       }
 
+      <!-- ───── DISCOUNTS / SPECIALS ───── -->
+      @if (tab() === 'discounts') {
+        <div class="section-head">
+          <h2 class="page-title">Discounts & specials</h2>
+          <app-btn variant="primary" (onClick)="openDiscForm()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            New discount
+          </app-btn>
+        </div>
+
+        @if (showDiscForm()) {
+          <div class="form-sheet">
+            <div class="form-head">
+              <h3>{{ editingDisc() ? 'Edit' : 'New' }} discount</h3>
+              <app-btn size="sm" (onClick)="closeDiscForm()">✕</app-btn>
+            </div>
+            <div class="form-grid">
+              <div class="field"><label>Name</label><input [(ngModel)]="dName" placeholder="e.g. Happy hour" /></div>
+              <div class="field">
+                <label>Type</label>
+                <select [(ngModel)]="dType" class="sel">
+                  <option value="percent">% off</option>
+                  <option value="fixed">R off</option>
+                </select>
+              </div>
+              <div class="field"><label>{{ dType === 'percent' ? 'Percent off' : 'Rand off' }}</label><input type="number" step="0.01" [(ngModel)]="dValue" placeholder="0" /></div>
+              <div class="field">
+                <label>Day</label>
+                <select [(ngModel)]="dDay" class="sel">
+                  <option [ngValue]="null">Every day</option>
+                  @for (day of ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']; track day; let i = $index) {
+                    <option [ngValue]="i">{{ day }}</option>
+                  }
+                </select>
+              </div>
+              <div class="field"><label>From (optional)</label><input type="time" [(ngModel)]="dStart" /></div>
+              <div class="field"><label>Until (optional)</label><input type="time" [(ngModel)]="dEnd" /></div>
+              <div class="field chk"><label class="checkbox"><input type="checkbox" [(ngModel)]="dActive" /> <span>Active</span></label></div>
+            </div>
+            <div class="form-acts">
+              <app-btn size="sm" (onClick)="closeDiscForm()">Cancel</app-btn>
+              <app-btn variant="primary" size="sm" (onClick)="saveDisc()">Save</app-btn>
+            </div>
+          </div>
+        }
+
+        <div class="table-card">
+          <table class="discs">
+            <thead><tr><th>Name</th><th>Value</th><th>Schedule</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+              @for (d of discounts(); track d.id) {
+                <tr>
+                  <td><strong>{{ d.name }}</strong></td>
+                  <td>{{ d.type === 'percent' ? d.value + '%' : 'R' + (d.value | number:'1.2-2') }}</td>
+                  <td class="muted">{{ discSchedule(d) }}</td>
+                  <td>
+                    <span class="status-pill" [class.live]="d.isLive">{{ d.isLive ? 'Live now' : d.isActive ? 'Scheduled' : 'Off' }}</span>
+                  </td>
+                  <td class="cell-acts">
+                    <app-btn size="sm" (onClick)="editDisc(d)">Edit</app-btn>
+                    <app-btn size="sm" variant="danger" (onClick)="removeDisc(d)">Delete</app-btn>
+                  </td>
+                </tr>
+              } @empty {
+                <tr><td colspan="5" class="muted-td">No discounts yet — add one, e.g. a happy hour special.</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+
       <!-- ───── SETTINGS ───── -->
       @if (tab() === 'settings') {
         <div class="section-head">
@@ -527,7 +599,13 @@ import { ReceiptViewComponent } from '../../receipt-view.component';
     .order-row:hover td { background: var(--surface-2); }
     .row-voided td { opacity: 0.5; }
     .status-pill { display: inline-block; background: var(--green-bg); color: var(--green); font-size: 0.68rem; font-weight: 700; padding: 0.15em 0.6em; border-radius: 100px; }
+    .status-pill.live { background: var(--accent-light); color: var(--accent-hover); }
     .status-pill.voided { background: var(--red-bg); color: var(--red); }
+    table.discs th:nth-child(1) { width: 26%; }
+    table.discs th:nth-child(2) { width: 12%; }
+    table.discs th:nth-child(3) { width: 30%; }
+    table.discs th:nth-child(4) { width: 12%; }
+    table.discs th:last-child { width: 20%; }
     .order-meta { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; font-size: 0.8125rem; color: var(--text-2); margin-bottom: 0.75rem; }
     .order-meta strong { color: var(--text); }
     .void-reason { color: var(--red); font-weight: 600; }
@@ -546,7 +624,7 @@ export class AdminComponent implements OnInit {
   private service = inject(MenuItemService);
   private auth = inject(AuthService);
   private dialog = inject(DialogService);
-  readonly tab = signal<'inventory' | 'categories' | 'users' | 'orders' | 'analytics' | 'settings'>('inventory');
+  readonly tab = signal<'inventory' | 'categories' | 'users' | 'orders' | 'analytics' | 'discounts' | 'settings'>('inventory');
 
   // Inventory
   readonly items = signal<MenuItem[]>([]);
@@ -588,7 +666,14 @@ export class AdminComponent implements OnInit {
   readonly analytics = signal<any | null>(null);
   readonly analyticsDays = signal(14);
 
-  ngOnInit() { this.loadInv(); this.loadSum(); this.loadUsers(); this.loadCategories(); this.loadSettings(); this.loadOrders(); this.loadShopInfo(); }
+  // Discounts / specials
+  readonly discounts = signal<any[]>([]);
+  readonly showDiscForm = signal(false);
+  readonly editingDisc = signal<any | null>(null);
+  dName = ''; dType: 'percent' | 'fixed' = 'percent'; dValue: number | null = null;
+  dDay: number | null = null; dStart = ''; dEnd = ''; dActive = true;
+
+  ngOnInit() { this.loadInv(); this.loadSum(); this.loadUsers(); this.loadCategories(); this.loadSettings(); this.loadOrders(); this.loadShopInfo(); this.loadDiscounts(); }
 
   private loadShopInfo() { this.service.getShopInfo().subscribe(s => this.shopInfo = s); }
 
@@ -689,6 +774,52 @@ export class AdminComponent implements OnInit {
   barPct(revenue: number, daily: any[]): number {
     const max = Math.max(...daily.map(d => d.revenue), 1);
     return Math.max(2, Math.round((revenue / max) * 100));
+  }
+
+  // ── Discounts / specials ─────────────────────────────────
+
+  private loadDiscounts() { this.service.getDiscounts().subscribe(ds => this.discounts.set(ds)); }
+
+  discSchedule(d: any): string {
+    const day = d.dayOfWeek != null ? ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.dayOfWeek] : 'Every day';
+    if (!d.startTime && !d.endTime) return day;
+    const s = d.startTime ? d.startTime.slice(0, 5) : '';
+    const e = d.endTime ? d.endTime.slice(0, 5) : '';
+    return `${day} ${s || '—'}–${e || '—'}`;
+  }
+
+  openDiscForm() { this.editingDisc.set(null); this.dName = ''; this.dType = 'percent'; this.dValue = null; this.dDay = null; this.dStart = ''; this.dEnd = ''; this.dActive = true; this.showDiscForm.set(true); }
+  closeDiscForm() { this.showDiscForm.set(false); this.editingDisc.set(null); }
+  editDisc(d: any) {
+    this.editingDisc.set(d);
+    this.dName = d.name; this.dType = d.type; this.dValue = d.value;
+    this.dDay = d.dayOfWeek; this.dStart = d.startTime ?? ''; this.dEnd = d.endTime ?? ''; this.dActive = d.isActive;
+    this.showDiscForm.set(true);
+  }
+  saveDisc() {
+    const body: any = {
+      id: this.editingDisc()?.id ?? 0,
+      name: this.dName,
+      type: this.dType,
+      value: this.dValue ?? 0,
+      isActive: this.dActive,
+      dayOfWeek: this.dDay,
+      startTime: this.dStart || null,
+      endTime: this.dEnd || null
+    };
+    this.service.writeDiscount(body).subscribe({
+      next: () => { this.loadDiscounts(); this.closeDiscForm(); },
+      error: (e) => this.dialog.toast(e.error?.error || 'Save failed', 'error')
+    });
+  }
+  removeDisc(d: any) {
+    this.dialog.confirm('Delete discount', `Delete "${d.name}"?`).then(ok => {
+      if (!ok) return;
+      this.service.deleteDiscount(d.id).subscribe({
+        next: () => this.loadDiscounts(),
+        error: (e) => this.dialog.toast(e.error?.error || 'Delete failed', 'error')
+      });
+    });
   }
 
   voidOrder(o: any) {
