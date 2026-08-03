@@ -8,13 +8,14 @@ import { MenuItem } from '../../menu-item.model';
 import { AuthService } from '../../auth.service';
 import { BtnComponent } from '../../btn.component';
 import { DialogService } from '../../dialog.service';
+import { ReceiptViewComponent } from '../../receipt-view.component';
 
 interface CartItem { id: number; name: string; price: number; quantity: number; }
 
 @Component({
   selector: 'app-pos',
   standalone: true,
-  imports: [CommonModule, FormsModule, BtnComponent],
+  imports: [CommonModule, FormsModule, BtnComponent, ReceiptViewComponent],
   template: `
     <!-- Not on shift: one big, obvious clock-in screen. No POS until you're in. -->
     @if (!shiftActive()) {
@@ -58,6 +59,83 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
           <div class="complete-card">
             <span class="complete-check">✓</span>
             <strong>Order Complete</strong>
+          </div>
+        </div>
+      }
+
+      <!-- Receipt after checkout -->
+      @if (lastOrder(); as o) {
+        <div class="complete">
+          <div class="complete-card receipt-wrap">
+            <app-receipt [order]="o" [shop]="shopInfo()" [cashierName]="auth.getUser()?.displayName ?? ''" />
+            <app-btn variant="primary" size="sm" (onClick)="closeReceipt()">New order</app-btn>
+          </div>
+        </div>
+      }
+
+      <!-- Shift summary after clock-out -->
+      @if (shiftSummary(); as s) {
+        <div class="complete">
+          <div class="complete-card summary-card">
+            <span class="complete-check">⏱</span>
+            <strong>Shift over — well done!</strong>
+            <div class="sum-grid">
+              <div class="sum-cell"><span class="sum-val">{{ s.orderCount }}</span><span class="sum-lbl">Orders</span></div>
+              <div class="sum-cell"><span class="sum-val">{{ s.itemCount }}</span><span class="sum-lbl">Items sold</span></div>
+              <div class="sum-cell"><span class="sum-val">R{{ s.revenue | number:'1.2-2' }}</span><span class="sum-lbl">Revenue</span></div>
+              <div class="sum-cell"><span class="sum-val">R{{ s.averageOrder | number:'1.2-2' }}</span><span class="sum-lbl">Avg order</span></div>
+            </div>
+            <app-btn variant="primary" (onClick)="shiftSummary.set(null)">Done</app-btn>
+          </div>
+        </div>
+      }
+
+      <!-- Payment sheet -->
+      @if (paymentOpen()) {
+        <div class="complete">
+          <div class="complete-card pay-card">
+            <div class="pay-head">
+              <h3>Payment</h3>
+              <app-btn size="sm" (onClick)="paymentOpen.set(false)">✕</app-btn>
+            </div>
+            <div class="pay-total">
+              <span class="pay-total-lbl">Total due</span>
+              <span class="pay-total-val">R{{ total() | number:'1.2-2' }}</span>
+            </div>
+
+            <!-- Method toggle -->
+            <div class="pay-methods">
+              <button class="pay-method" [class.on]="payMethod() === 'cash'" (click)="payMethod.set('cash')">💵 Cash</button>
+              <button class="pay-method" [class.on]="payMethod() === 'card'" (click)="payMethod.set('card')">💳 Card</button>
+            </div>
+
+            @if (payMethod() === 'cash') {
+              <!-- Tendered amount + change -->
+              <div class="pay-received">
+                <span class="pay-received-lbl">Received</span>
+                <span class="pay-received-val">R{{ receivedText() || '0' }}</span>
+              </div>
+              <div class="pay-quick">
+                <button class="qk" (click)="setQuick('exact')">Exact</button>
+                <button class="qk" (click)="setQuick('50')">R50</button>
+                <button class="qk" (click)="setQuick('100')">R100</button>
+                <button class="qk" (click)="setQuick('200')">R200</button>
+              </div>
+              <div class="pay-keys">
+                @for (k of ['1','2','3','4','5','6','7','8','9','.','0','⌫']; track k) {
+                  <button class="pk" (click)="pressKey(k)">{{ k }}</button>
+                }
+              </div>
+              @if (change() > 0) {
+                <div class="pay-change"><span>Change</span><strong>R{{ change() | number:'1.2-2' }}</strong></div>
+              }
+            } @else {
+              <p class="pay-card-note">Take the card payment on the terminal, then confirm.</p>
+            }
+
+            <button class="btn-checkout" [disabled]="busy() || !canConfirm()" (click)="confirmPayment()">
+              {{ busy() ? 'Placing order…' : payMethod() === 'cash' ? 'Charge R' + (total() | number:'1.2-2') : 'Confirm card payment' }}
+            </button>
           </div>
         </div>
       }
@@ -245,6 +323,40 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
     .complete-card { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; background: var(--surface); border: 1px solid var(--accent); border-radius: var(--radius-lg); padding: 2.5rem 3rem; box-shadow: var(--shadow-lg); }
     .complete-check { width: 72px; height: 72px; border-radius: 50%; background: var(--green); color: #fff; font-size: 2.25rem; display: flex; align-items: center; justify-content: center; animation: pop 0.3s ease-out; }
     .complete-card strong { font-size: 1.25rem; color: var(--text); }
+
+    /* Receipt + summary overlays */
+    .receipt-wrap { padding: 2rem; gap: 1.25rem; }
+    .summary-card { max-width: 420px; width: 90vw; }
+    .sum-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; width: 100%; margin: 0.5rem 0; }
+    .sum-cell { display: flex; flex-direction: column; align-items: center; gap: 0.15rem; background: var(--surface-2); border-radius: var(--radius-sm); padding: 1rem; }
+    .sum-val { font-size: 1.375rem; font-weight: 800; color: var(--accent-2); }
+    .sum-lbl { font-size: 0.6875rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; }
+
+    /* Payment sheet */
+    .pay-card { width: 380px; max-width: 94vw; padding: 1.5rem; }
+    .pay-head { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+    .pay-head h3 { margin: 0; font-size: 1rem; }
+    .pay-total { display: flex; flex-direction: column; align-items: center; gap: 0.1rem; padding: 0.75rem 0 0.25rem; width: 100%; }
+    .pay-total-lbl { font-size: 0.6875rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; }
+    .pay-total-val { font-size: 2rem; font-weight: 800; color: var(--text); }
+    .pay-methods { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; width: 100%; margin: 0.75rem 0 0.5rem; }
+    .pay-method { padding: 0.8rem; border: 1px solid var(--border-hover); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text-2); font-family: inherit; font-size: 0.9375rem; font-weight: 700; cursor: pointer; transition: all 0.15s; }
+    .pay-method.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .pay-received { display: flex; justify-content: space-between; align-items: baseline; width: 100%; padding: 0.4rem 0; }
+    .pay-received-lbl { font-size: 0.75rem; color: var(--muted); font-weight: 600; }
+    .pay-received-val { font-size: 1.5rem; font-weight: 800; color: var(--accent-2); font-variant-numeric: tabular-nums; }
+    .pay-quick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.4rem; width: 100%; margin-bottom: 0.5rem; }
+    .qk { padding: 0.55rem; border: 1px solid var(--border-hover); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text-2); font-family: inherit; font-size: 0.8125rem; font-weight: 700; cursor: pointer; }
+    .qk:hover { border-color: var(--accent); color: var(--text); }
+    .pay-keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.45rem; width: 100%; }
+    .pk { padding: 0.85rem 0; border: 1px solid var(--border-hover); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); font-family: inherit; font-size: 1.125rem; font-weight: 700; cursor: pointer; transition: all 0.12s; }
+    .pk:hover { background: var(--surface-3); }
+    .pk:active { transform: scale(0.95); }
+    .pay-change { display: flex; justify-content: space-between; align-items: baseline; width: 100%; padding: 0.5rem 0 0.25rem; border-top: 1px dashed var(--border); margin-top: 0.5rem; }
+    .pay-change span { font-size: 0.8125rem; color: var(--muted); font-weight: 600; }
+    .pay-change strong { font-size: 1.375rem; font-weight: 800; color: var(--green); }
+    .pay-card-note { color: var(--text-2); font-size: 0.875rem; margin: 0.5rem 0; }
+
     @keyframes pop { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
   `]
 })
@@ -280,6 +392,15 @@ export class PosComponent implements OnInit {
 
   // Order complete overlay
   readonly complete = signal(false);
+
+  // Till: payment sheet + receipt
+  readonly paymentOpen = signal(false);
+  readonly payMethod = signal<'cash' | 'card'>('cash');
+  readonly receivedText = signal('');
+  readonly lastOrder = signal<any | null>(null);
+
+  // Shift summary (shown at clock-out)
+  readonly shiftSummary = signal<any | null>(null);
 
   get categories(): string[] { return [...new Set(this.items.map(i => i.category))].sort(); }
   searching(): boolean { return this.query().trim().length > 0; }
@@ -352,7 +473,14 @@ export class PosComponent implements OnInit {
 
   endShift() {
     this.service.endShift().subscribe({
-      next: () => this.shiftActive.set(false),
+      next: () => {
+        this.shiftActive.set(false);
+        // Clock-out summary: what did this shift sell?
+        this.service.getShiftSummary().subscribe({
+          next: s => this.shiftSummary.set(s),
+          error: () => this.shiftSummary.set(null)
+        });
+      },
       error: (e) => this.dialog.toast(e.error?.error || 'Could not end shift', 'error')
     });
   }
@@ -375,14 +503,63 @@ export class PosComponent implements OnInit {
     }).filter(i => i.quantity > 0));
   }
 
+  // ── Till / payment ──────────────────────────────────────
+
+  readonly received = () => parseFloat(this.receivedText()) || 0;
+  readonly change = () => Math.max(0, this.received() - this.total());
+  readonly canConfirm = () => this.payMethod() === 'card' || this.received() >= this.total();
+
+  pressKey(k: string) {
+    if (k === '⌫') this.receivedText.update(t => t.slice(0, -1));
+    else if (k === '.') {
+      if (!this.receivedText().includes('.')) this.receivedText.update(t => (t ? t + '.' : '0.'));
+    } else {
+      // max 2 decimals
+      const t = this.receivedText();
+      if (t.includes('.')) {
+        const dec = t.split('.')[1] ?? '';
+        if (dec.length >= 2) return;
+      }
+      this.receivedText.update(t => t + k);
+    }
+  }
+
+  setQuick(which: string) {
+    if (which === 'exact') this.receivedText.set(this.total().toFixed(2));
+    else this.receivedText.set(which);
+  }
+
+  // Checkout button: open the payment sheet instead of charging blindly.
   checkout() {
-    if (this.cart().length === 0 || this.busy()) return;
+    if (this.cart().length === 0) return;
+    this.payMethod.set('cash');
+    this.receivedText.set('');
+    this.paymentOpen.set(true);
+  }
+
+  confirmPayment() {
+    if (!this.canConfirm() || this.busy()) return;
     this.busy.set(true);
-    this.service.placeOrder(this.cart()).subscribe({
-      next: () => { this.busy.set(false); this.cart.set([]); this.load(); this.showComplete(); },
-      error: (e) => { this.busy.set(false); this.dialog.toast(e.error?.error || 'Checkout failed', 'error'); this.load(); }
+    this.service.placeOrder(this.cart(), {
+      method: this.payMethod(),
+      amountReceived: this.payMethod() === 'cash' ? this.received() : null
+    }).subscribe({
+      next: (order) => {
+        this.busy.set(false);
+        this.paymentOpen.set(false);
+        this.cart.set([]);
+        this.load();
+        this.lastOrder.set(order);
+      },
+      error: (e) => {
+        this.busy.set(false);
+        this.dialog.toast(e.error?.error || 'Checkout failed', 'error');
+        this.load();
+      }
     });
   }
+
+  closeReceipt() { this.lastOrder.set(null); this.showComplete(); }
 
   // Brief success moment, then straight back to a clean POS.
   private showComplete() {

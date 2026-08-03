@@ -16,3 +16,17 @@ body {
   background-color: #181818;
   color: #ffffff;
 }
+
+/* Print: isolate receipts (used by the POS checkout + admin reprint). */
+@media print {
+  body * { visibility: hidden !important; }
+  .receipt-print, .receipt-print * { visibility: visible !important; }
+  .receipt-print {
+    position: fixed !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+}

@@ -8,11 +8,12 @@ import { AuthService } from '../../auth.service';
 import { BtnComponent } from '../../btn.component';
 import { PasswordInputComponent } from '../../password-input.component';
 import { DialogService } from '../../dialog.service';
+import { ReceiptViewComponent } from '../../receipt-view.component';
 
 @Component({
   selector: 'app-admin',
   standalone: true,
-  imports: [CommonModule, FormsModule, BtnComponent, PasswordInputComponent],
+  imports: [CommonModule, FormsModule, BtnComponent, PasswordInputComponent, ReceiptViewComponent],
   template: `
     <div class="admin">
       <!-- Tabs -->
@@ -233,8 +234,7 @@ import { DialogService } from '../../dialog.service';
       }
 
       <!-- ───── ORDERS ───── -->
-      @if (tab() === 'orders') {
-        <div class="section-head">
+      @if (tab() === 'orders') {        <div class="section-head">
           <h2 class="page-title">Orders</h2>
           <app-btn size="sm" (onClick)="loadOrders()" [loading]="ordersBusy()">Refresh</app-btn>
         </div>
@@ -261,17 +261,23 @@ import { DialogService } from '../../dialog.service';
               }
             </div>
             <div class="order-total"><span>Total</span><strong>R{{ o.total | number:'1.2-2' }}</strong></div>
-            @if (!o.voidedAt) {
-              <div class="form-acts">
+            <div class="order-meta">
+              <span>Payment: <strong>{{ o.paymentMethod === 'cash' ? 'Cash' : 'Card' }}</strong></span>
+              @if (o.paymentMethod === 'cash' && o.changeGiven != null) {
+                <span>Change: <strong>R{{ o.changeGiven | number:'1.2-2' }}</strong></span>
+              }
+            </div>
+            <div class="form-acts">
+              <app-btn size="sm" (onClick)="receiptOrder.set(o)">Print receipt</app-btn>
+              @if (!o.voidedAt) {
                 <app-btn variant="danger" size="sm" (onClick)="voidOrder(o)">Void order</app-btn>
-              </div>
-            }
+              }
+            </div>
           </div>
         }
 
         <div class="table-card">
-          <table class="orders">
-            <thead><tr><th>Order</th><th>Time</th><th>Cashier</th><th>Items</th><th>Total</th><th>Status</th></tr></thead>
+          <table class="orders">            <thead><tr><th>Order</th><th>Time</th><th>Cashier</th><th>Items</th><th>Total</th><th>Status</th></tr></thead>
             <tbody>
               @for (o of orders(); track o.id) {
                 <tr class="order-row" [class.row-voided]="o.voidedAt" (click)="selectedOrder.set(o)">
@@ -288,6 +294,15 @@ import { DialogService } from '../../dialog.service';
             </tbody>
           </table>
         </div>
+        <!-- Receipt reprint overlay -->
+        @if (receiptOrder(); as ro) {
+          <div class="print-scrim" (click)="receiptOrder.set(null)">
+            <div class="print-panel" (click)="$event.stopPropagation()">
+              <app-receipt [order]="ro" [shop]="shopInfo" [cashierName]="ro.cashierName" />
+              <div class="form-acts"><app-btn size="sm" (onClick)="receiptOrder.set(null)">Close</app-btn></div>
+            </div>
+          </div>
+        }
       }
 
       <!-- ───── SETTINGS ───── -->
@@ -432,6 +447,10 @@ import { DialogService } from '../../dialog.service';
     .ol-price { font-variant-numeric: tabular-nums; color: var(--text); font-weight: 600; }
     .order-total { display: flex; justify-content: space-between; align-items: baseline; border-top: 1px solid var(--border); margin-top: 0.5rem; padding-top: 0.75rem; font-size: 0.9375rem; }
     .order-total strong { font-size: 1.25rem; font-weight: 800; color: var(--text); }
+
+    /* Receipt reprint overlay */
+    .print-scrim { position: fixed; inset: 0; background: rgba(10,8,6,0.7); display: flex; align-items: center; justify-content: center; z-index: 900; }
+    .print-panel { display: flex; flex-direction: column; align-items: center; gap: 1rem; padding: 1.5rem; }
   `]
 })
 export class AdminComponent implements OnInit {
@@ -470,9 +489,13 @@ export class AdminComponent implements OnInit {
   // Orders
   readonly orders = signal<any[]>([]);
   readonly selectedOrder = signal<any | null>(null);
+  readonly receiptOrder = signal<any | null>(null);
   readonly ordersBusy = signal(false);
+  shopInfo: any = null;
 
-  ngOnInit() { this.loadInv(); this.loadSum(); this.loadUsers(); this.loadCategories(); this.loadSettings(); this.loadOrders(); }
+  ngOnInit() { this.loadInv(); this.loadSum(); this.loadUsers(); this.loadCategories(); this.loadSettings(); this.loadOrders(); this.loadShopInfo(); }
+
+  private loadShopInfo() { this.service.getShopInfo().subscribe(s => this.shopInfo = s); }
 
   private loadInv() { this.service.getItems().subscribe(items => this.items.set(items)); }
   private loadSum() { this.service.getSummary().subscribe(s => this.summary.set(s)); }

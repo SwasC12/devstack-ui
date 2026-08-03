@@ -57,10 +57,15 @@ export class MenuItemService {
       .pipe(map((res) => ({ url: res.secure_url, publicId: res.public_id })));
   }
 
-  placeOrder(cart: { id: number; name: string; price: number; quantity: number }[]): Observable<any> {
-    return this.http.post(`${API}/orders`, {
+  placeOrder(cart: { id: number; name: string; price: number; quantity: number }[], payment?: { method: 'cash' | 'card'; amountReceived?: number | null }): Observable<any> {
+    const body: any = {
       items: cart.map(i => ({ menuItemId: i.id, name: i.name, price: i.price, quantity: i.quantity }))
-    });
+    };
+    if (payment) {
+      body.paymentMethod = payment.method;
+      if (payment.method === 'cash') body.amountReceived = payment.amountReceived ?? null;
+    }
+    return this.http.post(`${API}/orders`, body);
   }
 
   getSummary(): Observable<any> {
@@ -97,6 +102,11 @@ export class MenuItemService {
 
   endShift(): Observable<void> {
     return this.http.post<void>(`${API}/shifts/end`, {});
+  }
+
+  // Sales summary for the caller's latest shift (shown at clock-out).
+  getShiftSummary(): Observable<any> {
+    return this.http.get(`${API}/shifts/summary`);
   }
 
   // ── Password ───────────────────────────────────────────
