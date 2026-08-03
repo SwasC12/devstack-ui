@@ -340,10 +340,13 @@ export class PosComponent implements OnInit {
   }
 
   // Handover: sign the current user out and drop the next cashier straight
-  // into PIN sign-in (login page opens in PIN mode via ?pin=1).
+  // into PIN sign-in, carrying the shop code so they never retype it.
   switchUser() {
+    const code = this.auth.getShop()?.code;
+    const qp: any = { pin: 1 };
+    if (code) qp.shop = code;
     this.auth.logout()
-      .pipe(finalize(() => this.router.navigate(['/login'], { queryParams: { pin: 1 } })))
+      .pipe(finalize(() => this.router.navigate(['/login'], { queryParams: qp })))
       .subscribe();
   }
 

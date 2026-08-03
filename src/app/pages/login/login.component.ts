@@ -112,9 +112,17 @@ export class LoginComponent implements OnInit {
   pin = '';
 
   ngOnInit() {
-    // Shift handover lands here with ?pin=1 — skip straight to PIN sign-in.
+    // Shift handover lands here with ?pin=1&shop=CODE — skip straight to PIN
+    // sign-in AND past the shop-code step (the code came with us).
     this.route.queryParamMap.subscribe(p => {
-      if (p.get('pin') === '1' && !this.platform) this.enablePin();
+      if (p.get('pin') === '1' && !this.platform) {
+        this.enablePin();
+        const code = p.get('shop') ?? this.auth.getShop()?.code;
+        if (code) {
+          this.shopCode = code;
+          this.loadStaff(); // auto-fetch staff list, no code entry
+        }
+      }
     });
   }
 
