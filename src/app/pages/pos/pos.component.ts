@@ -297,7 +297,7 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
 
     .pos-menu { flex: 1; display: flex; flex-direction: column; min-width: 0; }
     .results-hint { margin: 0 0 0.5rem; font-size: 0.8rem; color: var(--muted); }
-    .items { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.875rem; overflow-y: auto; align-content: start; padding-bottom: 1rem; }
+    .items { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.875rem; overflow-y: auto; align-content: start; padding: 0.25rem 0 1rem; }
     .item { position: relative; display: flex; flex-direction: column; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); background: var(--surface); cursor: pointer; transition: all 0.15s ease-out; padding: 0; box-shadow: var(--shadow-sm); min-height: 232px; }
     .item:hover:not(:disabled) { border-color: var(--accent); box-shadow: var(--shadow-md); transform: translateY(-2px); }
     .item:active:not(:disabled) { transform: scale(0.98); }
