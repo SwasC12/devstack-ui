@@ -173,4 +173,10 @@ export class MenuItemService {
   updateShopInfo(data: { name: string; logoUrl?: string | null; receiptQrUrl?: string | null }): Observable<{ id: number; name: string; code: string; logoUrl?: string | null; receiptQrUrl?: string | null }> {
     return this.http.put<{ id: number; name: string; code: string; logoUrl?: string | null; receiptQrUrl?: string | null }>(`${API}/shops/me`, data);
   }
+
+  // Superadmin: broadcast an announcement to all shop owners (or one shop).
+  // Creates their in-app notification AND fires an FCM push to their devices.
+  broadcastNotification(title: string, body: string, shopId?: number | null): Observable<{ delivered: number; pushed: number }> {
+    return this.http.post<{ delivered: number; pushed: number }>(`${API}/notifications/broadcast`, { title, body, shopId });
+  }
 }

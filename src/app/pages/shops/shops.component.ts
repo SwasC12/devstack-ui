@@ -20,6 +20,25 @@ import { DialogService } from '../../dialog.service';
         </app-btn>
       </div>
 
+      <!-- Announcement composer: type a message, push it to owners' notifications -->
+      <div class="form-sheet announce">
+        <div class="form-head"><h3>📣 Notify owners</h3></div>
+        <div class="form-grid">
+          <div class="field"><label>Title</label><input [(ngModel)]="bcTitle" placeholder="e.g. Update available" /></div>
+          <div class="field">
+            <label>Send to</label>
+            <select [(ngModel)]="bcShopId" class="sel">
+              <option [ngValue]="null">All shops</option>
+              @for (s of shops(); track s.id) { <option [ngValue]="s.id">{{ s.name }}</option> }
+            </select>
+          </div>
+          <div class="field wide"><label>Message</label><textarea [(ngModel)]="bcBody" rows="3" placeholder="Type your announcement here…"></textarea></div>
+        </div>
+        <div class="form-acts">
+          <app-btn variant="primary" size="sm" (onClick)="broadcast()" [loading]="bcBusy()">Send notification</app-btn>
+        </div>
+      </div>
+
       @if (showForm()) {
         <div class="form-sheet">
           <div class="form-head">
@@ -78,6 +97,11 @@ import { DialogService } from '../../dialog.service';
     .form-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1em; }
     .form-head h3 { margin: 0; font-size: 0.9375rem; font-weight: 700; color: var(--accent-2); }
     .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.85em; }
+    .field.wide { grid-column: 1 / -1; }
+    .field select.sel, .field textarea { padding: 0.6em 0.8em; border: 0.125em solid var(--border-hover); border-radius: 0.75em; font-size: 0.85rem; font-family: inherit; color: var(--text); background: var(--surface-2); outline: none; }
+    .field select.sel:focus, .field textarea:focus { border-color: var(--accent); }
+    .field textarea { resize: vertical; min-height: 72px; }
+    .announce { border-color: var(--border); }
     .field { display: flex; flex-direction: column; gap: 0.3em; }
     .field label { font-size: 0.68rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
     .field input:not([type]) { padding: 0.6em 0.8em; border: 0.125em solid var(--border-hover); border-radius: 0.75em; font-size: 0.85rem; font-family: inherit; color: var(--text); background: var(--surface-2); outline: none; transition: border-color 0.15s; }
@@ -116,6 +140,10 @@ export class ShopsComponent implements OnInit {
   readonly busyId = signal<number | null>(null);
   fName = ''; fCode = ''; fAdminUser = ''; fAdminPass = ''; fAdminDisplay = '';
 
+  // Announcement composer (superadmin -> owners)
+  bcTitle = ''; bcBody = ''; bcShopId: number | null = null;
+  readonly bcBusy = signal(false);
+
   ngOnInit() { this.load(); }
 
   private load() { this.service.getShops().subscribe(s => this.shops.set(s)); }
@@ -131,6 +159,21 @@ export class ShopsComponent implements OnInit {
   }
 
   private reset() { this.fName = ''; this.fCode = ''; this.fAdminUser = ''; this.fAdminPass = ''; this.fAdminDisplay = ''; }
+
+  // ── Announcement broadcast ─────────────────────────────
+
+  broadcast() {
+    if (!this.bcTitle.trim() || !this.bcBody.trim()) { this.dialog.toast('Add a title and message', 'error'); return; }
+    this.bcBusy.set(true);
+    this.service.broadcastNotification(this.bcTitle.trim(), this.bcBody.trim(), this.bcShopId).subscribe({
+      next: (res) => {
+        this.bcBusy.set(false);
+        this.dialog.toast(`Sent to ${res.delivered} owner${res.delivered === 1 ? '' : 's'} (${res.pushed} device${res.pushed === 1 ? '' : 's'})`, 'success');
+        this.bcTitle = ''; this.bcBody = '';
+      },
+      error: (e) => { this.bcBusy.set(false); this.dialog.toast(e.error?.error || 'Send failed', 'error'); }
+    });
+  }
 
   // ── Lifecycle actions ─────────────────────────────────
 
