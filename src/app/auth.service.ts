@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, tap, finalize } from 'rxjs';
 import { environment } from '../environments/environment';
+import { PushService } from './push.service';
 
 export interface LoginResponse {
   token: string;
@@ -25,6 +26,7 @@ const SHOP_KEY = 'pos_shop';
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private http = inject(HttpClient);
+  private push = inject(PushService);
   private _token: string | null = null;
   private ready: Promise<void> | null = null;
 
@@ -81,7 +83,11 @@ export class AuthService {
 
   logout(): Observable<void> {
     return this.http.post<void>(`${environment.apiBase}/auth/logout`, {})
-      .pipe(finalize(() => this.clearSession()));
+      .pipe(
+        // Still authenticated here: drop this device's push token first.
+        tap(() => this.push.unregister()),
+        finalize(() => this.clearSession())
+      );
   }
 
   // Public so the interceptor can force-clear when a refresh fails.
@@ -109,5 +115,7 @@ export class AuthService {
     } else {
       localStorage.removeItem(SHOP_KEY);
     }
+    // Native app: bind this device to the signed-in user for push.
+    void this.push.init();
   }
 }
