@@ -496,6 +496,11 @@ import { ReceiptViewComponent } from '../../receipt-view.component';
                 @if (brLogoUrl) { <app-btn size="sm" variant="danger" (onClick)="brLogoUrl = ''">Remove</app-btn> }
               </div>
             </div>
+            <div class="field wide">
+              <label>Receipt QR link (optional)</label>
+              <input [(ngModel)]="brQrUrl" placeholder="https://wa.me/27821234567 or a review / feedback link" />
+              <span class="field-hint">Shown as a scannable QR on printed receipts. Leave empty to hide it.</span>
+            </div>
           </div>
           @if (brMsg()) { <p class="form-msg" [class.err]="brErr()">{{ brMsg() }}</p> }
           <div class="form-acts">
@@ -551,6 +556,7 @@ import { ReceiptViewComponent } from '../../receipt-view.component';
     .form-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1em; }
     .form-head h3 { margin: 0; font-size: 0.9375rem; font-weight: 700; color: var(--accent-2); }
     .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.85em; }
+    .field-hint { font-size: 0.75rem; color: var(--muted); }
     .field { display: flex; flex-direction: column; gap: 0.3em; }
     .field.wide { grid-column: 1 / -1; }
     .field.chk { justify-content: flex-end; }
@@ -667,7 +673,7 @@ export class AdminComponent implements OnInit {
   // Settings — account + branding
   acUsername = ''; acDisplay = ''; acCurrent = ''; acNew = '';
   readonly acMsg = signal(''); readonly acErr = signal(false); readonly acBusy = signal(false);
-  brName = ''; brLogoUrl = '';
+  brName = ''; brLogoUrl = ''; brQrUrl = '';
   readonly brMsg = signal(''); readonly brErr = signal(false); readonly brBusy = signal(false);
   readonly logoUploading = signal(false);
 
@@ -900,6 +906,7 @@ export class AdminComponent implements OnInit {
     this.service.getShopInfo().subscribe(shop => {
       this.brName = shop.name;
       this.brLogoUrl = shop.logoUrl ?? '';
+      this.brQrUrl = shop.receiptQrUrl ?? '';
     });
   }
 
@@ -925,7 +932,7 @@ export class AdminComponent implements OnInit {
 
   saveBranding() {
     this.brBusy.set(true); this.brErr.set(false); this.brMsg.set('');
-    this.service.updateShopInfo({ name: this.brName, logoUrl: this.brLogoUrl || null }).subscribe({
+    this.service.updateShopInfo({ name: this.brName, logoUrl: this.brLogoUrl || null, receiptQrUrl: this.brQrUrl.trim() || null }).subscribe({
       next: () => { this.brMsg.set('Branding saved.'); this.brBusy.set(false); },
       error: (e) => { this.brMsg.set(e.error?.error || 'Failed'); this.brErr.set(true); this.brBusy.set(false); }
     });

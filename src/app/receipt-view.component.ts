@@ -44,7 +44,7 @@ import * as QRCode from 'qrcode';
       @if (qrDataUrl) {
         <div class="r-qr">
           <img [src]="qrDataUrl" alt="Receipt QR" />
-          <span class="r-qr-sub">Scan for receipt</span>
+          <span class="r-qr-sub">Scan me</span>
         </div>
       }
     </div>
@@ -106,16 +106,17 @@ export class ReceiptViewComponent implements OnInit {
   print() { window.print(); }
 
   // QR is generated CLIENT-SIDE (qrcode lib, pure JS) — zero backend load.
+  // The QR carries the shop's configured receipt link (WhatsApp / review /
+  // feedback). No link configured = no QR: a QR that just repeats the printed
+  // text is noise.
   private renderQr() {
     if (!this.order) return;
-    const text = [
-      this.shop?.name || 'CoffeeShop Pro',
-      `Order #${this.order.id}`,
-      `Total: R${Number(this.order.total).toFixed(2)}`,
-      this.order.createdAt ? new Date(this.order.createdAt).toLocaleString() : ''
-    ].filter(Boolean).join('\n');
-    QRCode.toDataURL(text, { width: 132, margin: 1, color: { dark: '#111111', light: '#fdfdf7' } })
-      .then(url => this.qrDataUrl = url)
+    const url = this.shop?.receiptQrUrl?.trim();
+    if (!url) { this.qrDataUrl = null; return; }
+    // Be forgiving: "wa.me/2782..." without a scheme still scans as a link.
+    const target = /^https?:\/\//i.test(url) ? url : 'https://' + url;
+    QRCode.toDataURL(target, { width: 132, margin: 1, color: { dark: '#111111', light: '#fdfdf7' } })
+      .then(dataUrl => this.qrDataUrl = dataUrl)
       .catch(() => this.qrDataUrl = null);
   }
 }

@@ -165,12 +165,12 @@ export class MenuItemService {
   }
 
   // Current shop (any logged-in shop user): branding shown in the POS.
-  getShopInfo(): Observable<{ id: number; name: string; code: string; logoUrl?: string | null }> {
-    return this.http.get<{ id: number; name: string; code: string; logoUrl?: string | null }>(`${API}/shops/me`);
+  getShopInfo(): Observable<{ id: number; name: string; code: string; logoUrl?: string | null; receiptQrUrl?: string | null }> {
+    return this.http.get<{ id: number; name: string; code: string; logoUrl?: string | null; receiptQrUrl?: string | null }>(`${API}/shops/me`);
   }
 
   // Owner (admin): update the current shop's branding.
-  updateShopInfo(data: { name: string; logoUrl?: string | null }): Observable<{ id: number; name: string; code: string; logoUrl?: string | null }> {
-    return this.http.put<{ id: number; name: string; code: string; logoUrl?: string | null }>(`${API}/shops/me`, data);
+  updateShopInfo(data: { name: string; logoUrl?: string | null; receiptQrUrl?: string | null }): Observable<{ id: number; name: string; code: string; logoUrl?: string | null; receiptQrUrl?: string | null }> {
+    return this.http.put<{ id: number; name: string; code: string; logoUrl?: string | null; receiptQrUrl?: string | null }>(`${API}/shops/me`, data);
   }
 }
