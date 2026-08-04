@@ -5,6 +5,19 @@ export interface MenuSize {
   price: number;
 }
 
+export interface Modifier {
+  id: number;
+  name: string;
+  priceDelta: number;
+}
+
+export interface ModifierGroup {
+  id: number;
+  name: string;
+  isMulti: boolean;
+  modifiers: Modifier[];
+}
+
 export interface MenuItem {
   id: number;
   name: string;
@@ -17,4 +30,5 @@ export interface MenuItem {
   stockQuantity: number;
   createdAt: string;
   sizes?: MenuSize[];
+  modifierGroups?: ModifierGroup[];
 }

@@ -4,14 +4,14 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { finalize } from 'rxjs';
 import { MenuItemService } from '../../menu-item.service';
-import { MenuItem, MenuSize } from '../../menu-item.model';
+import { MenuItem, ModifierGroup } from '../../menu-item.model';
 import { AuthService } from '../../auth.service';
 import { BtnComponent } from '../../btn.component';
 import { DialogService } from '../../dialog.service';
 import { ReceiptViewComponent } from '../../receipt-view.component';
 import { AppLogoComponent } from '../../app-logo.component';
 
-interface CartItem { id: number; name: string; price: number; quantity: number; sizeId?: number; sizeName?: string; }
+interface CartItem { id: number; name: string; price: number; quantity: number; sizeId?: number; sizeName?: string; modifiers?: { groupName: string; name: string; priceDelta: number }[]; note?: string; }
 
 @Component({
   selector: 'app-pos',
@@ -134,17 +134,19 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
                 <p class="sub">Tap a drink to begin.</p>
               </div>
             }
-            @for (ci of cart(); track ci.sizeId ? ci.id + ':' + ci.sizeId : ci.id) {
+            @for (ci of cart(); track lineKey(ci)) {
               <div class="cart-row">
                 <div class="cart-info">
                   <span class="cart-name">{{ ci.name }}</span>
                   @if (ci.sizeName) { <span class="cart-size">{{ ci.sizeName }}</span> }
+                  @if (ci.modifiers?.length) { <span class="cart-mod">{{ modSummary(ci) }}</span> }
+                  @if (ci.note) { <span class="cart-note">📝 {{ ci.note }}</span> }
                   <span class="cart-unit">R{{ ci.price | number:'1.2-2' }} ea</span>
                 </div>
                 <div class="cart-qty">
-                  <button class="qty-btn" (click)="updateQty(ci.id, ci.sizeId, -1)">−</button>
+                  <button class="qty-btn" (click)="updateQty(ci, -1)">−</button>
                   <span class="qty-val">{{ ci.quantity }}</span>
-                  <button class="qty-btn" [disabled]="inCartAtStock(ci.id)" (click)="updateQty(ci.id, ci.sizeId, 1)">+</button>
+                  <button class="qty-btn" [disabled]="inCartAtStock(ci.id)" (click)="updateQty(ci, 1)">+</button>
                 </div>
                 <span class="cart-total">R{{ (ci.price * ci.quantity) | number:'1.2-2' }}</span>
               </div>
@@ -197,19 +199,40 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
       </div>
     }
 
-    <!-- Size picker (items with drink sizes) -->
-    @if (sizePicker(); as sp) {
-      <div class="complete" (click)="sizePicker.set(null)">
+    <!-- Product configurator (sizes / modifiers / note) -->
+    @if (configurator(); as cfg) {
+      <div class="complete" (click)="configurator.set(null)">
         <div class="complete-card size-card" (click)="$event.stopPropagation()">
-          <strong>{{ sp.name }}</strong>
-          <span class="size-sub">Choose a size</span>
-          @for (s of sp.sizes; track s.id) {
-            <button class="size-opt" (click)="addWithSize(sp, s)">
-              <span class="size-opt-name">{{ s.name }}</span>
-              <span class="size-opt-price">R{{ s.price | number:'1.2-2' }}</span>
-            </button>
+          <strong>{{ cfg.item.name }}</strong>
+          <span class="size-sub">Choose options</span>
+          @if (cfg.item.sizes?.length) {
+            <div class="cfg-group">
+              <span class="cfg-group-name">Size</span>
+              @for (s of cfg.item.sizes; track s.id) {
+                <button class="cfg-opt" [class.on]="cfg.sizeId === s.id" (click)="cfgPickSize(cfg, s.id)">
+                  <span>{{ s.name }}</span>
+                  <span class="cfg-price">R{{ s.price | number:'1.2-2' }}</span>
+                </button>
+              }
+            </div>
           }
-          <app-btn size="sm" (onClick)="sizePicker.set(null)">Cancel</app-btn>
+          @for (g of cfg.item.modifierGroups ?? []; track g.id) {
+            <div class="cfg-group">
+              <span class="cfg-group-name">{{ g.name }}</span>
+              @for (m of g.modifiers; track m.id) {
+                <button class="cfg-opt" [class.on]="cfg.mods[m.id]" (click)="cfgToggleMod(cfg, g, m.id)">
+                  <span>{{ m.name }}</span>
+                  <span class="cfg-price">{{ m.priceDelta > 0 ? '+' + (m.priceDelta | number:'1.2-2') : '' }}</span>
+                </button>
+              }
+            </div>
+          }
+          <input class="cfg-note" [(ngModel)]="cfg.note" placeholder="Note for the barista (optional)" />
+          <div class="cfg-total">Total <strong>R{{ cfgTotal(cfg) | number:'1.2-2' }}</strong></div>
+          <div class="cfg-acts">
+            <app-btn size="sm" (onClick)="configurator.set(null)">Cancel</app-btn>
+            <app-btn variant="primary" size="sm" (onClick)="addConfig()">Add to order</app-btn>
+          </div>
         </div>
       </div>
     }
@@ -242,6 +265,13 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
           <div class="pay-total">
             <span class="pay-total-lbl">Total due</span>
             <span class="pay-total-val">R{{ netTotal() | number:'1.2-2' }}</span>
+          </div>
+
+          <!-- Optional customer + order notes -->
+          <div class="pay-cust">
+            <input [(ngModel)]="custName" placeholder="Customer name (optional)" />
+            <input [(ngModel)]="custPhone" placeholder="Phone (optional)" />
+            <input [(ngModel)]="orderNotes" placeholder="Order notes (optional)" />
           </div>
 
           <!-- Method toggle -->
@@ -374,13 +404,23 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
     .pick-card { width: 360px; max-width: 94vw; padding: 1.5rem; gap: 0.5rem; align-items: stretch; }
     .pick-row { display: flex; justify-content: space-between; align-items: center; padding: 0.8rem 1rem; border: 1px solid var(--border-hover); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); font-family: inherit; cursor: pointer; }
     .pick-row:hover { border-color: var(--accent); }
-    .size-card { min-width: 280px; align-items: stretch; }
+    .size-card { min-width: 300px; align-items: stretch; max-height: 84vh; overflow-y: auto; }
     .size-sub { margin: -0.25rem 0 0.5rem; font-size: 0.8125rem; color: var(--muted); }
-    .size-opt { display: flex; justify-content: space-between; align-items: center; padding: 0.9rem 1.1rem; border: 1px solid var(--border-hover); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); font-family: inherit; font-size: 1rem; font-weight: 700; cursor: pointer; transition: all 0.12s; }
-    .size-opt:hover { border-color: var(--accent); background: var(--surface-3); }
-    .size-opt-price { color: var(--accent-2); font-variant-numeric: tabular-nums; }
-    .item-sizes { font-size: 0.6875rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
-    .cart-size { font-size: 0.75rem; color: var(--accent-2); font-weight: 700; }
+    .cfg-group { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 0.4rem; }
+    .cfg-group-name { font-size: 0.68rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.4rem; }
+    .cfg-opt { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border: 1px solid var(--border-hover); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); font-family: inherit; font-size: 0.9375rem; font-weight: 600; cursor: pointer; transition: all 0.12s; }
+    .cfg-opt.on { border-color: var(--accent); background: var(--accent-light); color: var(--accent-2); }
+    .cfg-price { color: var(--accent-2); font-variant-numeric: tabular-nums; }
+    .cfg-note { padding: 0.65rem 0.8rem; border: 1px solid var(--border-hover); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); font-family: inherit; font-size: 0.875rem; outline: none; }
+    .cfg-note:focus { border-color: var(--accent); }
+    .cfg-total { display: flex; justify-content: space-between; align-items: center; font-size: 0.9375rem; color: var(--text-2); padding: 0.4rem 0; }
+    .cfg-total strong { font-size: 1.25rem; color: var(--text); }
+    .cfg-acts { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.25rem; }
+    .pay-cust { display: flex; flex-direction: column; gap: 0.4rem; width: 100%; margin: 0.5rem 0; }
+    .pay-cust input { padding: 0.6rem 0.8rem; border: 1px solid var(--border-hover); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); font-family: inherit; font-size: 0.875rem; outline: none; }
+    .pay-cust input:focus { border-color: var(--accent); }
+    .cart-mod { font-size: 0.72rem; color: var(--accent-2); font-weight: 600; }
+    .cart-note { font-size: 0.72rem; color: var(--text-2); font-style: italic; }
     .pick-name { font-weight: 700; font-size: 0.875rem; }
     .pick-val { color: var(--accent-2); font-weight: 700; font-size: 0.8125rem; }
     .cart-subtotal { font-size: 0.8125rem; color: var(--text-2); }
@@ -501,8 +541,10 @@ export class PosComponent implements OnInit {
   readonly selectedDiscount = signal<any | null>(null);
   readonly discountOpen = signal(false);
 
-  // Size picker (items with drink sizes)
-  readonly sizePicker = signal<MenuItem | null>(null);
+  // Product configurator (sizes + modifiers + note)
+  readonly configurator = signal<{ item: MenuItem; sizeId: number | null; mods: Record<number, boolean>; note: string } | null>(null);
+  // Checkout extras (optional)
+  custName = ''; custPhone = ''; orderNotes = '';
 
   // Shift summary (shown at clock-out)
   readonly shiftSummary = signal<any | null>(null);
@@ -596,32 +638,82 @@ export class PosComponent implements OnInit {
   }
 
   addToCart(item: MenuItem) {
-    if (item.sizes?.length) { this.sizePicker.set(item); return; }
-    this.addLine(item.id, item.name, item.price, undefined, undefined);
+    // Sized / modifiable items open the configurator; plain items add instantly.
+    if (item.sizes?.length || item.modifierGroups?.length) {
+      const mods: Record<number, boolean> = {};
+      this.configurator.set({ item, sizeId: item.sizes?.length ? item.sizes[0].id : null, mods, note: '' });
+      return;
+    }
+    this.addLine(item.id, item.name, item.price, undefined, undefined, undefined, undefined);
   }
 
-  addWithSize(item: MenuItem, size: MenuSize) {
-    this.addLine(item.id, item.name, size.price, size.id, size.name);
-    this.sizePicker.set(null);
+  cfgPickSize(cfg: { item: MenuItem; sizeId: number | null }, sizeId: number) {
+    this.configurator.update(c => (c ? { ...c, sizeId } : c));
   }
 
-  private addLine(id: number, name: string, price: number, sizeId?: number, sizeName?: string) {
-    this.cart.update(c => {
-      const exist = c.find(i => i.id === id && (i.sizeId ?? null) === (sizeId ?? null));
-      const inCart = c.filter(i => i.id === id).reduce((s, i) => s + i.quantity, 0);
-      if (inCart + 1 > this.stockOf(id)) return c; // can't add more than in stock
-      return exist
-        ? c.map(i => (i.id === id && (i.sizeId ?? null) === (sizeId ?? null)) ? { ...i, quantity: i.quantity + 1 } : i)
-        : [...c, { id, name, price, quantity: 1, sizeId, sizeName }];
+  cfgToggleMod(cfg: { item: MenuItem; mods: Record<number, boolean> }, g: ModifierGroup, modId: number) {
+    this.configurator.update(c => {
+      if (!c) return c;
+      const mods = { ...c.mods, [modId]: !c.mods[modId] };
+      if (!g.isMulti) {
+        for (const m of g.modifiers) if (m.id !== modId) mods[m.id] = false;
+      }
+      return { ...c, mods };
     });
   }
 
-  updateQty(id: number, sizeId: number | undefined, delta: number) {
+  cfgTotal(cfg: { item: MenuItem; sizeId: number | null; mods: Record<number, boolean> }): number {
+    const size = cfg.item.sizes?.find(s => s.id === cfg.sizeId);
+    const mods = (cfg.item.modifierGroups ?? []).flatMap(g => g.modifiers).filter(m => cfg.mods[m.id]);
+    return (size?.price ?? cfg.item.price) + mods.reduce((s, m) => s + m.priceDelta, 0);
+  }
+
+  addConfig() {
+    const cfg = this.configurator();
+    if (!cfg) return;
+    const size = cfg.item.sizes?.find(s => s.id === cfg.sizeId);
+    const mods = (cfg.item.modifierGroups ?? [])
+      .flatMap(g => g.modifiers.filter(m => cfg.mods[m.id]).map(m => ({ groupName: g.name, name: m.name, priceDelta: m.priceDelta })));
+    this.addLine(
+      cfg.item.id, cfg.item.name, this.cfgTotal(cfg),
+      size?.id, size?.name, mods,
+      cfg.note.trim() || undefined
+    );
+    this.configurator.set(null);
+  }
+
+  private addLine(id: number, name: string, price: number, sizeId?: number, sizeName?: string, modifiers?: CartItem['modifiers'], note?: string) {
+    this.cart.update(c => {
+      const exist = c.find(i => this.sameLine(i, { id, sizeId, modifiers, note }));
+      const inCart = c.filter(i => i.id === id).reduce((s, i) => s + i.quantity, 0);
+      if (inCart + 1 > this.stockOf(id)) return c; // can't add more than in stock
+      return exist
+        ? c.map(i => this.sameLine(i, { id, sizeId, modifiers, note }) ? { ...i, quantity: i.quantity + 1 } : i)
+        : [...c, { id, name, price, quantity: 1, sizeId, sizeName, modifiers, note }];
+    });
+  }
+
+  updateQty(ci: CartItem, delta: number) {
     this.cart.update(c => c.map(i => {
-      if (i.id !== id || (i.sizeId ?? null) !== (sizeId ?? null)) return i;
-      const max = this.stockOf(id);
+      if (!this.sameLine(i, ci)) return i;
+      const max = this.stockOf(i.id);
       return { ...i, quantity: Math.min(Math.max(0, i.quantity + delta), max) };
     }).filter(i => i.quantity > 0));
+  }
+
+  // Two cart lines are the same product when item + size + modifiers + note match.
+  private sameLine(a: CartItem, b: Partial<CartItem>): boolean {
+    return a.id === b.id && (a.sizeId ?? null) === (b.sizeId ?? null)
+      && (a.note ?? '') === (b.note ?? '')
+      && (a.modifiers?.map(m => m.name).join('|') ?? '') === (b.modifiers?.map(m => m.name).join('|') ?? '');
+  }
+
+  lineKey(ci: CartItem): string {
+    return `${ci.id}:${ci.sizeId ?? 0}:${(ci.modifiers?.map(m => m.name).join('|') ?? '')}:${ci.note ?? ''}`;
+  }
+
+  modSummary(ci: CartItem): string {
+    return (ci.modifiers ?? []).map(m => m.priceDelta > 0 ? `${m.name} +R${m.priceDelta}` : m.name).join(' · ');
   }
 
   // ── Discounts / specials ──────────────────────────────
@@ -680,12 +772,17 @@ export class PosComponent implements OnInit {
     this.service.placeOrder(this.cart(), {
       method: this.payMethod(),
       amountReceived: this.payMethod() === 'cash' ? this.received() : null
-    }, this.selectedDiscount()?.id ?? null).subscribe({
+    }, this.selectedDiscount()?.id ?? null, {
+      customerName: this.custName.trim() || undefined,
+      customerPhone: this.custPhone.trim() || undefined,
+      notes: this.orderNotes.trim() || undefined
+    }).subscribe({
       next: (order) => {
         this.busy.set(false);
         this.paymentOpen.set(false);
         this.cart.set([]);
         this.selectedDiscount.set(null);
+        this.custName = ''; this.custPhone = ''; this.orderNotes = '';
         this.load();
         this.lastOrder.set(order);
       },

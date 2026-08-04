@@ -92,6 +92,27 @@ import { ReceiptViewComponent } from '../../receipt-view.component';
                 <app-btn size="sm" (onClick)="addSizeRow()">+ Add size</app-btn>
               </div>
               <div class="field wide">
+                <label>Modifiers (optional) — e.g. Milk, Extras</label>
+                @for (g of fGroups; track $index) {
+                  <div class="mod-group">
+                    <div class="mod-group-head">
+                      <input [(ngModel)]="g.name" placeholder="Group name e.g. Milk" />
+                      <label class="checkbox"><input type="checkbox" [(ngModel)]="g.isMulti" /> <span>Multiple</span></label>
+                      <app-btn size="sm" variant="danger" (onClick)="removeGroup($index)">✕</app-btn>
+                    </div>
+                    @for (m of g.modifiers; track $index) {
+                      <div class="mod-row">
+                        <input [(ngModel)]="m.name" placeholder="e.g. Oat" />
+                        <input class="mod-delta" type="number" step="0.01" [(ngModel)]="m.priceDelta" placeholder="+0.00" />
+                        <app-btn size="sm" variant="danger" (onClick)="removeMod(g, $index)">✕</app-btn>
+                      </div>
+                    }
+                    <app-btn size="sm" (onClick)="addMod(g)">+ Option</app-btn>
+                  </div>
+                }
+                <app-btn size="sm" (onClick)="addGroup()">+ Modifier group</app-btn>
+              </div>
+              <div class="field wide">
                 <label>Photo</label>
                 <div class="img-upload">
                   @if (fImageUrl) {
@@ -273,12 +294,18 @@ import { ReceiptViewComponent } from '../../receipt-view.component';
             <div class="order-items">
               @for (line of o.items; track line.id) {
                 <div class="order-line">
-                  <span class="ol-name">{{ line.quantity }} × {{ line.name }}{{ line.sizeName ? ' (' + line.sizeName + ')' : '' }}</span>
+                  <span class="ol-name">{{ line.quantity }} × {{ line.name }}{{ line.sizeName ? ' (' + line.sizeName + ')' : '' }}{{ lineMods(line) ? ' (' + lineMods(line) + ')' : '' }}</span>
                   <span class="ol-price">R{{ (line.price * line.quantity) | number:'1.2-2' }}</span>
                 </div>
+                @if (line.note) { <div class="ol-note">📝 {{ line.note }}</div> }
               }
             </div>
             <div class="order-total"><span>Total</span><strong>R{{ o.total | number:'1.2-2' }}</strong></div>
+            <div class="ol-vat"><span>VAT (15% incl.)</span><span>R{{ vatOf(o.total) | number:'1.2-2' }}</span></div>
+            @if (o.customerName || o.customerPhone) {
+              <div class="ol-note">👤 {{ o.customerName || '—' }}{{ o.customerPhone ? ' · ' + o.customerPhone : '' }}</div>
+            }
+            @if (o.notes) { <div class="ol-note">📝 {{ o.notes }}</div> }
             <div class="order-meta">
               <span>Payment: <strong>{{ o.paymentMethod === 'cash' ? 'Cash' : 'Card' }}</strong></span>
               @if (o.paymentMethod === 'cash' && o.changeGiven != null) {
@@ -567,6 +594,13 @@ import { ReceiptViewComponent } from '../../receipt-view.component';
     .size-row { display: flex; align-items: center; gap: 0.5em; }
     .size-name { flex: 1; }
     .size-price { width: 90px; }
+    .mod-group { border: 1px solid var(--border); border-radius: 0.75em; padding: 0.6em; display: flex; flex-direction: column; gap: 0.45em; background: var(--surface-2); }
+    .mod-group-head { display: flex; align-items: center; gap: 0.5em; }
+    .mod-group-head input { flex: 1; }
+    .mod-group-head .checkbox { display: flex; align-items: center; gap: 0.3em; font-size: 0.78rem; color: var(--text-2); white-space: nowrap; }
+    .mod-row { display: flex; align-items: center; gap: 0.5em; }
+    .mod-row input { flex: 1; }
+    .mod-delta { width: 90px !important; flex: none !important; }
     .img-preview { width: 48px; height: 48px; border-radius: 0.6em; object-fit: cover; border: 1px solid var(--border); }
     .checkbox { display: flex; align-items: center; gap: 0.4em; font-size: 0.8125rem !important; text-transform: none !important; cursor: pointer; user-select: none; }
     .checkbox input { width: 1.1em; height: 1.1em; accent-color: var(--accent-2); }
@@ -658,6 +692,7 @@ export class AdminComponent implements OnInit {
   fName = ''; fCategory = ''; fPrice: number | null = null; fStock: number | null = null; fDesc = ''; fAvail = true;
   fImageUrl = ''; fImagePublicId = ''; readonly uploading = signal(false);
   fSizes: { id: number; name: string; price: number }[] = [];
+  fGroups: { id: number; name: string; isMulti: boolean; modifiers: { id: number; name: string; priceDelta: number }[] }[] = [];
 
   // Users
   readonly users = signal<any[]>([]);
@@ -679,6 +714,11 @@ export class AdminComponent implements OnInit {
 
   // Orders
   readonly orders = signal<any[]>([]);
+
+  lineMods(line: any): string {
+    return (line.modifiers ?? []).map((m: any) => m.priceDelta > 0 ? `${m.name} +R${m.priceDelta}` : m.name).join(', ');
+  }
+  vatOf(total: number): number { return Math.round(Number(total) * 15 / 115 * 100) / 100; }
   readonly selectedOrder = signal<any | null>(null);
   readonly receiptOrder = signal<any | null>(null);
   readonly ordersBusy = signal(false);
@@ -716,21 +756,29 @@ export class AdminComponent implements OnInit {
   }
 
   openNew() { this.resetInv(); this.showForm.set(true); }
-  edit(item: MenuItem) { this.editing.set(item); this.fName = item.name; this.fCategory = item.category; this.fPrice = item.price; this.fStock = item.stockQuantity; this.fDesc = item.description ?? ''; this.fAvail = item.isAvailable; this.fImageUrl = item.imageUrl ?? ''; this.fImagePublicId = item.imagePublicId ?? ''; this.fSizes = (item.sizes ?? []).map(s => ({ id: s.id, name: s.name, price: s.price })); this.showForm.set(true); }
+  edit(item: MenuItem) { this.editing.set(item); this.fName = item.name; this.fCategory = item.category; this.fPrice = item.price; this.fStock = item.stockQuantity; this.fDesc = item.description ?? ''; this.fAvail = item.isAvailable; this.fImageUrl = item.imageUrl ?? ''; this.fImagePublicId = item.imagePublicId ?? ''; this.fSizes = (item.sizes ?? []).map(s => ({ id: s.id, name: s.name, price: s.price })); this.fGroups = (item.modifierGroups ?? []).map(g => ({ id: g.id, name: g.name, isMulti: g.isMulti, modifiers: g.modifiers.map(m => ({ id: m.id, name: m.name, priceDelta: m.priceDelta })) })); this.showForm.set(true); }
   closeForm() { this.showForm.set(false); this.editing.set(null); }
   addSizeRow() { this.fSizes = [...this.fSizes, { id: 0, name: '', price: 0 }]; }
   removeSizeRow(i: number) { this.fSizes = this.fSizes.filter((_, idx) => idx !== i); }
+  addGroup() { this.fGroups = [...this.fGroups, { id: 0, name: '', isMulti: false, modifiers: [] }]; }
+  removeGroup(i: number) { this.fGroups = this.fGroups.filter((_, idx) => idx !== i); }
+  addMod(g: { modifiers: { id: number; name: string; priceDelta: number }[] }) { g.modifiers = [...g.modifiers, { id: 0, name: '', priceDelta: 0 }]; }
+  removeMod(g: { modifiers: { id: number; name: string; priceDelta: number }[] }, i: number) { g.modifiers = g.modifiers.filter((_, idx) => idx !== i); }
   save() {
     if (!this.fCategory.trim()) { this.dialog.toast('Choose a category', 'error'); return; }
     const sizes = this.fSizes.filter(s => s.name.trim()).map(s => ({ id: s.id, name: s.name.trim(), price: s.price ?? 0 }));
-    this.service.writeItem({ id: this.editing()?.id ?? 0, name: this.fName, category: this.fCategory, price: this.fPrice ?? 0, stockQuantity: this.fStock ?? 0, description: this.fDesc || null, imageUrl: this.fImageUrl || null, imagePublicId: this.fImagePublicId || null, isAvailable: this.fAvail, sizes }).subscribe({ next: () => { this.loadInv(); this.closeForm(); }, error: () => this.dialog.toast('Save failed', 'error') });
+    const modifierGroups = this.fGroups.filter(g => g.name.trim()).map(g => ({
+      id: g.id, name: g.name.trim(), isMulti: g.isMulti,
+      modifiers: g.modifiers.filter(m => m.name.trim()).map(m => ({ id: m.id, name: m.name.trim(), priceDelta: m.priceDelta ?? 0 }))
+    }));
+    this.service.writeItem({ id: this.editing()?.id ?? 0, name: this.fName, category: this.fCategory, price: this.fPrice ?? 0, stockQuantity: this.fStock ?? 0, description: this.fDesc || null, imageUrl: this.fImageUrl || null, imagePublicId: this.fImagePublicId || null, isAvailable: this.fAvail, sizes, modifierGroups }).subscribe({ next: () => { this.loadInv(); this.closeForm(); }, error: () => this.dialog.toast('Save failed', 'error') });
   }
   remove(id: number) {
     this.dialog.confirm('Delete item', 'Delete this item?').then(ok => {
       if (ok) this.service.deleteItem(id).subscribe({ next: () => this.loadInv(), error: () => this.dialog.toast('Delete failed', 'error') });
     });
   }
-  private resetInv() { this.fName = ''; this.fCategory = ''; this.fPrice = null; this.fStock = null; this.fDesc = ''; this.fAvail = true; this.fImageUrl = ''; this.fImagePublicId = ''; this.fSizes = []; }
+  private resetInv() { this.fName = ''; this.fCategory = ''; this.fPrice = null; this.fStock = null; this.fDesc = ''; this.fAvail = true; this.fImageUrl = ''; this.fImagePublicId = ''; this.fSizes = []; this.fGroups = []; }
 
   onImageSelected(event: Event) {
     const input = event.target as HTMLInputElement;

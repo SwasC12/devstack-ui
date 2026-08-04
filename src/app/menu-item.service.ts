@@ -57,15 +57,18 @@ export class MenuItemService {
       .pipe(map((res) => ({ url: res.secure_url, publicId: res.public_id })));
   }
 
-  placeOrder(cart: { id: number; name: string; price: number; quantity: number; sizeId?: number }[], payment?: { method: 'cash' | 'card'; amountReceived?: number | null }, discountId?: number | null): Observable<any> {
+  placeOrder(cart: { id: number; name: string; price: number; quantity: number; sizeId?: number; note?: string; modifierIds?: number[] }[], payment?: { method: 'cash' | 'card'; amountReceived?: number | null }, discountId?: number | null, meta?: { customerName?: string; customerPhone?: string; notes?: string }): Observable<any> {
     const body: any = {
-      items: cart.map(i => ({ menuItemId: i.id, name: i.name, price: i.price, quantity: i.quantity, sizeId: i.sizeId ?? null }))
+      items: cart.map(i => ({ menuItemId: i.id, name: i.name, price: i.price, quantity: i.quantity, sizeId: i.sizeId ?? null, note: i.note ?? null, modifierIds: i.modifierIds?.length ? i.modifierIds : null }))
     };
     if (payment) {
       body.paymentMethod = payment.method;
       if (payment.method === 'cash') body.amountReceived = payment.amountReceived ?? null;
     }
     if (discountId) body.discountId = discountId;
+    if (meta?.customerName) body.customerName = meta.customerName;
+    if (meta?.customerPhone) body.customerPhone = meta.customerPhone;
+    if (meta?.notes) body.notes = meta.notes;
     return this.http.post(`${API}/orders`, body);
   }
 

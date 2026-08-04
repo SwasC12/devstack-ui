@@ -24,15 +24,25 @@ import * as QRCode from 'qrcode';
       <div class="r-items">
         @for (line of order.items; track line.id) {
           <div class="r-line">
-            <span>{{ line.quantity }} × {{ line.name }}{{ line.sizeName ? ' (' + line.sizeName + ')' : '' }}</span>
+            <span>{{ line.quantity }} × {{ line.name }}{{ line.sizeName ? ' (' + line.sizeName + ')' : '' }}{{ modText(line) ? ' (' + modText(line) + ')' : '' }}</span>
             <span>R{{ (line.price * line.quantity) | number:'1.2-2' }}</span>
           </div>
+          @if (line.note) { <div class="r-note">📝 {{ line.note }}</div> }
         }
       </div>
+      @if (order.customerName || order.customerPhone) {
+        <div class="r-cust">
+          <span>{{ order.customerName || '—' }}{{ order.customerPhone ? ' · ' + order.customerPhone : '' }}</span>
+        </div>
+      }
+      @if (order.notes) { <div class="r-note">📝 {{ order.notes }}</div> }
       @if (order.discountAmount > 0) {
         <div class="r-disc"><span>Discount ({{ order.discountName }})</span><span>−R{{ order.discountAmount | number:'1.2-2' }}</span></div>
       }
       <div class="r-total"><span>Total</span><strong>R{{ order.total | number:'1.2-2' }}</strong></div>
+      @if (vatOf(order) > 0) {
+        <div class="r-vat"><span>VAT (15% incl.)</span><span>R{{ vatOf(order) | number:'1.2-2' }}</span></div>
+      }
       <div class="r-pay">
         <span>Paid: {{ order.paymentMethod === 'cash' ? 'Cash' : 'Card' }}</span>
         @if (order.paymentMethod === 'cash') {
@@ -69,6 +79,9 @@ import * as QRCode from 'qrcode';
     .r-items { font-size: 0.8rem; }
     .r-line { display: flex; justify-content: space-between; gap: 1rem; padding: 0.18rem 0; }
     .r-line span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .r-note { font-size: 0.72rem; opacity: 0.7; padding: 0.1rem 0 0.3rem; }
+    .r-cust { font-size: 0.75rem; opacity: 0.85; border-top: 1px dashed #999; margin-top: 0.4rem; padding-top: 0.4rem; }
+    .r-vat { display: flex; justify-content: space-between; font-size: 0.72rem; opacity: 0.7; padding: 0.2rem 0; }
     .r-total { display: flex; justify-content: space-between; border-top: 1px dashed #999; margin-top: 0.4rem; padding-top: 0.5rem; font-size: 0.95rem; }
     .r-disc { display: flex; justify-content: space-between; font-size: 0.78rem; padding: 0.2rem 0; }
     .r-qr { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; margin-top: 0.9rem; padding-top: 0.7rem; border-top: 1px dashed #999; }
@@ -104,6 +117,14 @@ export class ReceiptViewComponent implements OnInit {
   ngOnInit() { this.renderQr(); }
 
   print() { window.print(); }
+
+  modText(line: any): string {
+    return (line.modifiers ?? []).map((m: any) => m.priceDelta > 0 ? `${m.name} +R${m.priceDelta}` : m.name).join(', ');
+  }
+
+  vatOf(order: any): number {
+    return Math.round(Number(order.total) * 15 / 115 * 100) / 100;
+  }
 
   // QR is generated CLIENT-SIDE (qrcode lib, pure JS) — zero backend load.
   // The QR carries the shop's configured receipt link (WhatsApp / review /
