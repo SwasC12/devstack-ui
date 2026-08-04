@@ -81,6 +81,17 @@ import { ReceiptViewComponent } from '../../receipt-view.component';
               <div class="field"><label>Stock</label><input type="number" [(ngModel)]="fStock" placeholder="0" /></div>
               <div class="field wide"><label>Description</label><input [(ngModel)]="fDesc" placeholder="Short description" /></div>
               <div class="field wide">
+                <label>Sizes (optional) — different sizes, different prices</label>
+                @for (sz of fSizes; track $index) {
+                  <div class="size-row">
+                    <input class="size-name" [(ngModel)]="sz.name" placeholder="e.g. Small" />
+                    <input class="size-price" type="number" step="0.01" [(ngModel)]="sz.price" placeholder="0.00" />
+                    <app-btn size="sm" variant="danger" (onClick)="removeSizeRow($index)">✕</app-btn>
+                  </div>
+                }
+                <app-btn size="sm" (onClick)="addSizeRow()">+ Add size</app-btn>
+              </div>
+              <div class="field wide">
                 <label>Photo</label>
                 <div class="img-upload">
                   @if (fImageUrl) {
@@ -262,7 +273,7 @@ import { ReceiptViewComponent } from '../../receipt-view.component';
             <div class="order-items">
               @for (line of o.items; track line.id) {
                 <div class="order-line">
-                  <span class="ol-name">{{ line.quantity }} × {{ line.name }}</span>
+                  <span class="ol-name">{{ line.quantity }} × {{ line.name }}{{ line.sizeName ? ' (' + line.sizeName + ')' : '' }}</span>
                   <span class="ol-price">R{{ (line.price * line.quantity) | number:'1.2-2' }}</span>
                 </div>
               }
@@ -547,6 +558,9 @@ import { ReceiptViewComponent } from '../../receipt-view.component';
     .field input:not([type]) { padding: 0.6em 0.8em; border: 0.125em solid var(--border-hover); border-radius: 0.75em; font-size: 0.85rem; font-family: inherit; color: var(--text); background: var(--surface-2); outline: none; transition: border-color 0.15s; }
     .field input:focus { border-color: var(--accent); }
     .img-upload { display: flex; align-items: center; gap: 0.6em; flex-wrap: wrap; }
+    .size-row { display: flex; align-items: center; gap: 0.5em; }
+    .size-name { flex: 1; }
+    .size-price { width: 90px; }
     .img-preview { width: 48px; height: 48px; border-radius: 0.6em; object-fit: cover; border: 1px solid var(--border); }
     .checkbox { display: flex; align-items: center; gap: 0.4em; font-size: 0.8125rem !important; text-transform: none !important; cursor: pointer; user-select: none; }
     .checkbox input { width: 1.1em; height: 1.1em; accent-color: var(--accent-2); }
@@ -637,6 +651,7 @@ export class AdminComponent implements OnInit {
   readonly editing = signal<MenuItem | null>(null);
   fName = ''; fCategory = ''; fPrice: number | null = null; fStock: number | null = null; fDesc = ''; fAvail = true;
   fImageUrl = ''; fImagePublicId = ''; readonly uploading = signal(false);
+  fSizes: { id: number; name: string; price: number }[] = [];
 
   // Users
   readonly users = signal<any[]>([]);
@@ -695,18 +710,21 @@ export class AdminComponent implements OnInit {
   }
 
   openNew() { this.resetInv(); this.showForm.set(true); }
-  edit(item: MenuItem) { this.editing.set(item); this.fName = item.name; this.fCategory = item.category; this.fPrice = item.price; this.fStock = item.stockQuantity; this.fDesc = item.description ?? ''; this.fAvail = item.isAvailable; this.fImageUrl = item.imageUrl ?? ''; this.fImagePublicId = item.imagePublicId ?? ''; this.showForm.set(true); }
+  edit(item: MenuItem) { this.editing.set(item); this.fName = item.name; this.fCategory = item.category; this.fPrice = item.price; this.fStock = item.stockQuantity; this.fDesc = item.description ?? ''; this.fAvail = item.isAvailable; this.fImageUrl = item.imageUrl ?? ''; this.fImagePublicId = item.imagePublicId ?? ''; this.fSizes = (item.sizes ?? []).map(s => ({ id: s.id, name: s.name, price: s.price })); this.showForm.set(true); }
   closeForm() { this.showForm.set(false); this.editing.set(null); }
+  addSizeRow() { this.fSizes = [...this.fSizes, { id: 0, name: '', price: 0 }]; }
+  removeSizeRow(i: number) { this.fSizes = this.fSizes.filter((_, idx) => idx !== i); }
   save() {
     if (!this.fCategory.trim()) { this.dialog.toast('Choose a category', 'error'); return; }
-    this.service.writeItem({ id: this.editing()?.id ?? 0, name: this.fName, category: this.fCategory, price: this.fPrice ?? 0, stockQuantity: this.fStock ?? 0, description: this.fDesc || null, imageUrl: this.fImageUrl || null, imagePublicId: this.fImagePublicId || null, isAvailable: this.fAvail }).subscribe({ next: () => { this.loadInv(); this.closeForm(); }, error: () => this.dialog.toast('Save failed', 'error') });
+    const sizes = this.fSizes.filter(s => s.name.trim()).map(s => ({ id: s.id, name: s.name.trim(), price: s.price ?? 0 }));
+    this.service.writeItem({ id: this.editing()?.id ?? 0, name: this.fName, category: this.fCategory, price: this.fPrice ?? 0, stockQuantity: this.fStock ?? 0, description: this.fDesc || null, imageUrl: this.fImageUrl || null, imagePublicId: this.fImagePublicId || null, isAvailable: this.fAvail, sizes }).subscribe({ next: () => { this.loadInv(); this.closeForm(); }, error: () => this.dialog.toast('Save failed', 'error') });
   }
   remove(id: number) {
     this.dialog.confirm('Delete item', 'Delete this item?').then(ok => {
       if (ok) this.service.deleteItem(id).subscribe({ next: () => this.loadInv(), error: () => this.dialog.toast('Delete failed', 'error') });
     });
   }
-  private resetInv() { this.fName = ''; this.fCategory = ''; this.fPrice = null; this.fStock = null; this.fDesc = ''; this.fAvail = true; this.fImageUrl = ''; this.fImagePublicId = ''; }
+  private resetInv() { this.fName = ''; this.fCategory = ''; this.fPrice = null; this.fStock = null; this.fDesc = ''; this.fAvail = true; this.fImageUrl = ''; this.fImagePublicId = ''; this.fSizes = []; }
 
   onImageSelected(event: Event) {
     const input = event.target as HTMLInputElement;

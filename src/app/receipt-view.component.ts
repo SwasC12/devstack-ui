@@ -24,7 +24,7 @@ import * as QRCode from 'qrcode';
       <div class="r-items">
         @for (line of order.items; track line.id) {
           <div class="r-line">
-            <span>{{ line.quantity }} × {{ line.name }}</span>
+            <span>{{ line.quantity }} × {{ line.name }}{{ line.sizeName ? ' (' + line.sizeName + ')' : '' }}</span>
             <span>R{{ (line.price * line.quantity) | number:'1.2-2' }}</span>
           </div>
         }

@@ -4,14 +4,14 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { finalize } from 'rxjs';
 import { MenuItemService } from '../../menu-item.service';
-import { MenuItem } from '../../menu-item.model';
+import { MenuItem, MenuSize } from '../../menu-item.model';
 import { AuthService } from '../../auth.service';
 import { BtnComponent } from '../../btn.component';
 import { DialogService } from '../../dialog.service';
 import { ReceiptViewComponent } from '../../receipt-view.component';
 import { AppLogoComponent } from '../../app-logo.component';
 
-interface CartItem { id: number; name: string; price: number; quantity: number; }
+interface CartItem { id: number; name: string; price: number; quantity: number; sizeId?: number; sizeName?: string; }
 
 @Component({
   selector: 'app-pos',
@@ -97,7 +97,12 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
                 @else { <div class="item-img placeholder"><app-logo [size]="54" /></div> }
                 <div class="item-body">
                   <span class="item-name">{{ item.name }}</span>
-                  <span class="item-price">R{{ item.price | number:'1.2-2' }}</span>
+                  @if (item.sizes?.length) {
+                    <span class="item-price">from R{{ minSizePrice(item) | number:'1.2-2' }}</span>
+                    <span class="item-sizes">{{ sizeNames(item) }}</span>
+                  } @else {
+                    <span class="item-price">R{{ item.price | number:'1.2-2' }}</span>
+                  }
                 </div>
                 @if (!item.isAvailable || item.stockQuantity < 1) { <span class="item-badge">Sold out</span> }
               </button>
@@ -129,16 +134,17 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
                 <p class="sub">Tap a drink to begin.</p>
               </div>
             }
-            @for (ci of cart(); track ci.id) {
+            @for (ci of cart(); track ci.sizeId ? ci.id + ':' + ci.sizeId : ci.id) {
               <div class="cart-row">
                 <div class="cart-info">
                   <span class="cart-name">{{ ci.name }}</span>
+                  @if (ci.sizeName) { <span class="cart-size">{{ ci.sizeName }}</span> }
                   <span class="cart-unit">R{{ ci.price | number:'1.2-2' }} ea</span>
                 </div>
                 <div class="cart-qty">
-                  <button class="qty-btn" (click)="updateQty(ci.id, -1)">−</button>
+                  <button class="qty-btn" (click)="updateQty(ci.id, ci.sizeId, -1)">−</button>
                   <span class="qty-val">{{ ci.quantity }}</span>
-                  <button class="qty-btn" [disabled]="ci.quantity >= stockOf(ci.id)" (click)="updateQty(ci.id, 1)">+</button>
+                  <button class="qty-btn" [disabled]="inCartAtStock(ci.id)" (click)="updateQty(ci.id, ci.sizeId, 1)">+</button>
                 </div>
                 <span class="cart-total">R{{ (ci.price * ci.quantity) | number:'1.2-2' }}</span>
               </div>
@@ -187,6 +193,23 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
             <div class="sum-cell"><span class="sum-val">R{{ s.averageOrder | number:'1.2-2' }}</span><span class="sum-lbl">Avg order</span></div>
           </div>
           <app-btn variant="primary" (onClick)="shiftSummary.set(null)">Done</app-btn>
+        </div>
+      </div>
+    }
+
+    <!-- Size picker (items with drink sizes) -->
+    @if (sizePicker(); as sp) {
+      <div class="complete" (click)="sizePicker.set(null)">
+        <div class="complete-card size-card" (click)="$event.stopPropagation()">
+          <strong>{{ sp.name }}</strong>
+          <span class="size-sub">Choose a size</span>
+          @for (s of sp.sizes; track s.id) {
+            <button class="size-opt" (click)="addWithSize(sp, s)">
+              <span class="size-opt-name">{{ s.name }}</span>
+              <span class="size-opt-price">R{{ s.price | number:'1.2-2' }}</span>
+            </button>
+          }
+          <app-btn size="sm" (onClick)="sizePicker.set(null)">Cancel</app-btn>
         </div>
       </div>
     }
@@ -351,6 +374,13 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
     .pick-card { width: 360px; max-width: 94vw; padding: 1.5rem; gap: 0.5rem; align-items: stretch; }
     .pick-row { display: flex; justify-content: space-between; align-items: center; padding: 0.8rem 1rem; border: 1px solid var(--border-hover); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); font-family: inherit; cursor: pointer; }
     .pick-row:hover { border-color: var(--accent); }
+    .size-card { min-width: 280px; align-items: stretch; }
+    .size-sub { margin: -0.25rem 0 0.5rem; font-size: 0.8125rem; color: var(--muted); }
+    .size-opt { display: flex; justify-content: space-between; align-items: center; padding: 0.9rem 1.1rem; border: 1px solid var(--border-hover); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); font-family: inherit; font-size: 1rem; font-weight: 700; cursor: pointer; transition: all 0.12s; }
+    .size-opt:hover { border-color: var(--accent); background: var(--surface-3); }
+    .size-opt-price { color: var(--accent-2); font-variant-numeric: tabular-nums; }
+    .item-sizes { font-size: 0.6875rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+    .cart-size { font-size: 0.75rem; color: var(--accent-2); font-weight: 700; }
     .pick-name { font-weight: 700; font-size: 0.875rem; }
     .pick-val { color: var(--accent-2); font-weight: 700; font-size: 0.8125rem; }
     .cart-subtotal { font-size: 0.8125rem; color: var(--text-2); }
@@ -471,6 +501,9 @@ export class PosComponent implements OnInit {
   readonly selectedDiscount = signal<any | null>(null);
   readonly discountOpen = signal(false);
 
+  // Size picker (items with drink sizes)
+  readonly sizePicker = signal<MenuItem | null>(null);
+
   // Shift summary (shown at clock-out)
   readonly shiftSummary = signal<any | null>(null);
 
@@ -493,12 +526,17 @@ export class PosComponent implements OnInit {
   readonly total = () => this.cart().reduce((s, i) => s + i.price * i.quantity, 0);
   skeletonCards(): number[] { return [0, 1, 2, 3, 4, 5, 6, 7]; }
 
-  // Stock guardrails — the cart can never exceed what we have.
+  // Stock guardrails — the cart can never exceed what we have. Stock is shared
+  // across sizes, so the guard sums every line of the same item.
   stockOf(id: number): number { return this.items.find(i => i.id === id)?.stockQuantity ?? 0; }
   inCartAtStock(id: number): boolean {
-    const inCart = this.cart().find(i => i.id === id);
-    return inCart ? inCart.quantity >= this.stockOf(id) : false;
+    const inCart = this.cart().filter(i => i.id === id).reduce((s, i) => s + i.quantity, 0);
+    return inCart >= this.stockOf(id);
   }
+
+  // Sized items show their cheapest size on the card + the size names.
+  minSizePrice(item: MenuItem): number { return Math.min(...(item.sizes ?? []).map(s => s.price)); }
+  sizeNames(item: MenuItem): string { return (item.sizes ?? []).map(s => s.name).join(' · '); }
 
   ngOnInit() { this.restoreCart(); this.load(); this.checkShift(); this.loadShop(); this.loadDiscounts(); }
 
@@ -558,18 +596,29 @@ export class PosComponent implements OnInit {
   }
 
   addToCart(item: MenuItem) {
+    if (item.sizes?.length) { this.sizePicker.set(item); return; }
+    this.addLine(item.id, item.name, item.price, undefined, undefined);
+  }
+
+  addWithSize(item: MenuItem, size: MenuSize) {
+    this.addLine(item.id, item.name, size.price, size.id, size.name);
+    this.sizePicker.set(null);
+  }
+
+  private addLine(id: number, name: string, price: number, sizeId?: number, sizeName?: string) {
     this.cart.update(c => {
-      const exist = c.find(i => i.id === item.id);
-      const nextQty = (exist?.quantity ?? 0) + 1;
-      if (nextQty > item.stockQuantity) return c; // can't add more than in stock
-      return exist ? c.map(i => i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i)
-        : [...c, { id: item.id, name: item.name, price: item.price, quantity: 1 }];
+      const exist = c.find(i => i.id === id && (i.sizeId ?? null) === (sizeId ?? null));
+      const inCart = c.filter(i => i.id === id).reduce((s, i) => s + i.quantity, 0);
+      if (inCart + 1 > this.stockOf(id)) return c; // can't add more than in stock
+      return exist
+        ? c.map(i => (i.id === id && (i.sizeId ?? null) === (sizeId ?? null)) ? { ...i, quantity: i.quantity + 1 } : i)
+        : [...c, { id, name, price, quantity: 1, sizeId, sizeName }];
     });
   }
 
-  updateQty(id: number, delta: number) {
+  updateQty(id: number, sizeId: number | undefined, delta: number) {
     this.cart.update(c => c.map(i => {
-      if (i.id !== id) return i;
+      if (i.id !== id || (i.sizeId ?? null) !== (sizeId ?? null)) return i;
       const max = this.stockOf(id);
       return { ...i, quantity: Math.min(Math.max(0, i.quantity + delta), max) };
     }).filter(i => i.quantity > 0));

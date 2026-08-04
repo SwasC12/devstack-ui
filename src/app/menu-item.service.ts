@@ -57,9 +57,9 @@ export class MenuItemService {
       .pipe(map((res) => ({ url: res.secure_url, publicId: res.public_id })));
   }
 
-  placeOrder(cart: { id: number; name: string; price: number; quantity: number }[], payment?: { method: 'cash' | 'card'; amountReceived?: number | null }, discountId?: number | null): Observable<any> {
+  placeOrder(cart: { id: number; name: string; price: number; quantity: number; sizeId?: number }[], payment?: { method: 'cash' | 'card'; amountReceived?: number | null }, discountId?: number | null): Observable<any> {
     const body: any = {
-      items: cart.map(i => ({ menuItemId: i.id, name: i.name, price: i.price, quantity: i.quantity }))
+      items: cart.map(i => ({ menuItemId: i.id, name: i.name, price: i.price, quantity: i.quantity, sizeId: i.sizeId ?? null }))
     };
     if (payment) {
       body.paymentMethod = payment.method;
