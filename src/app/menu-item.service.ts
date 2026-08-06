@@ -1,11 +1,12 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { Observable, from } from 'rxjs';
+import { map, switchMap } from 'rxjs/operators';
 import { MenuItem } from './menu-item.model';
 import { Category } from './category.model';
 import { AuthService } from './auth.service';
 import { environment } from '../environments/environment';
+import { compressImage } from './image-utils';
 
 const API = environment.apiBase;
 
@@ -42,19 +43,26 @@ export class MenuItemService {
 
   uploadImage(file: File): Observable<{ url: string; publicId: string }> {
     const { cloudName, uploadPreset } = environment.cloudinary;
-    const form = new FormData();
-    form.append('file', file);
-    form.append('upload_preset', uploadPreset);
-    // Keep each shop's images in its own Cloudinary folder.
-    const code = this.auth.getShop()?.code;
-    form.append('folder', code ? `shop-${code.toLowerCase()}` : 'shop-default');
+    // Compress the image client-side first (downscale + WebP) so Cloudinary
+    // storage doesn't fill up with full-res phone photos. Invisible to the
+    // user; small files pass through untouched.
+    return from(compressImage(file)).pipe(
+      switchMap((compressed) => {
+        const form = new FormData();
+        form.append('file', compressed);
+        form.append('upload_preset', uploadPreset);
+        // Keep each shop's images in its own Cloudinary folder.
+        const code = this.auth.getShop()?.code;
+        form.append('folder', code ? `shop-${code.toLowerCase()}` : 'shop-default');
 
-    return this.http
-      .post<{ secure_url: string; public_id: string }>(
-        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
-        form
-      )
-      .pipe(map((res) => ({ url: res.secure_url, publicId: res.public_id })));
+        return this.http
+          .post<{ secure_url: string; public_id: string }>(
+            `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+            form
+          )
+          .pipe(map((res) => ({ url: res.secure_url, publicId: res.public_id })));
+      })
+    );
   }
 
   placeOrder(cart: { id: number; name: string; price: number; quantity: number; sizeId?: number; note?: string; modifierIds?: number[] }[], payment?: { method: 'cash' | 'card'; amountReceived?: number | null }, discountId?: number | null, meta?: { customerName?: string; customerPhone?: string; notes?: string }): Observable<any> {
