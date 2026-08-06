@@ -2,6 +2,67 @@
 * {
   box-sizing: border-box;
 }
+
+/* ── Design tokens: dark (default) ─────────────────────────────
+   Defined on :root so the whole app (including <body>) themes.
+   Light values live under :root[data-theme='light']. */
+:root {
+  --bg: #181818;
+  --surface: #232323;
+  --surface-2: #2f2f2f;
+  --surface-3: #3a3a3a;
+  --border: #2f2f2f;
+  --border-hover: #434343;
+  --text: #ffffff;
+  --text-2: #c8c8c8;
+  --muted: #8e8e8e;
+  --accent: #c88738;
+  --accent-hover: #d99a4d;
+  --accent-2: #d99a4d;
+  --accent-light: rgba(200, 135, 56, 0.14);
+  --green: #43b96d;
+  --green-bg: rgba(67, 185, 109, 0.12);
+  --red: #e65252;
+  --red-bg: rgba(230, 82, 82, 0.12);
+  --warning: #f2b94b;
+  --topbar-bg: rgba(24, 24, 24, 0.82);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.18);
+  --radius: 16px;
+  --radius-sm: 12px;
+  --radius-lg: 20px;
+  --radius-pill: 999px;
+  color-scheme: dark;
+}
+
+/* ── Light theme ─────────────────────────────────────────────── */
+:root[data-theme='light'] {
+  --bg: #f5f2ec;
+  --surface: #ffffff;
+  --surface-2: #efece5;
+  --surface-3: #e4dfd5;
+  --border: #e5e0d6;
+  --border-hover: #cfc8ba;
+  --text: #211c15;
+  --text-2: #4d453a;
+  --muted: #8b8275;
+  --accent: #b5762e;
+  --accent-hover: #9a6427;
+  --accent-2: #b5762e;
+  --accent-light: rgba(181, 118, 46, 0.14);
+  --green: #2e9c58;
+  --green-bg: rgba(46, 156, 88, 0.12);
+  --red: #d64545;
+  --red-bg: rgba(214, 69, 69, 0.12);
+  --warning: #b87e1e;
+  --topbar-bg: rgba(255, 255, 255, 0.85);
+  --shadow-sm: 0 2px 8px rgba(60, 50, 35, 0.08);
+  --shadow-md: 0 8px 24px rgba(60, 50, 35, 0.1);
+  --shadow-lg: 0 8px 24px rgba(60, 50, 35, 0.12);
+  color-scheme: light;
+}
+
 html,
 body {
   margin: 0;
@@ -11,10 +72,10 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Dark app shell so first paint and overscroll match the theme (no white flash). */
+/* Themed app shell so first paint and overscroll match the theme (no white flash). */
 body {
-  background-color: #181818;
-  color: #ffffff;
+  background-color: var(--bg);
+  color: var(--text);
 }
 
 /* Print: isolate receipts (used by the POS checkout + admin reprint). */

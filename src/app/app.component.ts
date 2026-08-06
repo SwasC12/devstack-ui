@@ -8,17 +8,20 @@ import { AppDialogComponent } from './app-dialog.component';
 import { AppLoaderComponent } from './app-loader.component';
 import { LoadingService } from './loading.service';
 import { AppLogoComponent } from './app-logo.component';
+import { ClockComponent } from './clock.component';
+import { OfflineService } from './offline.service';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterModule, AppDialogComponent, AppLoaderComponent, AppLogoComponent],
+  imports: [RouterModule, AppDialogComponent, AppLoaderComponent, AppLogoComponent, ClockComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss',
 })
 export class AppComponent {
   auth = inject(AuthService);
   router = inject(Router);
+  offline = inject(OfflineService);
 
   constructor() {
     const loading = inject(LoadingService);

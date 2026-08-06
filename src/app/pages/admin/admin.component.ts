@@ -10,6 +10,7 @@ import { PasswordInputComponent } from '../../password-input.component';
 import { DialogService } from '../../dialog.service';
 import { ReceiptViewComponent } from '../../receipt-view.component';
 import { firstValueFrom } from 'rxjs';
+import { ThemeService } from '../../theme.service';
 
 @Component({
   selector: 'app-admin',
@@ -525,6 +526,13 @@ import { firstValueFrom } from 'rxjs';
               </div>
             </div>
             <div class="field wide">
+              <label>Appearance</label>
+              <div class="theme-row" style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+                <app-btn size="sm" (onClick)="themeService.set('dark')">{{ themeService.theme() === 'dark' ? '✓ Dark' : 'Dark' }}</app-btn>
+                <app-btn size="sm" (onClick)="themeService.set('light')">{{ themeService.theme() === 'light' ? '✓ Light' : 'Light' }}</app-btn>
+              </div>
+            </div>
+            <div class="field wide">
               <label>Receipt QR link (optional)</label>
               <input [(ngModel)]="brQrUrl" placeholder="https://wa.me/27821234567 or a review / feedback link" />
               <span class="field-hint">Shown as a scannable QR on printed receipts. Leave empty to hide it.</span>
@@ -692,6 +700,7 @@ export class AdminComponent implements OnInit {
   readonly editing = signal<MenuItem | null>(null);
   fName = ''; fCategory = ''; fPrice: number | null = null; fStock: number | null = null; fDesc = ''; fAvail = true;
   fImageUrl = ''; fImagePublicId = ''; readonly uploading = signal(false);
+  readonly themeService = inject(ThemeService);
   pendingImage: File | null = null;
   pendingImageUrl: string | null = null;
   fSizes: { id: number; name: string; price: number }[] = [];

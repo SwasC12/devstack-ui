@@ -6,32 +6,6 @@
    #C88738/#D99A4D · Inter · radius 16/12 · subtle shadows.
 */
 :host {
-  --bg: #181818;
-  --surface: #232323;
-  --surface-2: #2f2f2f;
-  --surface-3: #3a3a3a;
-  --border: #2f2f2f;
-  --border-hover: #434343;
-  --text: #ffffff;
-  --text-2: #c8c8c8;
-  --muted: #8e8e8e;
-  --accent: #c88738;
-  --accent-hover: #d99a4d;
-  --accent-2: #d99a4d;
-  --accent-light: rgba(200, 135, 56, 0.14);
-  --green: #43b96d;
-  --green-bg: rgba(67, 185, 109, 0.12);
-  --red: #e65252;
-  --red-bg: rgba(230, 82, 82, 0.12);
-  --warning: #f2b94b;
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.15);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.18);
-  --radius: 16px;
-  --radius-sm: 12px;
-  --radius-lg: 20px;
-  --radius-pill: 999px;
-  color-scheme: dark;
   display: block;
   min-height: 100vh;
   background: var(--bg);
@@ -41,6 +15,22 @@
 }
 
 .shell { min-height: 100vh; display: flex; flex-direction: column; }
+
+.top-right { display: flex; align-items: center; gap: 0.75rem; }
+
+/* Offline strip: shows while disconnected and/or orders await sync. */
+.offline-banner {
+  position: sticky;
+  top: 56px;
+  z-index: 99;
+  background: var(--warning);
+  color: #1a140c;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-align: center;
+  padding: 0.4rem 1rem;
+  letter-spacing: 0.01em;
+}
 
 /* Global niceties: selection tint, slim themed scrollbars. */
 ::selection { background: var(--accent); color: #fff; }
@@ -57,7 +47,7 @@
   justify-content: space-between;
   padding: 0 1.5rem;
   height: 56px;
-  background: rgba(24, 24, 24, 0.82);
+  background: var(--topbar-bg);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);

@@ -19,7 +19,16 @@
         <a class="nav-link" routerLink="/login" routerLinkActive="active">Sign in</a>
       }
     </nav>
+    <div class="top-right"><app-clock /></div>
   </header>
+  @if (offline.isOffline() || offline.pendingOrders() > 0) {
+    <div class="offline-banner">
+      @if (offline.isOffline()) { ⚠ No internet — selling continues, orders queue locally }
+      @if (offline.pendingOrders() > 0) {
+        {{ offline.pendingOrders() }} order{{ offline.pendingOrders() === 1 ? '' : 's' }} awaiting sync{{ offline.isOffline() ? '' : ' — syncing…' }}
+      }
+    </div>
+  }
   <main class="main">
     <router-outlet />
   </main>

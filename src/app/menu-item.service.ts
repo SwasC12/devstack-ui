@@ -1,12 +1,13 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, from } from 'rxjs';
-import { map, switchMap } from 'rxjs/operators';
+import { Observable, from, of, throwError } from 'rxjs';
+import { map, switchMap, tap, catchError } from 'rxjs/operators';
 import { MenuItem } from './menu-item.model';
 import { Category } from './category.model';
 import { AuthService } from './auth.service';
 import { environment } from '../environments/environment';
 import { compressImage } from './image-utils';
+import { OfflineService } from './offline.service';
 
 const API = environment.apiBase;
 
@@ -14,9 +15,13 @@ const API = environment.apiBase;
 export class MenuItemService {
   private http = inject(HttpClient);
   private auth = inject(AuthService);
+  private offline = inject(OfflineService);
 
   getItems(): Observable<MenuItem[]> {
-    return this.http.get<MenuItem[]>(`${API}/menuitems`);
+    return this.http.get<MenuItem[]>(`${API}/menuitems`).pipe(
+      tap(items => void this.offline.cacheMenu('items', items)),
+      catchError(err => this.fallbackOrThrow('items', err, []))
+    );
   }
 
   writeItem(item: Partial<MenuItem>): Observable<MenuItem> {
@@ -30,7 +35,10 @@ export class MenuItemService {
   // ── Categories ──────────────────────────────────────────────
 
   getCategories(): Observable<Category[]> {
-    return this.http.get<Category[]>(`${API}/categories`);
+    return this.http.get<Category[]>(`${API}/categories`).pipe(
+      tap(cats => void this.offline.cacheMenu('categories', cats)),
+      catchError(err => this.fallbackOrThrow('categories', err, []))
+    );
   }
 
   writeCategory(data: Partial<Category>): Observable<Category> {
@@ -39,6 +47,14 @@ export class MenuItemService {
 
   deleteCategory(id: number): Observable<void> {
     return this.http.delete<void>(`${API}/categories/${id}`);
+  }
+
+  // Offline: serve the last good copy instead of failing the whole screen.
+  private fallbackOrThrow(key: string, err: any, empty: any): Observable<any> {
+    if (err?.status === 0 || err?.status == null) {
+      return from(this.offline.cachedMenu(key)).pipe(map(cached => cached ?? empty));
+    }
+    return throwError(() => err);
   }
 
   uploadImage(file: File): Observable<{ url: string; publicId: string }> {
@@ -65,7 +81,7 @@ export class MenuItemService {
     );
   }
 
-  placeOrder(cart: { id: number; name: string; price: number; quantity: number; sizeId?: number; note?: string; modifierIds?: number[] }[], payment?: { method: 'cash' | 'card'; amountReceived?: number | null }, discountId?: number | null, meta?: { customerName?: string; customerPhone?: string; notes?: string }): Observable<any> {
+  placeOrder(cart: { id: number; name: string; price: number; quantity: number; sizeId?: number; note?: string; modifierIds?: number[] }[], payment?: { method: 'cash' | 'card'; amountReceived?: number | null }, discountId?: number | null, meta?: { customerName?: string; customerPhone?: string; notes?: string }, offlineSnapshot?: any): Observable<any> {
     const body: any = {
       items: cart.map(i => ({ menuItemId: i.id, name: i.name, price: i.price, quantity: i.quantity, sizeId: i.sizeId ?? null, note: i.note ?? null, modifierIds: i.modifierIds?.length ? i.modifierIds : null }))
     };
@@ -77,7 +93,35 @@ export class MenuItemService {
     if (meta?.customerName) body.customerName = meta.customerName;
     if (meta?.customerPhone) body.customerPhone = meta.customerPhone;
     if (meta?.notes) body.notes = meta.notes;
-    return this.http.post(`${API}/orders`, body);
+    return this.http.post(`${API}/orders`, body).pipe(
+      catchError(err => {
+        // Internet down: queue the order locally and return a local receipt
+        // order so the sale completes. It syncs automatically when back online.
+        if (err?.status === 0 || err?.status == null) {
+          void this.offline.queueOrder(`${API}/orders`, body);
+          const total = offlineSnapshot?.total ?? cart.reduce((s, i) => s + i.price * i.quantity, 0);
+          return of({
+            id: offlineSnapshot?.id ?? `LOC-${Date.now()}`,
+            createdAt: new Date().toISOString(),
+            items: cart.map(i => ({
+              id: i.id, name: i.name, price: i.price, quantity: i.quantity,
+              note: i.note ?? null, sizeName: null, modifiers: []
+            })),
+            customerName: meta?.customerName ?? null,
+            customerPhone: meta?.customerPhone ?? null,
+            notes: meta?.notes ?? null,
+            discountAmount: offlineSnapshot?.discountAmount ?? 0,
+            discountName: offlineSnapshot?.discountName ?? null,
+            total,
+            paymentMethod: payment?.method ?? 'cash',
+            amountReceived: offlineSnapshot?.amountReceived ?? null,
+            changeGiven: offlineSnapshot?.changeGiven ?? null,
+            offline: true,
+          });
+        }
+        return throwError(() => err);
+      })
+    );
   }
 
   getSummary(): Observable<any> {

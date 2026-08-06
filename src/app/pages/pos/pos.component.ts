@@ -9,6 +9,7 @@ import { AuthService } from '../../auth.service';
 import { BtnComponent } from '../../btn.component';
 import { DialogService } from '../../dialog.service';
 import { ReceiptViewComponent } from '../../receipt-view.component';
+import { ClockComponent } from '../../clock.component';
 import { AppLogoComponent } from '../../app-logo.component';
 
 interface CartItem { id: number; name: string; price: number; quantity: number; sizeId?: number; sizeName?: string; modifiers?: { groupName: string; name: string; priceDelta: number }[]; note?: string; }
@@ -16,7 +17,7 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
 @Component({
   selector: 'app-pos',
   standalone: true,
-  imports: [CommonModule, FormsModule, BtnComponent, ReceiptViewComponent, AppLogoComponent],
+  imports: [CommonModule, FormsModule, BtnComponent, ReceiptViewComponent, AppLogoComponent, ClockComponent],
   template: `
     <!-- Not on shift: one big, obvious clock-in screen. No POS until you're in. -->
     @if (!shiftActive()) {
@@ -50,6 +51,7 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
           <input [(ngModel)]="search" (ngModelChange)="onSearch()" placeholder="Search drinks…" />
         </div>
         <div class="pos-bar-right">
+          <app-clock />
           <app-btn size="sm" (onClick)="endShift()">End shift</app-btn>
         </div>
       </div>
@@ -776,6 +778,14 @@ export class PosComponent implements OnInit {
       customerName: this.custName.trim() || undefined,
       customerPhone: this.custPhone.trim() || undefined,
       notes: this.orderNotes.trim() || undefined
+    }, {
+      // Snapshot used to build the local receipt when the order is queued offline.
+      id: `LOC-${Date.now()}`,
+      total: this.netTotal(),
+      discountAmount: Math.max(0, this.total() - this.netTotal()),
+      discountName: this.selectedDiscount()?.name ?? null,
+      amountReceived: this.payMethod() === 'cash' ? this.received() : null,
+      changeGiven: this.payMethod() === 'cash' ? Math.max(0, this.received() - this.netTotal()) : null
     }).subscribe({
       next: (order) => {
         this.busy.set(false);

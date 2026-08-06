@@ -56,7 +56,16 @@ export class AuthService {
     if (!this.ready) {
       this.ready = new Promise(resolve => {
         if (this._token) { resolve(); return; }
-        this.refresh().subscribe({ next: () => resolve(), error: () => resolve() });
+        this.refresh().subscribe({
+          next: () => resolve(),
+          error: () => {
+            // No internet but a session was active before: enter offline mode
+            // so the cashier can keep selling from the cached menu + queued
+            // orders. The real session restores via refresh when back online.
+            if (!navigator.onLine && this.getUser()) this._token = 'offline';
+            resolve();
+          }
+        });
       });
     }
     return this.ready;
