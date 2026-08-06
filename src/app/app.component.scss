@@ -32,6 +32,36 @@
   letter-spacing: 0.01em;
 }
 
+/* Shift cash-up: expected vs counted till. */
+.summary-card .sum-grid { gap: 0.5rem; }
+.sum-void { margin-top: 0.5rem; font-size: 0.78rem; color: var(--muted); }
+.cashup {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed var(--border-hover);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  align-items: stretch;
+  min-width: 240px;
+}
+.cashup label { font-size: 0.78rem; font-weight: 600; color: var(--text-2); }
+.cashup input {
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-hover);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 700;
+  font-family: inherit;
+  outline: none;
+}
+.cashup input:focus { border-color: var(--accent); }
+.cashup-diff { font-size: 0.875rem; font-weight: 700; color: var(--green); }
+.cashup-diff.short { color: var(--red); }
+.cashup-diff.over { color: var(--warning); }
+
 /* Global niceties: selection tint, slim themed scrollbars. */
 ::selection { background: var(--accent); color: #fff; }
 * { scrollbar-width: thin; scrollbar-color: var(--surface-3) transparent; }

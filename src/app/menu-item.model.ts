@@ -28,6 +28,7 @@ export interface MenuItem {
   imagePublicId?: string | null;
   isAvailable: boolean;
   stockQuantity: number;
+  lowStockThreshold?: number;
   createdAt: string;
   sizes?: MenuSize[];
   modifierGroups?: ModifierGroup[];

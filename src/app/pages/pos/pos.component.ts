@@ -1,4 +1,4 @@
-import { Component, effect, inject, signal, OnInit } from '@angular/core';
+import { Component, effect, inject, signal, OnInit, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -11,6 +11,7 @@ import { DialogService } from '../../dialog.service';
 import { ReceiptViewComponent } from '../../receipt-view.component';
 import { ClockComponent } from '../../clock.component';
 import { AppLogoComponent } from '../../app-logo.component';
+import { PrintService } from '../../print.service';
 
 interface CartItem { id: number; name: string; price: number; quantity: number; sizeId?: number; sizeName?: string; modifiers?: { groupName: string; name: string; priceDelta: number }[]; note?: string; }
 
@@ -177,8 +178,9 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
     <!-- Receipt after checkout -->
     @if (lastOrder(); as o) {
       <div class="complete">
-        <div class="complete-card receipt-wrap">
+        <div class="complete-card receipt-wrap" #receiptBox>
           <app-receipt [order]="o" [shop]="shopInfo()" [cashierName]="auth.getUser()?.displayName ?? ''" />
+          <app-btn size="sm" (onClick)="printReceipt()">Print</app-btn>
           <app-btn variant="primary" size="sm" (onClick)="closeReceipt()">New order</app-btn>
         </div>
       </div>
@@ -188,13 +190,25 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
     @if (shiftSummary(); as s) {
       <div class="complete">
         <div class="complete-card summary-card">
-          <span class="complete-check">⏱</span>
+          <span class="complete-check">✓</span>
           <strong>Shift over — well done!</strong>
           <div class="sum-grid">
             <div class="sum-cell"><span class="sum-val">{{ s.orderCount }}</span><span class="sum-lbl">Orders</span></div>
             <div class="sum-cell"><span class="sum-val">{{ s.itemCount }}</span><span class="sum-lbl">Items sold</span></div>
             <div class="sum-cell"><span class="sum-val">R{{ s.revenue | number:'1.2-2' }}</span><span class="sum-lbl">Revenue</span></div>
+            <div class="sum-cell"><span class="sum-val">R{{ s.cashRevenue | number:'1.2-2' }}</span><span class="sum-lbl">Cash</span></div>
+            <div class="sum-cell"><span class="sum-val">R{{ s.cardRevenue | number:'1.2-2' }}</span><span class="sum-lbl">Card</span></div>
             <div class="sum-cell"><span class="sum-val">R{{ s.averageOrder | number:'1.2-2' }}</span><span class="sum-lbl">Avg order</span></div>
+          </div>
+          @if (s.voidedCount > 0) { <div class="sum-void">Voided orders: {{ s.voidedCount }}</div> }
+          <div class="cashup">
+            <label>Cash counted in till</label>
+            <input type="number" step="0.01" [ngModel]="cashCounted" (ngModelChange)="cashCounted = $event ? +$event : null" placeholder="0.00" />
+            @if (cashCounted !== null) {
+              <div class="cashup-diff" [class.short]="cashCounted < s.cashRevenue" [class.over]="cashCounted > s.cashRevenue">
+                {{ cashCounted < s.cashRevenue ? 'Short' : cashCounted > s.cashRevenue ? 'Over' : 'Balanced' }}: R{{ (cashCounted - s.cashRevenue) | number:'1.2-2' }}
+              </div>
+            }
           </div>
           <app-btn variant="primary" (onClick)="shiftSummary.set(null)">Done</app-btn>
         </div>
@@ -550,6 +564,9 @@ export class PosComponent implements OnInit {
 
   // Shift summary (shown at clock-out)
   readonly shiftSummary = signal<any | null>(null);
+  cashCounted: number | null = null;
+  @ViewChild('receiptBox') receiptBox!: ElementRef<HTMLElement>;
+  private printer = inject(PrintService);
 
   get categories(): string[] { return [...new Set(this.items.map(i => i.category))].sort(); }
   searching(): boolean { return this.query().trim().length > 0; }
@@ -631,7 +648,7 @@ export class PosComponent implements OnInit {
         this.shiftActive.set(false);
         // Clock-out summary: what did this shift sell?
         this.service.getShiftSummary().subscribe({
-          next: s => this.shiftSummary.set(s),
+          next: s => { this.shiftSummary.set(s); this.cashCounted = null; },
           error: () => this.shiftSummary.set(null)
         });
       },
@@ -805,6 +822,17 @@ export class PosComponent implements OnInit {
   }
 
   closeReceipt() { this.lastOrder.set(null); this.showComplete(); }
+
+  // Print the current receipt: native app uses the Android print framework
+  // (any printer the device can reach, incl. Bluetooth thermal with a print
+  // service); web falls back to the system print dialog.
+  printReceipt() {
+    const el = this.receiptBox?.nativeElement?.querySelector('.receipt-print') as HTMLElement | null;
+    if (!el) { this.dialog.toast('Receipt not ready', 'error'); return; }
+    void this.printer.printReceiptHtml(el.outerHTML).then(ok => {
+      if (!ok) { this.dialog.toast('No printer available - opening system print', 'error'); window.print(); }
+    });
+  }
 
   // Brief success moment, then straight back to a clean POS.
   private showComplete() {
