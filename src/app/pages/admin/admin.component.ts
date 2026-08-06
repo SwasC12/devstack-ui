@@ -9,6 +9,7 @@ import { BtnComponent } from '../../btn.component';
 import { PasswordInputComponent } from '../../password-input.component';
 import { DialogService } from '../../dialog.service';
 import { ReceiptViewComponent } from '../../receipt-view.component';
+import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-admin',
@@ -115,14 +116,14 @@ import { ReceiptViewComponent } from '../../receipt-view.component';
               <div class="field wide">
                 <label>Photo</label>
                 <div class="img-upload">
-                  @if (fImageUrl) {
-                    <img [src]="fImageUrl" alt="" class="img-preview" />
+                  @if (fImageUrl || pendingImageUrl) {
+                    <img [src]="pendingImageUrl ?? fImageUrl" alt="" class="img-preview" />
                   }
                   <input type="file" accept="image/*" (change)="onImageSelected($event)" #fileInput hidden />
                   <app-btn size="sm" (onClick)="fileInput.click()" [loading]="uploading()">
-                    {{ fImageUrl ? 'Change' : 'Upload' }}
+                    {{ fImageUrl || pendingImageUrl ? 'Change' : 'Upload' }}
                   </app-btn>
-                  @if (fImageUrl) {
+                  @if (fImageUrl || pendingImageUrl) {
                     <app-btn size="sm" variant="danger" (onClick)="clearImage()">Remove</app-btn>
                   }
                 </div>
@@ -517,10 +518,10 @@ import { ReceiptViewComponent } from '../../receipt-view.component';
             <div class="field wide">
               <label>Logo</label>
               <div class="img-upload">
-                @if (brLogoUrl) { <img [src]="brLogoUrl" alt="" class="img-preview" /> }
+                @if (brLogoUrl || pendingLogoUrl) { <img [src]="pendingLogoUrl ?? brLogoUrl" alt="" class="img-preview" /> }
                 <input type="file" accept="image/*" (change)="onLogoSelected($event)" #logoInput hidden />
-                <app-btn size="sm" (onClick)="logoInput.click()" [loading]="logoUploading()">{{ brLogoUrl ? 'Change' : 'Upload' }}</app-btn>
-                @if (brLogoUrl) { <app-btn size="sm" variant="danger" (onClick)="brLogoUrl = ''">Remove</app-btn> }
+                <app-btn size="sm" (onClick)="logoInput.click()" [loading]="logoUploading()">{{ brLogoUrl || pendingLogoUrl ? 'Change' : 'Upload' }}</app-btn>
+                @if (brLogoUrl || pendingLogoUrl) { <app-btn size="sm" variant="danger" (onClick)="clearLogo()">Remove</app-btn> }
               </div>
             </div>
             <div class="field wide">
@@ -691,6 +692,8 @@ export class AdminComponent implements OnInit {
   readonly editing = signal<MenuItem | null>(null);
   fName = ''; fCategory = ''; fPrice: number | null = null; fStock: number | null = null; fDesc = ''; fAvail = true;
   fImageUrl = ''; fImagePublicId = ''; readonly uploading = signal(false);
+  pendingImage: File | null = null;
+  pendingImageUrl: string | null = null;
   fSizes: { id: number; name: string; price: number }[] = [];
   fGroups: { id: number; name: string; isMulti: boolean; modifiers: { id: number; name: string; priceDelta: number }[] }[] = [];
 
@@ -710,6 +713,8 @@ export class AdminComponent implements OnInit {
   readonly acMsg = signal(''); readonly acErr = signal(false); readonly acBusy = signal(false);
   brName = ''; brLogoUrl = ''; brQrUrl = '';
   readonly brMsg = signal(''); readonly brErr = signal(false); readonly brBusy = signal(false);
+  pendingLogo: File | null = null;
+  pendingLogoUrl: string | null = null;
   readonly logoUploading = signal(false);
 
   // Orders
@@ -756,42 +761,64 @@ export class AdminComponent implements OnInit {
   }
 
   openNew() { this.resetInv(); this.showForm.set(true); }
-  edit(item: MenuItem) { this.editing.set(item); this.fName = item.name; this.fCategory = item.category; this.fPrice = item.price; this.fStock = item.stockQuantity; this.fDesc = item.description ?? ''; this.fAvail = item.isAvailable; this.fImageUrl = item.imageUrl ?? ''; this.fImagePublicId = item.imagePublicId ?? ''; this.fSizes = (item.sizes ?? []).map(s => ({ id: s.id, name: s.name, price: s.price })); this.fGroups = (item.modifierGroups ?? []).map(g => ({ id: g.id, name: g.name, isMulti: g.isMulti, modifiers: g.modifiers.map(m => ({ id: m.id, name: m.name, priceDelta: m.priceDelta })) })); this.showForm.set(true); }
-  closeForm() { this.showForm.set(false); this.editing.set(null); }
+  edit(item: MenuItem) { this.clearPendingImage(); this.editing.set(item); this.fName = item.name; this.fCategory = item.category; this.fPrice = item.price; this.fStock = item.stockQuantity; this.fDesc = item.description ?? ''; this.fAvail = item.isAvailable; this.fImageUrl = item.imageUrl ?? ''; this.fImagePublicId = item.imagePublicId ?? ''; this.fSizes = (item.sizes ?? []).map(s => ({ id: s.id, name: s.name, price: s.price })); this.fGroups = (item.modifierGroups ?? []).map(g => ({ id: g.id, name: g.name, isMulti: g.isMulti, modifiers: g.modifiers.map(m => ({ id: m.id, name: m.name, priceDelta: m.priceDelta })) })); this.showForm.set(true); }
+  closeForm() { this.showForm.set(false); this.editing.set(null); this.clearPendingImage(); }
   addSizeRow() { this.fSizes = [...this.fSizes, { id: 0, name: '', price: 0 }]; }
   removeSizeRow(i: number) { this.fSizes = this.fSizes.filter((_, idx) => idx !== i); }
   addGroup() { this.fGroups = [...this.fGroups, { id: 0, name: '', isMulti: false, modifiers: [] }]; }
   removeGroup(i: number) { this.fGroups = this.fGroups.filter((_, idx) => idx !== i); }
   addMod(g: { modifiers: { id: number; name: string; priceDelta: number }[] }) { g.modifiers = [...g.modifiers, { id: 0, name: '', priceDelta: 0 }]; }
   removeMod(g: { modifiers: { id: number; name: string; priceDelta: number }[] }, i: number) { g.modifiers = g.modifiers.filter((_, idx) => idx !== i); }
-  save() {
+  async save() {
     if (!this.fCategory.trim()) { this.dialog.toast('Choose a category', 'error'); return; }
     const sizes = this.fSizes.filter(s => s.name.trim()).map(s => ({ id: s.id, name: s.name.trim(), price: s.price ?? 0 }));
     const modifierGroups = this.fGroups.filter(g => g.name.trim()).map(g => ({
       id: g.id, name: g.name.trim(), isMulti: g.isMulti,
       modifiers: g.modifiers.filter(m => m.name.trim()).map(m => ({ id: m.id, name: m.name.trim(), priceDelta: m.priceDelta ?? 0 }))
     }));
-    this.service.writeItem({ id: this.editing()?.id ?? 0, name: this.fName, category: this.fCategory, price: this.fPrice ?? 0, stockQuantity: this.fStock ?? 0, description: this.fDesc || null, imageUrl: this.fImageUrl || null, imagePublicId: this.fImagePublicId || null, isAvailable: this.fAvail, sizes, modifierGroups }).subscribe({ next: () => { this.loadInv(); this.closeForm(); }, error: () => this.dialog.toast('Save failed', 'error') });
+    let imageUrl = this.fImageUrl || null;
+    let imagePublicId = this.fImagePublicId || null;
+    // Upload only when the user actually saves - picking then cancelling an
+    // image must never leave an orphaned file in Cloudinary.
+    if (this.pendingImage) {
+      this.uploading.set(true);
+      try {
+        const res = await firstValueFrom(this.service.uploadImage(this.pendingImage));
+        imageUrl = res.url;
+        imagePublicId = res.publicId;
+      } catch {
+        this.uploading.set(false);
+        this.dialog.toast('Image upload failed', 'error');
+        return;
+      }
+      this.uploading.set(false);
+    }
+    this.service.writeItem({ id: this.editing()?.id ?? 0, name: this.fName, category: this.fCategory, price: this.fPrice ?? 0, stockQuantity: this.fStock ?? 0, description: this.fDesc || null, imageUrl, imagePublicId, isAvailable: this.fAvail, sizes, modifierGroups }).subscribe({ next: () => { this.loadInv(); this.closeForm(); }, error: () => this.dialog.toast('Save failed', 'error') });
   }
   remove(id: number) {
     this.dialog.confirm('Delete item', 'Delete this item?').then(ok => {
       if (ok) this.service.deleteItem(id).subscribe({ next: () => this.loadInv(), error: () => this.dialog.toast('Delete failed', 'error') });
     });
   }
-  private resetInv() { this.fName = ''; this.fCategory = ''; this.fPrice = null; this.fStock = null; this.fDesc = ''; this.fAvail = true; this.fImageUrl = ''; this.fImagePublicId = ''; this.fSizes = []; this.fGroups = []; }
+  private resetInv() { this.fName = ''; this.fCategory = ''; this.fPrice = null; this.fStock = null; this.fDesc = ''; this.fAvail = true; this.fImageUrl = ''; this.fImagePublicId = ''; this.fSizes = []; this.fGroups = []; this.clearPendingImage(); }
 
   onImageSelected(event: Event) {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
-    this.uploading.set(true);
-    this.service.uploadImage(file).subscribe({
-      next: ({ url, publicId }) => { this.fImageUrl = url; this.fImagePublicId = publicId; this.uploading.set(false); },
-      error: () => { this.uploading.set(false); this.dialog.toast('Upload failed', 'error'); }
-    });
+    // No upload here - just keep the file locally for preview. It goes to
+    // Cloudinary only when the form is saved (see save()).
+    this.clearPendingImage();
+    this.pendingImage = file;
+    this.pendingImageUrl = URL.createObjectURL(file);
   }
 
-  clearImage() { this.fImageUrl = ''; this.fImagePublicId = ''; }
+  clearImage() { this.fImageUrl = ''; this.fImagePublicId = ''; this.clearPendingImage(); }
+
+  private clearPendingImage() {
+    if (this.pendingImageUrl) { URL.revokeObjectURL(this.pendingImageUrl); this.pendingImageUrl = null; }
+    this.pendingImage = null;
+  }
 
   openUserForm() { this.resetUser(); this.showUserForm.set(true); }
   closeUserForm() { this.showUserForm.set(false); }
@@ -971,16 +998,36 @@ export class AdminComponent implements OnInit {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
-    this.logoUploading.set(true);
-    this.service.uploadImage(file).subscribe({
-      next: ({ url }) => { this.brLogoUrl = url; this.logoUploading.set(false); },
-      error: () => { this.logoUploading.set(false); this.dialog.toast('Upload failed', 'error'); }
-    });
+    // Same deferred pattern as menu photos: upload happens in saveBranding().
+    this.clearPendingLogo();
+    this.pendingLogo = file;
+    this.pendingLogoUrl = URL.createObjectURL(file);
   }
 
-  saveBranding() {
+  clearLogo() { this.brLogoUrl = ''; this.clearPendingLogo(); }
+
+  private clearPendingLogo() {
+    if (this.pendingLogoUrl) { URL.revokeObjectURL(this.pendingLogoUrl); this.pendingLogoUrl = null; }
+    this.pendingLogo = null;
+  }
+
+  async saveBranding() {
     this.brBusy.set(true); this.brErr.set(false); this.brMsg.set('');
-    this.service.updateShopInfo({ name: this.brName, logoUrl: this.brLogoUrl || null, receiptQrUrl: this.brQrUrl.trim() || null }).subscribe({
+    let logoUrl = this.brLogoUrl || null;
+    if (this.pendingLogo) {
+      this.logoUploading.set(true);
+      try {
+        const res = await firstValueFrom(this.service.uploadImage(this.pendingLogo));
+        logoUrl = res.url;
+      } catch {
+        this.logoUploading.set(false);
+        this.brBusy.set(false);
+        this.brMsg.set('Logo upload failed'); this.brErr.set(true);
+        return;
+      }
+      this.logoUploading.set(false);
+    }
+    this.service.updateShopInfo({ name: this.brName, logoUrl, receiptQrUrl: this.brQrUrl.trim() || null }).subscribe({
       next: () => { this.brMsg.set('Branding saved.'); this.brBusy.set(false); },
       error: (e) => { this.brMsg.set(e.error?.error || 'Failed'); this.brErr.set(true); this.brBusy.set(false); }
     });
