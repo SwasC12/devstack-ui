@@ -283,12 +283,7 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
             <span class="pay-total-val">R{{ netTotal() | number:'1.2-2' }}</span>
           </div>
 
-          <!-- Optional customer + order notes -->
-          <div class="pay-cust">
-            <input [(ngModel)]="custName" placeholder="Customer name (optional)" />
-            <input [(ngModel)]="custPhone" placeholder="Phone (optional)" />
-            <input [(ngModel)]="orderNotes" placeholder="Order notes (optional)" />
-          </div>
+        
 
           <!-- Method toggle -->
           <div class="pay-methods">
@@ -560,7 +555,6 @@ export class PosComponent implements OnInit {
   // Product configurator (sizes + modifiers + note)
   readonly configurator = signal<{ item: MenuItem; sizeId: number | null; mods: Record<number, boolean>; note: string } | null>(null);
   // Checkout extras (optional)
-  custName = ''; custPhone = ''; orderNotes = '';
 
   // Shift summary (shown at clock-out)
   readonly shiftSummary = signal<any | null>(null);
@@ -792,10 +786,6 @@ export class PosComponent implements OnInit {
       method: this.payMethod(),
       amountReceived: this.payMethod() === 'cash' ? this.received() : null
     }, this.selectedDiscount()?.id ?? null, {
-      customerName: this.custName.trim() || undefined,
-      customerPhone: this.custPhone.trim() || undefined,
-      notes: this.orderNotes.trim() || undefined
-    }, {
       // Snapshot used to build the local receipt when the order is queued offline.
       id: `LOC-${Date.now()}`,
       total: this.netTotal(),
@@ -809,7 +799,6 @@ export class PosComponent implements OnInit {
         this.paymentOpen.set(false);
         this.cart.set([]);
         this.selectedDiscount.set(null);
-        this.custName = ''; this.custPhone = ''; this.orderNotes = '';
         this.load();
         this.lastOrder.set(order);
       },

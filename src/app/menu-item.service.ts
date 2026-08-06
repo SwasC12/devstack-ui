@@ -81,7 +81,7 @@ export class MenuItemService {
     );
   }
 
-  placeOrder(cart: { id: number; name: string; price: number; quantity: number; sizeId?: number; note?: string; modifierIds?: number[] }[], payment?: { method: 'cash' | 'card'; amountReceived?: number | null }, discountId?: number | null, meta?: { customerName?: string; customerPhone?: string; notes?: string }, offlineSnapshot?: any): Observable<any> {
+  placeOrder(cart: { id: number; name: string; price: number; quantity: number; sizeId?: number; note?: string; modifierIds?: number[] }[], payment?: { method: 'cash' | 'card'; amountReceived?: number | null }, discountId?: number | null, offlineSnapshot?: any): Observable<any> {
     const body: any = {
       items: cart.map(i => ({ menuItemId: i.id, name: i.name, price: i.price, quantity: i.quantity, sizeId: i.sizeId ?? null, note: i.note ?? null, modifierIds: i.modifierIds?.length ? i.modifierIds : null }))
     };
@@ -90,9 +90,6 @@ export class MenuItemService {
       if (payment.method === 'cash') body.amountReceived = payment.amountReceived ?? null;
     }
     if (discountId) body.discountId = discountId;
-    if (meta?.customerName) body.customerName = meta.customerName;
-    if (meta?.customerPhone) body.customerPhone = meta.customerPhone;
-    if (meta?.notes) body.notes = meta.notes;
     return this.http.post(`${API}/orders`, body).pipe(
       catchError(err => {
         // Internet down: queue the order locally and return a local receipt
@@ -107,9 +104,6 @@ export class MenuItemService {
               id: i.id, name: i.name, price: i.price, quantity: i.quantity,
               note: i.note ?? null, sizeName: null, modifiers: []
             })),
-            customerName: meta?.customerName ?? null,
-            customerPhone: meta?.customerPhone ?? null,
-            notes: meta?.notes ?? null,
             discountAmount: offlineSnapshot?.discountAmount ?? 0,
             discountName: offlineSnapshot?.discountName ?? null,
             total,

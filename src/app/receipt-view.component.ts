@@ -30,12 +30,6 @@ import * as QRCode from 'qrcode';
           @if (line.note) { <div class="r-note">📝 {{ line.note }}</div> }
         }
       </div>
-      @if (order.customerName || order.customerPhone) {
-        <div class="r-cust">
-          <span>{{ order.customerName || '—' }}{{ order.customerPhone ? ' · ' + order.customerPhone : '' }}</span>
-        </div>
-      }
-      @if (order.notes) { <div class="r-note">📝 {{ order.notes }}</div> }
       @if (order.discountAmount > 0) {
         <div class="r-disc"><span>Discount ({{ order.discountName }})</span><span>−R{{ order.discountAmount | number:'1.2-2' }}</span></div>
       }
@@ -80,7 +74,6 @@ import * as QRCode from 'qrcode';
     .r-line { display: flex; justify-content: space-between; gap: 1rem; padding: 0.18rem 0; }
     .r-line span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .r-note { font-size: 0.72rem; opacity: 0.7; padding: 0.1rem 0 0.3rem; }
-    .r-cust { font-size: 0.75rem; opacity: 0.85; border-top: 1px dashed #999; margin-top: 0.4rem; padding-top: 0.4rem; }
     .r-vat { display: flex; justify-content: space-between; font-size: 0.72rem; opacity: 0.7; padding: 0.2rem 0; }
     .r-total { display: flex; justify-content: space-between; border-top: 1px dashed #999; margin-top: 0.4rem; padding-top: 0.5rem; font-size: 0.95rem; }
     .r-disc { display: flex; justify-content: space-between; font-size: 0.78rem; padding: 0.2rem 0; }
