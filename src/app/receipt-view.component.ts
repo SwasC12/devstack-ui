@@ -18,7 +18,6 @@ import * as QRCode from 'qrcode';
       </div>
       <div class="r-meta">
         <span>Order #{{ order.id }}</span>
-        @if (order.offline) { <span class="r-sync">⏳ pending sync</span> }
         <span>{{ order.createdAt | date:'medium' }}</span>
         <span>Cashier: {{ cashierName || '—' }}</span>
       </div>
@@ -77,7 +76,6 @@ import * as QRCode from 'qrcode';
     .r-shop { display: block; font-size: 1.05rem; }
     .r-sub { font-size: 0.7rem; opacity: 0.6; }
     .r-meta { display: flex; flex-direction: column; gap: 0.15rem; font-size: 0.72rem; opacity: 0.75; border-top: 1px dashed #999; border-bottom: 1px dashed #999; padding: 0.5rem 0; margin-bottom: 0.5rem; }
-    .r-sync { color: var(--warning); font-weight: 700; }
     .r-items { font-size: 0.8rem; }
     .r-line { display: flex; justify-content: space-between; gap: 1rem; padding: 0.18rem 0; }
     .r-line span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
