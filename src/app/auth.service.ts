@@ -1,6 +1,8 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, tap, finalize } from 'rxjs';
+import { Observable, tap, finalize, from, switchMap } from 'rxjs';
+import { Capacitor } from '@capacitor/core';
+import { Preferences } from '@capacitor/preferences';
 import { environment } from '../environments/environment';
 import { PushService } from './push.service';
 
@@ -12,16 +14,19 @@ export interface LoginResponse {
   shopId?: number | null;
   shopName?: string | null;
   shopCode?: string | null;
+  refreshToken?: string | null;
 }
 
 export interface StaffMember { id: number; displayName: string; role: string; }
 
 const USER_KEY = 'pos_user';
 const SHOP_KEY = 'pos_shop';
+const REFRESH_KEY = 'pos_refresh';
 // Security note: the ACCESS token is held in MEMORY only — never localStorage.
-// The REFRESH token lives in an HttpOnly cookie the server manages, so a page
-// reload restores the session through /auth/refresh instead of a stored token.
-// Only non-secret display context (user + shop) lives in localStorage.
+// The REFRESH token lives in an HttpOnly cookie on web; in the native app it is
+// persisted in device storage (Capacitor Preferences) because WebView cookies
+// don't reliably survive an app kill on all Android devices. Only non-secret
+// display context (user + shop) lives in localStorage.
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -29,6 +34,7 @@ export class AuthService {
   private push = inject(PushService);
   private _token: string | null = null;
   private ready: Promise<void> | null = null;
+  private isNative = Capacitor.isNativePlatform();
 
   get isLoggedIn(): boolean { return !!this._token; }
   get token(): string | null { return this._token; }
@@ -77,17 +83,27 @@ export class AuthService {
   }
 
   refresh(): Observable<LoginResponse> {
-    return this.http.post<LoginResponse>(`${environment.apiBase}/auth/refresh`, {})
-      .pipe(tap(res => this.storeSession(res)));
+    // Native: the refresh token comes from device storage (cookie may be gone
+    // after an app kill). Web keeps the HttpOnly-cookie flow unchanged.
+    return from(this.getStoredRefresh()).pipe(
+      switchMap(refreshToken =>
+        this.http.post<LoginResponse>(`${environment.apiBase}/auth/refresh`, { refreshToken })
+          .pipe(tap(res => this.storeSession(res)))
+      )
+    );
   }
 
   logout(): Observable<void> {
-    return this.http.post<void>(`${environment.apiBase}/auth/logout`, {})
-      .pipe(
-        // Still authenticated here: drop this device's push token first.
-        tap(() => this.push.unregister()),
-        finalize(() => this.clearSession())
-      );
+    return from(this.getStoredRefresh()).pipe(
+      switchMap(refreshToken =>
+        this.http.post<void>(`${environment.apiBase}/auth/logout`, { refreshToken })
+          .pipe(
+            // Still authenticated here: drop this device's push token first.
+            tap(() => this.push.unregister()),
+            finalize(() => this.clearSession())
+          )
+      )
+    );
   }
 
   // Public so the interceptor can force-clear when a refresh fails.
@@ -95,6 +111,7 @@ export class AuthService {
     this._token = null;
     localStorage.removeItem(USER_KEY);
     localStorage.removeItem(SHOP_KEY);
+    if (this.isNative) void Preferences.remove({ key: REFRESH_KEY });
   }
 
   // Self-service account update — username, display name and optionally password.
@@ -115,7 +132,18 @@ export class AuthService {
     } else {
       localStorage.removeItem(SHOP_KEY);
     }
+    // Native app: persist the refresh token in device storage so the session
+    // survives an app kill. The server only returns it to X-Client: native.
+    if (this.isNative && res.refreshToken) {
+      void Preferences.set({ key: REFRESH_KEY, value: res.refreshToken });
+    }
     // Native app: bind this device to the signed-in user for push.
     void this.push.init();
+  }
+
+  private async getStoredRefresh(): Promise<string | null> {
+    if (!this.isNative) return null;
+    const { value } = await Preferences.get({ key: REFRESH_KEY });
+    return value ?? null;
   }
 }

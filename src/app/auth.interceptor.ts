@@ -1,6 +1,7 @@
 import { HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
+import { Capacitor } from '@capacitor/core';
 import { catchError, finalize, switchMap, throwError } from 'rxjs';
 import { AuthService } from './auth.service';
 import { LoadingService } from './loading.service';
@@ -17,6 +18,9 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   let clone = req;
   if (isApi) {
     clone = clone.clone({ withCredentials: true });
+    // Tell the API this is the Capacitor app so auth responses include the
+    // raw refresh token for device storage.
+    if (Capacitor.isNativePlatform()) clone = clone.clone({ setHeaders: { 'X-Client': 'native' } });
     if (auth.token) clone = clone.clone({ setHeaders: { Authorization: `Bearer ${auth.token}` } });
   }
 
