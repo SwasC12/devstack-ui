@@ -52,11 +52,11 @@ import * as QRCode from 'qrcode';
         </div>
       }
     </div>
-    <button class="r-print-btn" (click)="print()">🖨 Print</button>
   `,
   styles: [`
     .receipt {
       width: 300px;
+      max-width: 100%;
       margin: 0 auto;
       background: #fdfdf7;
       color: #111;
@@ -82,22 +82,6 @@ import * as QRCode from 'qrcode';
     .r-qr-sub { font-size: 0.65rem; opacity: 0.6; }
     .r-pay { display: flex; flex-direction: column; gap: 0.15rem; font-size: 0.72rem; opacity: 0.8; margin-top: 0.5rem; }
     .r-thanks { text-align: center; margin: 0.8rem 0 0; font-size: 0.75rem; }
-    .r-print-btn {
-      display: block;
-      margin: 1rem auto 0;
-      padding: 0.6rem 1.6rem;
-      border: 0;
-      border-radius: var(--radius-sm);
-      background: var(--accent);
-      color: #fff;
-      font-family: inherit;
-      font-size: 0.875rem;
-      font-weight: 700;
-      cursor: pointer;
-    }
-    .r-print-btn:hover { background: var(--accent-hover); }
-    /* Screen-only: hide the print button on paper */
-    @media print { .r-print-btn { display: none; } }
   `]
 })
 export class ReceiptViewComponent implements OnInit {
@@ -108,8 +92,6 @@ export class ReceiptViewComponent implements OnInit {
   qrDataUrl: string | null = null;
 
   ngOnInit() { this.renderQr(); }
-
-  print() { window.print(); }
 
   modText(line: any): string {
     return (line.modifiers ?? []).map((m: any) => m.priceDelta > 0 ? `${m.name} +R${m.priceDelta}` : m.name).join(', ');

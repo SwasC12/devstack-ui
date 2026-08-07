@@ -8,14 +8,13 @@ import { AuthService } from '../../auth.service';
 import { BtnComponent } from '../../btn.component';
 import { PasswordInputComponent } from '../../password-input.component';
 import { DialogService } from '../../dialog.service';
-import { ReceiptViewComponent } from '../../receipt-view.component';
 import { firstValueFrom } from 'rxjs';
 import { ThemeService } from '../../theme.service';
 
 @Component({
   selector: 'app-admin',
   standalone: true,
-  imports: [CommonModule, FormsModule, BtnComponent, PasswordInputComponent, ReceiptViewComponent],
+  imports: [CommonModule, FormsModule, BtnComponent, PasswordInputComponent],
   template: `
     <div class="admin">
       <!-- Tabs -->
@@ -635,10 +634,6 @@ import { ThemeService } from '../../theme.service';
     .ol-price { font-variant-numeric: tabular-nums; color: var(--text); font-weight: 600; }
     .order-total { display: flex; justify-content: space-between; align-items: baseline; border-top: 1px solid var(--border); margin-top: 0.5rem; padding-top: 0.75rem; font-size: 0.9375rem; }
     .order-total strong { font-size: 1.25rem; font-weight: 800; color: var(--text); }
-
-    /* Receipt reprint overlay */
-    .print-scrim { position: fixed; inset: 0; background: rgba(10,8,6,0.7); display: flex; align-items: center; justify-content: center; z-index: 900; }
-    .print-panel { display: flex; flex-direction: column; align-items: center; gap: 1rem; padding: 1.5rem; }
   `]
 })
 export class AdminComponent implements OnInit {
@@ -691,7 +686,6 @@ export class AdminComponent implements OnInit {
   }
   vatOf(total: number): number { return Math.round(Number(total) * 15 / 115 * 100) / 100; }
   readonly selectedOrder = signal<any | null>(null);
-  readonly receiptOrder = signal<any | null>(null);
   readonly ordersBusy = signal(false);
   shopInfo: any = null;
 

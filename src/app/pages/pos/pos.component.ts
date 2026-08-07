@@ -412,10 +412,10 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
     .link-clear { border: 0; background: transparent; color: var(--muted); font-family: inherit; font-size: 0.6875rem; cursor: pointer; text-decoration: underline; align-self: flex-start; }
     .disc-btn { padding: 0.5rem; border: 1px dashed var(--border-hover); border-radius: var(--radius-sm); background: transparent; color: var(--accent-2); font-family: inherit; font-size: 0.8125rem; font-weight: 700; cursor: pointer; }
     .disc-btn:hover { border-color: var(--accent); background: var(--accent-light); }
-    .pick-card { width: 360px; max-width: 94vw; padding: 1.5rem; gap: 0.5rem; align-items: stretch; }
+    .pick-card { width: min(360px, 100%); padding: 1.5rem; gap: 0.5rem; align-items: stretch; }
     .pick-row { display: flex; justify-content: space-between; align-items: center; padding: 0.8rem 1rem; border: 1px solid var(--border-hover); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); font-family: inherit; cursor: pointer; }
     .pick-row:hover { border-color: var(--accent); }
-    .size-card { min-width: 300px; align-items: stretch; max-height: 84vh; overflow-y: auto; }
+    .size-card { width: min(420px, 100%); align-items: stretch; max-height: 84vh; overflow-y: auto; }
     .size-sub { margin: -0.25rem 0 0.5rem; font-size: 0.8125rem; color: var(--muted); }
     .cfg-group { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 0.4rem; }
     .cfg-group-name { font-size: 0.68rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.4rem; }
@@ -463,21 +463,24 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
       .cart-head { cursor: pointer; padding: 0.85rem 1.25rem; }
       .cart-chev { display: inline-block; }
     }
-    .complete { position: fixed; inset: 0; background: rgba(24,24,24,0.72); display: flex; align-items: center; justify-content: center; z-index: 500; }
-    .complete-card { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; background: var(--surface); border: 1px solid var(--accent); border-radius: var(--radius-lg); padding: 2.5rem 3rem; box-shadow: var(--shadow-lg); }
+    /* Overlays must never exceed the screen: the scrim scrolls, the card is
+       capped to the viewport (margin:auto centers it, and when it's taller
+       than the screen it scrolls from the top instead of clipping). */
+    .complete { position: fixed; inset: 0; background: rgba(24,24,24,0.72); display: flex; overflow-y: auto; padding: 1.5rem; z-index: 500; }
+    .complete-card { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; margin: auto; max-width: 100%; max-height: calc(100dvh - 3rem); max-height: calc(100vh - 3rem); overflow-y: auto; background: var(--surface); border: 1px solid var(--accent); border-radius: var(--radius-lg); padding: 2.5rem 3rem; box-shadow: var(--shadow-lg); }
     .complete-check { width: 72px; height: 72px; border-radius: 50%; background: var(--green); color: #fff; font-size: 2.25rem; display: flex; align-items: center; justify-content: center; animation: pop 0.3s ease-out; }
     .complete-card strong { font-size: 1.25rem; color: var(--text); }
 
     /* Receipt + summary overlays */
-    .receipt-wrap { padding: 2rem; gap: 1.25rem; }
-    .summary-card { max-width: 420px; width: 90vw; }
+    .receipt-wrap { padding: 2rem; gap: 1.25rem; width: min(440px, 100%); }
+    .summary-card { width: min(420px, 100%); }
     .sum-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; width: 100%; margin: 0.5rem 0; }
     .sum-cell { display: flex; flex-direction: column; align-items: center; gap: 0.15rem; background: var(--surface-2); border-radius: var(--radius-sm); padding: 1rem; }
     .sum-val { font-size: 1.375rem; font-weight: 800; color: var(--accent-2); }
     .sum-lbl { font-size: 0.6875rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; }
 
     /* Payment sheet */
-    .pay-card { width: 380px; max-width: 94vw; padding: 1.5rem; }
+    .pay-card { width: min(380px, 100%); padding: 1.5rem; }
     .pay-head { display: flex; justify-content: space-between; align-items: center; width: 100%; }
     .pay-head h3 { margin: 0; font-size: 1rem; }
     .pay-total { display: flex; flex-direction: column; align-items: center; gap: 0.1rem; padding: 0.75rem 0 0.25rem; width: 100%; }
