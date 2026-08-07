@@ -110,20 +110,8 @@
                     <td class="muted">{{ s.lastOrderAt ? (s.lastOrderAt | date:'short') : '—' }}</td>
                     <td class="muted">{{ s.createdAt | date:'mediumDate' }}</td>
                     <td>
-                      <div class="row-menu" (click)="$event.stopPropagation()">
-                        <button class="menu-btn" (click)="toggleMenu(s.id)">⋮</button>
-                        @if (menuFor() === s.id) {
-                          <div class="menu-drop">
-                            @if (s.ownerEmail) {
-                              <button class="menu-item" (click)="emailOwner(s); closeMenu()">✉️ Email owner</button>
-                            }
-                            <button class="menu-item" (click)="openOwnerEdit(s); closeMenu()">👤 Owner contact</button>
-                            <button class="menu-item" (click)="resetPassword(s); closeMenu()">🔑 Reset password</button>
-                            <button class="menu-item" [class.danger]="s.isActive" (click)="toggleStatus(s); closeMenu()">
-                              {{ s.isActive ? '⏸ Suspend' : '▶️ Activate' }}
-                            </button>
-                          </div>
-                        }
+                      <div class="row-menu">
+                        <button class="menu-btn" (click)="toggleMenu(s.id, $event)">⋮</button>
                       </div>
                     </td>
                   </tr>
@@ -133,6 +121,22 @@
               </tbody>
             </table>
           </div>
+
+          <!-- Shared row menu: fixed-position so the table can't clip it -->
+          @if (menuFor(); as id) {
+            @if (shopById(id); as s) {
+              <div class="menu-drop" [style.left.px]="menuPos()?.x ?? 0" [style.top.px]="menuPos()?.y ?? 0" (click)="$event.stopPropagation()">
+                @if (s.ownerEmail) {
+                  <button class="menu-item" (click)="emailOwner(s); closeMenu()">✉️ Email owner</button>
+                }
+                <button class="menu-item" (click)="openOwnerEdit(s); closeMenu()">👤 Owner contact</button>
+                <button class="menu-item" (click)="resetPassword(s); closeMenu()">🔑 Reset password</button>
+                <button class="menu-item" [class.danger]="s.isActive" (click)="toggleStatus(s); closeMenu()">
+                  {{ s.isActive ? '⏸ Suspend' : '▶️ Activate' }}
+                </button>
+              </div>
+            }
+          }
         </div>
 
         <aside class="rail">

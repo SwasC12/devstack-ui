@@ -39,8 +39,11 @@ export class ShopsComponent implements OnInit {
   readonly overview = signal<any | null>(null);
   // Platform health (API/DB/push/storage dots)
   readonly health = signal<any | null>(null);
-  // Which shop row has its ⋮ menu open (null = none)
+  // Which shop row has its ⋮ menu open (null = none). The menu itself is a
+  // single FIXED-position dropdown so the table's overflow clipping can't
+  // cut it off.
   readonly menuFor = signal<number | null>(null);
+  readonly menuPos = signal<{ x: number; y: number } | null>(null);
   // Shop search: name / code / owner email / owner phone
   search = '';
 
@@ -138,8 +141,15 @@ export class ShopsComponent implements OnInit {
   }
 
   // ⋮ row menu
-  toggleMenu(id: number) { this.menuFor.update(m => (m === id ? null : id)); }
-  closeMenu() { this.menuFor.set(null); }
+  toggleMenu(id: number, e: Event) {
+    e.stopPropagation();
+    if (this.menuFor() === id) { this.closeMenu(); return; }
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    this.menuPos.set({ x: r.right, y: r.bottom + 6 });
+    this.menuFor.set(id);
+  }
+  closeMenu() { this.menuFor.set(null); this.menuPos.set(null); }
+  shopById(id: number): any { return this.shops().find(s => s.id === id) ?? null; }
 
   eventIcon(t: string): string {
     switch (t) {
@@ -185,7 +195,15 @@ export class ShopsComponent implements OnInit {
       'https://devstack-one.vercel.app'
     ].join('\n');
     const url = `mailto:${s.ownerEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.location.href = url;
+    // Anchor click with _system: opens the device mail app (Gmail) from the
+    // Capacitor WebView AND from the browser. window.location.href alone gets
+    // swallowed by the WebView navigation handler.
+    const a = document.createElement('a');
+    a.href = url;
+    a.target = '_system';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
   }
 
   openOwnerEdit(s: any) { this.ownerEdit = s; this.fOwnerEmail = s.ownerEmail ?? ''; this.fOwnerPhone = s.ownerPhone ?? ''; }
