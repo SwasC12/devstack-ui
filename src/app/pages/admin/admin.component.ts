@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, inject, signal, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MenuItemService } from '../../menu-item.service';
@@ -8,6 +8,7 @@ import { AuthService } from '../../auth.service';
 import { BtnComponent } from '../../btn.component';
 import { PasswordInputComponent } from '../../password-input.component';
 import { DialogService } from '../../dialog.service';
+import { SoundService } from '../../sound.service';
 import { firstValueFrom } from 'rxjs';
 import { ThemeService } from '../../theme.service';
 
@@ -26,6 +27,34 @@ import { ThemeService } from '../../theme.service';
         <button class="tab" [class.active]="tab() === 'analytics'" (click)="openAnalytics()">Analytics</button>
         <button class="tab" [class.active]="tab() === 'discounts'" (click)="tab.set('discounts')">Discounts</button>
         <button class="tab" [class.active]="tab() === 'settings'" (click)="tab.set('settings')">Settings</button>
+        <!-- Notification bell: low-stock alerts + owner announcements -->
+        <div class="bell-wrap">
+          <button class="bell" (click)="toggleBell()" title="Notifications">
+            🔔
+            @if (notifUnread() > 0) {
+              <span class="bell-badge">{{ notifUnread() > 9 ? '9+' : notifUnread() }}</span>
+            }
+          </button>
+          @if (bellOpen()) {
+            <div class="bell-panel">
+              <div class="bell-head">
+                <strong>Notifications</strong>
+                <app-btn size="sm" (onClick)="markAllRead()" [disabled]="notifUnread() === 0">Mark all read</app-btn>
+              </div>
+              <div class="bell-list">
+                @for (n of notifItems(); track n.id) {
+                  <button class="bell-item" [class.unread]="!n.readAtUtc" (click)="markRead(n)">
+                    <span class="bell-item-title">{{ n.title }}</span>
+                    <span class="bell-item-body">{{ n.body }}</span>
+                    <span class="bell-item-time">{{ n.createdAtUtc | date:'short' }}</span>
+                  </button>
+                } @empty {
+                  <p class="bell-empty">Nothing yet — low-stock alerts and owner announcements land here.</p>
+                }
+              </div>
+            </div>
+          }
+        </div>
       </div>
 
       <!-- ───── INVENTORY ───── -->
@@ -511,6 +540,23 @@ import { ThemeService } from '../../theme.service';
     .tab:hover { color: var(--accent-2); }
     .tab.active { color: var(--accent-2); border-color: var(--accent-2); }
 
+    /* Notification bell */
+    .bell-wrap { margin-left: auto; position: relative; display: flex; align-items: center; }
+    .bell { position: relative; width: 40px; height: 40px; border: 0; border-radius: var(--radius-sm); background: transparent; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.15s ease-out; }
+    .bell:hover { background: var(--surface-2); }
+    .bell-badge { position: absolute; top: 2px; right: 0; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px; background: var(--red); color: #fff; font-size: 0.625rem; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+    .bell-panel { position: absolute; top: calc(100% + 10px); right: 0; width: min(340px, 90vw); background: var(--surface); border: 1px solid var(--border-hover); border-radius: var(--radius); box-shadow: var(--shadow-lg); z-index: 900; overflow: hidden; }
+    .bell-head { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); }
+    .bell-head strong { font-size: 0.875rem; color: var(--text); }
+    .bell-list { max-height: min(60vh, 380px); overflow-y: auto; }
+    .bell-item { display: flex; flex-direction: column; align-items: flex-start; gap: 0.15rem; width: 100%; text-align: left; padding: 0.7rem 1rem; border: 0; border-bottom: 1px solid var(--border); background: transparent; cursor: pointer; font-family: inherit; transition: background 0.12s; }
+    .bell-item:hover { background: var(--surface-2); }
+    .bell-item.unread { background: var(--accent-light); }
+    .bell-item-title { font-size: 0.8125rem; font-weight: 700; color: var(--text); }
+    .bell-item-body { font-size: 0.78rem; color: var(--text-2); }
+    .bell-item-time { font-size: 0.65rem; color: var(--muted); }
+    .bell-empty { margin: 0; padding: 1.25rem 1rem; font-size: 0.8125rem; color: var(--muted); text-align: center; }
+
     /* ── Section head ── */
     .section-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; }
     .section-head .page-title { margin: 0; }
@@ -640,6 +686,7 @@ export class AdminComponent implements OnInit {
   private service = inject(MenuItemService);
   private auth = inject(AuthService);
   private dialog = inject(DialogService);
+  private sound = inject(SoundService);
   readonly tab = signal<'inventory' | 'categories' | 'users' | 'orders' | 'analytics' | 'discounts' | 'settings'>('inventory');
 
   // Inventory
@@ -700,7 +747,53 @@ export class AdminComponent implements OnInit {
   dName = ''; dType: 'percent' | 'fixed' = 'percent'; dValue: number | null = null;
   dDay: number | null = null; dStart = ''; dEnd = ''; dActive = true;
 
-  ngOnInit() { this.loadInv(); this.loadSum(); this.loadUsers(); this.loadCategories(); this.loadSettings(); this.loadOrders(); this.loadShopInfo(); this.loadDiscounts(); }
+  ngOnInit() { this.loadInv(); this.loadSum(); this.loadUsers(); this.loadCategories(); this.loadSettings(); this.loadOrders(); this.loadShopInfo(); this.loadDiscounts(); this.loadNotifications(); this.startNotifPoll(); }
+
+  // ── Notification bell ────────────────────────────────
+
+  readonly notifItems = signal<any[]>([]);
+  readonly notifUnread = signal(0);
+  readonly bellOpen = signal(false);
+  private notifTimer: any;
+  private lastUnread = 0;
+
+  toggleBell() {
+    this.bellOpen.update(v => !v);
+    if (this.bellOpen()) this.loadNotifications();
+  }
+
+  private loadNotifications() {
+    this.service.getNotifications().subscribe({
+      next: (res) => {
+        this.notifItems.set(res.items ?? []);
+        this.notifUnread.set(res.unread ?? 0);
+        // Ping only when NEW unread arrived (not on the initial baseline).
+        if (this.lastUnread > 0 && (res.unread ?? 0) > this.lastUnread) this.sound.notification();
+        this.lastUnread = res.unread ?? 0;
+      },
+      error: () => { /* bell stays silent on failure */ }
+    });
+  }
+
+  private startNotifPoll() {
+    this.notifTimer = setInterval(() => this.loadNotifications(), 45000);
+  }
+
+  ngOnDestroy() { if (this.notifTimer) clearInterval(this.notifTimer); }
+
+  markRead(n: any) {
+    if (n.readAtUtc) return;
+    n.readAtUtc = new Date().toISOString();
+    this.notifUnread.update(u => Math.max(0, u - 1));
+    this.service.markNotificationRead(n.id).subscribe({ error: () => this.loadNotifications() });
+  }
+
+  markAllRead() {
+    if (this.notifUnread() === 0) return;
+    this.notifItems.update(items => items.map(i => i.readAtUtc ? i : { ...i, readAtUtc: new Date().toISOString() }));
+    this.notifUnread.set(0);
+    this.service.markAllNotificationsRead().subscribe({ error: () => this.loadNotifications() });
+  }
 
   private loadShopInfo() { this.service.getShopInfo().subscribe(s => this.shopInfo = s); }
 
@@ -882,7 +975,20 @@ export class AdminComponent implements OnInit {
     });
   }
 
-  voidOrder(o: any) {
+  // Voiding is a one-way door on the till: require a manager PIN first.
+  async voidOrder(o: any) {
+    const pin = await this.dialog.prompt('Manager PIN required', `Enter the manager PIN to void order #${o.id} (R${o.total.toFixed(2)}). Stock is returned to inventory.`);
+    if (!pin) return;
+    this.service.verifyPin(pin).subscribe({
+      next: (res) => {
+        if (!res.valid) { this.dialog.toast('Invalid PIN — void cancelled', 'error'); return; }
+        this.askVoidReason(o);
+      },
+      error: (e) => this.dialog.toast(e.error?.error || 'Could not verify PIN', 'error')
+    });
+  }
+
+  private askVoidReason(o: any) {
     this.dialog.prompt('Void order', `Void order #${o.id} (R${o.total.toFixed(2)})? Stock is returned to inventory.`, {
       inputType: 'text',
       placeholder: 'Reason (e.g. wrong order)'

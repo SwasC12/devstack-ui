@@ -58,6 +58,8 @@
   outline: none;
 }
 .cashup input:focus { border-color: var(--accent); }
+.cashup-line { font-size: 0.78rem; color: var(--text-2); font-weight: 600; }
+.muted-note { color: var(--muted); font-weight: 500; }
 .cashup-diff { font-size: 0.875rem; font-weight: 700; color: var(--green); }
 .cashup-diff.short { color: var(--red); }
 .cashup-diff.over { color: var(--warning); }

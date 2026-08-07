@@ -59,13 +59,36 @@ import { DialogService } from '../../dialog.service';
         </div>
       }
 
+      <!-- Owner contact (for future direct emails to shop owners) -->
+      @if (ownerEdit) {
+        <div class="form-sheet">
+          <div class="form-head">
+            <h3>Owner contact — {{ ownerEdit.name }}</h3>
+            <app-btn size="sm" (onClick)="closeOwnerEdit()">✕</app-btn>
+          </div>
+          <div class="form-grid">
+            <div class="field"><label>Owner email</label><input [(ngModel)]="fOwnerEmail" type="email" placeholder="owner@shop.co.za" /></div>
+            <div class="field"><label>Owner phone</label><input [(ngModel)]="fOwnerPhone" placeholder="+27 82 000 0000" /></div>
+          </div>
+          <div class="form-acts">
+            <app-btn size="sm" (onClick)="closeOwnerEdit()">Cancel</app-btn>
+            <app-btn variant="primary" size="sm" (onClick)="saveOwner()" [loading]="ownerBusy()">Save owner</app-btn>
+          </div>
+        </div>
+      }
+
       <div class="table-card">
         <table>
           <thead><tr><th>Name</th><th>Code</th><th>Status</th><th>Users</th><th>Orders</th><th>Last order</th><th>Created</th><th></th></tr></thead>
           <tbody>
             @for (s of shops(); track s.id) {
               <tr [class.row-suspended]="!s.isActive">
-                <td><strong>{{ s.name }}</strong></td>
+                <td>
+                  <strong>{{ s.name }}</strong>
+                  @if (s.ownerEmail || s.ownerPhone) {
+                    <div class="owner-line">{{ s.ownerEmail || '—' }}@if (s.ownerPhone) { · {{ s.ownerPhone }} }</div>
+                  }
+                </td>
                 <td><span class="pill">{{ s.code }}</span></td>
                 <td><span class="status" [class.on]="s.isActive">{{ s.isActive ? 'Active' : 'Suspended' }}</span></td>
                 <td>{{ s.userCount }}</td>
@@ -73,6 +96,7 @@ import { DialogService } from '../../dialog.service';
                 <td class="muted">{{ s.lastOrderAt ? (s.lastOrderAt | date:'short') : '—' }}</td>
                 <td class="muted">{{ s.createdAt | date:'mediumDate' }}</td>
                 <td class="cell-acts">
+                  <app-btn size="sm" (onClick)="openOwnerEdit(s)">Owner</app-btn>
                   <app-btn size="sm" [variant]="s.isActive ? 'danger' : 'primary'" (onClick)="toggleStatus(s)" [loading]="busyId() === s.id">
                     {{ s.isActive ? 'Suspend' : 'Activate' }}
                   </app-btn>
@@ -126,6 +150,7 @@ import { DialogService } from '../../dialog.service';
     .status { display: inline-block; font-size: 0.68rem; font-weight: 700; padding: 0.15em 0.6em; border-radius: 100px; background: var(--red-bg); color: var(--red); }
     .status.on { background: var(--green-bg); color: var(--green); }
     .muted { color: var(--muted); }
+    .owner-line { font-size: 0.68rem; color: var(--muted); margin-top: 0.15rem; line-height: 1.35; }
     .cell-acts { display: flex; gap: 0.4em; justify-content: flex-end; flex-wrap: wrap; }
 
     .pill { display: inline-block; background: var(--accent-light); color: var(--accent-2); font-size: 0.68rem; font-weight: 600; padding: 0.15em 0.6em; border-radius: 100px; }
@@ -139,6 +164,11 @@ export class ShopsComponent implements OnInit {
   readonly showForm = signal(false);
   readonly busyId = signal<number | null>(null);
   fName = ''; fCode = ''; fAdminUser = ''; fAdminPass = ''; fAdminDisplay = '';
+
+  // Owner contact editor (superadmin; feeds future owner emails)
+  ownerEdit: any | null = null;
+  fOwnerEmail = ''; fOwnerPhone = '';
+  readonly ownerBusy = signal(false);
 
   // Announcement composer (superadmin -> owners)
   bcTitle = ''; bcBody = ''; bcShopId: number | null = null;
@@ -159,6 +189,20 @@ export class ShopsComponent implements OnInit {
   }
 
   private reset() { this.fName = ''; this.fCode = ''; this.fAdminUser = ''; this.fAdminPass = ''; this.fAdminDisplay = ''; }
+
+  // ── Owner contact ────────────────────────────────────
+
+  openOwnerEdit(s: any) { this.ownerEdit = s; this.fOwnerEmail = s.ownerEmail ?? ''; this.fOwnerPhone = s.ownerPhone ?? ''; }
+  closeOwnerEdit() { this.ownerEdit = null; }
+
+  saveOwner() {
+    if (!this.ownerEdit) return;
+    this.ownerBusy.set(true);
+    this.service.updateShopOwner(this.ownerEdit.id, this.fOwnerEmail.trim() || null, this.fOwnerPhone.trim() || null).subscribe({
+      next: () => { this.ownerBusy.set(false); this.load(); this.closeOwnerEdit(); this.dialog.toast('Owner contact saved', 'success'); },
+      error: (e) => { this.ownerBusy.set(false); this.dialog.toast(e.error?.error || 'Save failed', 'error'); }
+    });
+  }
 
   // ── Announcement broadcast ─────────────────────────────
 

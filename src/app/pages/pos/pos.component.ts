@@ -12,6 +12,7 @@ import { ReceiptViewComponent } from '../../receipt-view.component';
 import { ClockComponent } from '../../clock.component';
 import { AppLogoComponent } from '../../app-logo.component';
 import { PrintService } from '../../print.service';
+import { SoundService } from '../../sound.service';
 
 interface CartItem { id: number; name: string; price: number; quantity: number; sizeId?: number; sizeName?: string; modifiers?: { groupName: string; name: string; priceDelta: number }[]; note?: string; }
 
@@ -28,6 +29,10 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
           @else { <div class="clockin-logo placeholder"><app-logo [size]="40" /></div> }
           <h2>{{ auth.getUser()?.displayName }}</h2>
           <p class="clockin-sub">{{ shopInfo()?.name || 'CoffeeShop Pro' }}</p>
+          <div class="clockin-float">
+            <label>Starting float (cash in the till)</label>
+            <input type="number" step="0.01" min="0" [(ngModel)]="floatInput" placeholder="0.00" />
+          </div>
           <button class="btn-start" (click)="startShift()" [disabled]="startingShift()">
             {{ startingShift() ? 'Starting…' : 'Start shift' }}
           </button>
@@ -53,6 +58,7 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
         </div>
         <div class="pos-bar-right">
           <app-clock />
+          <button class="pos-reprint" (click)="reprintLast()" [disabled]="!lastReceipt()" title="Reprint last receipt">🖨</button>
           <app-btn size="sm" (onClick)="endShift()">End shift</app-btn>
         </div>
       </div>
@@ -205,8 +211,11 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
             <label>Cash counted in till</label>
             <input type="number" step="0.01" [ngModel]="cashCounted" (ngModelChange)="cashCounted = $event ? +$event : null" placeholder="0.00" />
             @if (cashCounted !== null) {
-              <div class="cashup-diff" [class.short]="cashCounted < s.cashRevenue" [class.over]="cashCounted > s.cashRevenue">
-                {{ cashCounted < s.cashRevenue ? 'Short' : cashCounted > s.cashRevenue ? 'Over' : 'Balanced' }}: R{{ (cashCounted - s.cashRevenue) | number:'1.2-2' }}
+              @if (expectedTill() !== null) {
+                <div class="cashup-line">Expected: R{{ expectedTill() | number:'1.2-2' }} <span class="muted-note">(R{{ s.cashRevenue | number:'1.2-2' }} cash + R{{ (s.startingFloat ?? 0) | number:'1.2-2' }} float)</span></div>
+              }
+              <div class="cashup-diff" [class.short]="cashCounted < expectedTill()!" [class.over]="cashCounted > expectedTill()!">
+                {{ cashCounted < expectedTill()! ? 'Short' : cashCounted > expectedTill()! ? 'Over' : 'Balanced' }}: R{{ (cashCounted - expectedTill()!) | number:'1.2-2' }}
               </div>
             }
           </div>
@@ -330,6 +339,10 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
     .clockin-logo.placeholder { display: flex; align-items: center; justify-content: center; color: var(--accent-2); background: linear-gradient(135deg, var(--surface-2), var(--surface-3)); }
     .clockin-card h2 { margin: 0.75rem 0 0; font-size: 1.375rem; color: var(--text); }
     .clockin-sub { margin: 0 0 1rem; font-size: 0.8125rem; color: var(--muted); }
+    .clockin-float { display: flex; flex-direction: column; gap: 0.3rem; width: 240px; margin-bottom: 0.75rem; }
+    .clockin-float label { font-size: 0.72rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+    .clockin-float input { padding: 0.65rem 0.8rem; border: 1px solid var(--border-hover); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); font-family: inherit; font-size: 1rem; font-weight: 700; text-align: center; outline: none; }
+    .clockin-float input:focus { border-color: var(--accent); }
     .btn-start { margin-top: 0.5rem; padding: 0.9rem 3rem; border: 0; border-radius: var(--radius-sm); background: var(--accent); color: #fff; font-family: inherit; font-size: 1.0625rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease-out; }
     .btn-start:hover:not(:disabled) { background: var(--accent-hover); transform: translateY(-1px); }
     .btn-start:disabled { opacity: 0.5; }
@@ -343,7 +356,10 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
     .pos-user-wrap { display: flex; align-items: center; gap: 0.6rem; }
     .pos-user { font-weight: 700; font-size: 0.9375rem; color: var(--text); white-space: nowrap; }
     .shift-badge { font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: var(--radius-pill); background: var(--green-bg); color: var(--green); }
-    .pos-bar-right { display: flex; gap: 0.375rem; }
+    .pos-bar-right { display: flex; gap: 0.375rem; align-items: center; }
+    .pos-reprint { width: 38px; height: 38px; border: 0; border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text-2); font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s ease-out; }
+    .pos-reprint:hover:not(:disabled) { background: var(--accent); color: #fff; }
+    .pos-reprint:disabled { opacity: 0.35; cursor: default; }
 
     .pos-search { flex: 1; max-width: 460px; margin: 0 auto; position: relative; }
     .pos-search input { width: 100%; padding: 0.55rem 0.9rem 0.55rem 2.35rem; border-radius: var(--radius-pill); background: var(--surface-2); border: 1px solid var(--border-hover); color: var(--text); font-size: 0.875rem; font-family: inherit; outline: none; transition: border-color 0.15s; }
@@ -562,8 +578,18 @@ export class PosComponent implements OnInit {
   // Shift summary (shown at clock-out)
   readonly shiftSummary = signal<any | null>(null);
   cashCounted: number | null = null;
+  // Cash expected in the till at clock-out: float + cash sales for the shift.
+  readonly expectedTill = () => {
+    const s = this.shiftSummary();
+    if (!s) return null;
+    return (s.cashRevenue ?? 0) + (s.startingFloat ?? 0);
+  };
+  floatInput = '';
+  // Last completed order, kept for one-tap reprints after the receipt closes.
+  readonly lastReceipt = signal<any | null>(null);
   @ViewChild('receiptBox') receiptBox!: ElementRef<HTMLElement>;
   private printer = inject(PrintService);
+  private sound = inject(SoundService);
 
   get categories(): string[] { return [...new Set(this.items.map(i => i.category))].sort(); }
   searching(): boolean { return this.query().trim().length > 0; }
@@ -622,7 +648,8 @@ export class PosComponent implements OnInit {
 
   startShift() {
     this.startingShift.set(true);
-    this.service.startShift().subscribe({
+    const float = parseFloat(this.floatInput);
+    this.service.startShift(Number.isFinite(float) && float > 0 ? float : 0).subscribe({
       next: () => { this.startingShift.set(false); this.shiftActive.set(true); },
       error: (e) => { this.startingShift.set(false); this.dialog.toast(e.error?.error || 'Could not start shift', 'error'); }
     });
@@ -804,6 +831,8 @@ export class PosComponent implements OnInit {
         this.selectedDiscount.set(null);
         this.load();
         this.lastOrder.set(order);
+        this.lastReceipt.set(order);
+        this.sound.orderComplete();
       },
       error: (e) => {
         this.busy.set(false);
@@ -814,6 +843,12 @@ export class PosComponent implements OnInit {
   }
 
   closeReceipt() { this.lastOrder.set(null); this.showComplete(); }
+
+  // One-tap reprint of the last receipt (customer asks for a copy).
+  reprintLast() {
+    if (!this.lastReceipt()) { this.dialog.toast('No receipt yet', 'info'); return; }
+    this.lastOrder.set(this.lastReceipt());
+  }
 
   // Print the current receipt: native app uses the Android print framework
   // (any printer the device can reach, incl. Bluetooth thermal with a print

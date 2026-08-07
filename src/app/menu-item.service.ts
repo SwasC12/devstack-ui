@@ -163,8 +163,8 @@ export class MenuItemService {
     return this.http.get<{ active: boolean; id?: number; startTime?: string }>(`${API}/shifts/active`);
   }
 
-  startShift(): Observable<any> {
-    return this.http.post(`${API}/shifts/start`, {});
+  startShift(startingFloat?: number): Observable<any> {
+    return this.http.post(`${API}/shifts/start`, { startingFloat: startingFloat ?? 0 });
   }
 
   endShift(): Observable<void> {
@@ -223,9 +223,33 @@ export class MenuItemService {
     return this.http.put<{ id: number; name: string; code: string; logoUrl?: string | null; receiptQrUrl?: string | null }>(`${API}/shops/me`, data);
   }
 
+  // Superadmin: set a shop's owner contact details (for future owner emails).
+  updateShopOwner(id: number, ownerEmail: string | null, ownerPhone: string | null): Observable<any> {
+    return this.http.put(`${API}/shops/${id}/owner`, { ownerEmail, ownerPhone });
+  }
+
   // Superadmin: broadcast an announcement to all shop owners (or one shop).
   // Creates their in-app notification AND fires an FCM push to their devices.
   broadcastNotification(title: string, body: string, shopId?: number | null): Observable<{ delivered: number; pushed: number }> {
     return this.http.post<{ delivered: number; pushed: number }>(`${API}/notifications/broadcast`, { title, body, shopId });
+  }
+
+  // ── Notifications inbox (the admin bell) ──────────────
+
+  getNotifications(): Observable<{ unread: number; items: any[] }> {
+    return this.http.get<{ unread: number; items: any[] }>(`${API}/notifications`);
+  }
+
+  markNotificationRead(id: number): Observable<void> {
+    return this.http.post<void>(`${API}/notifications/${id}/read`, {});
+  }
+
+  markAllNotificationsRead(): Observable<void> {
+    return this.http.post<void>(`${API}/notifications/read-all`, {});
+  }
+
+  // Manager approval: is this PIN one of the shop's admins?
+  verifyPin(pin: string): Observable<{ valid: boolean }> {
+    return this.http.post<{ valid: boolean }>(`${API}/auth/verify-pin`, { pin });
   }
 }
