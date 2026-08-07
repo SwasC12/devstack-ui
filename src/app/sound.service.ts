@@ -77,9 +77,38 @@ export class SoundService {
     this.tone(1568, 0.14, 0.3, 'triangle', 0.22);
   }
 
-  // Send confirmation (broadcast): quick snappy double blip.
+  // Soft filtered-noise whoosh (short, low volume).
+  private whoosh(at: number, dur: number) {
+    const ctx = this.ensure();
+    if (!ctx) return;
+    try {
+      const t0 = ctx.currentTime + at;
+      const len = Math.floor(ctx.sampleRate * dur);
+      const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / len);
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(600, t0);
+      filter.frequency.exponentialRampToValueAtTime(2600, t0 + dur * 0.7);
+      filter.Q.value = 1.2;
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.0001, t0);
+      gain.gain.exponentialRampToValueAtTime(0.12, t0 + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      src.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+      src.start(t0);
+    } catch { /* audio is best-effort */ }
+  }
+
+  // Send confirmation (broadcast): a soft whoosh with a bright "sent" chime.
   sent() {
-    this.tone(659.25, 0, 0.09, 'sine', 0.26);
-    this.tone(880, 0.09, 0.14, 'sine', 0.26);
+    this.whoosh(0, 0.18);
+    this.tone(783.99, 0.03, 0.1, 'sine', 0.18);
+    this.bell(1046.5, 0.12, 0.4, 0.22);
   }
 }
