@@ -439,8 +439,9 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
     .pick-card { width: min(360px, 100%); padding: 1.5rem; gap: 0.5rem; align-items: stretch; }
     .pick-row { display: flex; justify-content: space-between; align-items: center; padding: 0.8rem 1rem; border: 1px solid var(--border-hover); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); font-family: inherit; cursor: pointer; }
     .pick-row:hover { border-color: var(--accent); }
-    .size-card { width: min(420px, 100%); align-items: stretch; max-height: calc(100dvh - 3rem); max-height: calc(100vh - 3rem); overflow: hidden; padding: 2.5rem 3rem 0; gap: 0; }
-    .cfg-scroll { overflow-y: auto; display: flex; flex-direction: column; gap: 0.75rem; min-height: 0; padding-bottom: 0.5rem; }
+    .size-card { width: min(460px, 100%); align-items: stretch; max-height: calc(100dvh - 3rem); max-height: calc(100vh - 3rem); overflow: hidden; padding: 2rem 1.5rem 0; gap: 0; }
+    .cfg-scroll { overflow-y: auto; scrollbar-width: none; display: flex; flex-direction: column; gap: 0.75rem; min-height: 0; padding-bottom: 0.5rem; }
+    .cfg-scroll::-webkit-scrollbar { display: none; }
     .cfg-acts { display: flex; justify-content: flex-end; gap: 0.5rem; padding: 1rem 0 1.25rem; margin-top: 0.5rem; border-top: 1px solid var(--border); flex-shrink: 0; }
     .size-sub { margin: -0.25rem 0 0.5rem; font-size: 0.8125rem; color: var(--muted); }
     .cfg-group { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 0.4rem; }
@@ -499,10 +500,12 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
 
     /* Receipt + summary overlays: scrollable body, actions always pinned. */
     .receipt-wrap { padding: 0; gap: 0; width: min(440px, 100%); overflow: hidden; }
-    .receipt-scroll { overflow-y: auto; padding: 2rem 2rem 0.75rem; display: flex; flex-direction: column; align-items: center; min-height: 0; }
+    .receipt-scroll { overflow-y: auto; scrollbar-width: none; padding: 2rem 2rem 0.75rem; display: flex; flex-direction: column; align-items: center; min-height: 0; }
+    .receipt-scroll::-webkit-scrollbar { display: none; }
     .receipt-acts { display: flex; justify-content: center; gap: 0.5rem; padding: 0.9rem 2rem 1.25rem; border-top: 1px solid var(--border); background: var(--surface); flex-shrink: 0; }
     .summary-card { width: min(420px, 100%); padding: 2.5rem 3rem 0; gap: 0; overflow: hidden; }
-    .sum-scroll { overflow-y: auto; display: flex; flex-direction: column; align-items: center; gap: 0.75rem; min-height: 0; padding-bottom: 0.5rem; }
+    .sum-scroll { overflow-y: auto; scrollbar-width: none; display: flex; flex-direction: column; align-items: center; gap: 0.75rem; min-height: 0; padding-bottom: 0.5rem; }
+    .sum-scroll::-webkit-scrollbar { display: none; }
     .sum-acts { flex-shrink: 0; width: 100%; display: flex; justify-content: center; padding: 1rem 0 1.5rem; margin-top: 0.5rem; border-top: 1px solid var(--border); }
     .sum-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; width: 100%; margin: 0.5rem 0; }
     .sum-cell { display: flex; flex-direction: column; align-items: center; gap: 0.15rem; background: var(--surface-2); border-radius: var(--radius-sm); padding: 1rem; }
