@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit, OnDestroy } from '@angular/core';
+import { Component, inject, signal, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MenuItemService } from '../../menu-item.service';
@@ -7,6 +7,8 @@ import { Category } from '../../category.model';
 import { AuthService } from '../../auth.service';
 import { BtnComponent } from '../../btn.component';
 import { PasswordInputComponent } from '../../password-input.component';
+import { ReceiptViewComponent } from '../../receipt-view.component';
+import { PrintService } from '../../print.service';
 import { DialogService } from '../../dialog.service';
 import { SoundService } from '../../sound.service';
 import { firstValueFrom } from 'rxjs';
@@ -15,7 +17,7 @@ import { ThemeService } from '../../theme.service';
 @Component({
   selector: 'app-admin',
   standalone: true,
-  imports: [CommonModule, FormsModule, BtnComponent, PasswordInputComponent],
+  imports: [CommonModule, FormsModule, BtnComponent, PasswordInputComponent, ReceiptViewComponent],
   templateUrl: './admin.component.html',
   styleUrl: './admin.component.scss',
 })
@@ -70,7 +72,10 @@ export class AdminComponent implements OnInit {
   }
   vatOf(total: number): number { return Math.round(Number(total) * 15 / 115 * 100) / 100; }
   readonly selectedOrder = signal<any | null>(null);
+  readonly receiptOrder = signal<any | null>(null);
   readonly ordersBusy = signal(false);
+  @ViewChild('adminReceiptBox') receiptBox!: ElementRef<HTMLElement>;
+  private printer = inject(PrintService);
   shopInfo: any = null;
 
   // Analytics
@@ -322,6 +327,16 @@ export class AdminComponent implements OnInit {
         this.askVoidReason(o);
       },
       error: (e) => this.dialog.toast(e.error?.error || 'Could not verify PIN', 'error')
+    });
+  }
+
+  // Reprint a receipt from the order detail: native uses the Android print
+  // framework, web falls back to the system print dialog.
+  printReceipt() {
+    const el = this.receiptBox?.nativeElement?.querySelector('.receipt-print') as HTMLElement | null;
+    if (!el) { this.dialog.toast('Receipt not ready', 'error'); return; }
+    void this.printer.printReceiptHtml(el.outerHTML).then(ok => {
+      if (!ok) { this.dialog.toast('No printer available - opening system print', 'error'); window.print(); }
     });
   }
 

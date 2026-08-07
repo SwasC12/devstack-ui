@@ -315,6 +315,53 @@
             </div>
             <div class="order-total"><span>Total</span><strong>R{{ o.total | number:'1.2-2' }}</strong></div>
             <div class="ol-vat"><span>VAT (15% incl.)</span><span>R{{ vatOf(o.total) | number:'1.2-2' }}</span></div>
+            <div class="order-meta">
+              <span>Payment: <strong>{{ o.paymentMethod === 'cash' ? 'Cash' : 'Card' }}</strong></span>
+              @if (o.paymentMethod === 'cash' && o.changeGiven != null) {
+                <span>Change: <strong>R{{ o.changeGiven | number:'1.2-2' }}</strong></span>
+              }
+            </div>
+            <div class="form-acts">
+              <app-btn size="sm" (onClick)="receiptOrder.set(o)">Print receipt</app-btn>
+              @if (!o.voidedAt) {
+                <app-btn variant="danger" size="sm" (onClick)="voidOrder(o)">Void order</app-btn>
+              }
+            </div>
+          </div>
+        }
+
+        <div class="table-card">
+          <table class="orders">
+            <thead><tr><th>Order</th><th>Time</th><th>Cashier</th><th>Items</th><th>Total</th><th>Status</th></tr></thead>
+            <tbody>
+              @for (o of orders(); track o.id) {
+                <tr class="order-row" [class.row-voided]="o.voidedAt" (click)="selectedOrder.set(o)">
+                  <td><strong>#{{ o.id }}</strong></td>
+                  <td>{{ o.createdAt | date:'short' }}</td>
+                  <td>{{ o.cashierName || '—' }}</td>
+                  <td>{{ o.items.length }}</td>
+                  <td class="num">R{{ o.total | number:'1.2-2' }}</td>
+                  <td><span class="status-pill" [class.voided]="o.voidedAt">{{ o.voidedAt ? 'Voided' : 'Paid' }}</span></td>
+                </tr>
+              } @empty {
+                <tr><td colspan="6" style="color:var(--muted);text-align:center;padding:1.5rem;">No orders yet.</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Receipt reprint overlay -->
+        @if (receiptOrder(); as ro) {
+          <div class="print-scrim" (click)="receiptOrder.set(null)">
+            <div class="print-panel" (click)="$event.stopPropagation()">
+              <div #adminReceiptBox>
+                <app-receipt [order]="ro" [shop]="shopInfo" [cashierName]="ro.cashierName" />
+              </div>
+              <div class="form-acts">
+                <app-btn size="sm" (onClick)="printReceipt()">Print</app-btn>
+                <app-btn size="sm" (onClick)="receiptOrder.set(null)">Close</app-btn>
+              </div>
+            </div>
           </div>
         }
       }
