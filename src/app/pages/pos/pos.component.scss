@@ -126,7 +126,7 @@
     .cart-subtotal { font-size: 0.8125rem; color: var(--text-2); }
     .cart-summary { font-size: 1rem; }
     .cart-summary strong { font-size: 1.375rem; font-weight: 800; color: var(--text); }
-    .btn-checkout { margin-top: 0.25rem; padding: 0.9rem 1rem; border: 0; border-radius: var(--radius-sm); background: var(--accent); color: #fff; font-family: inherit; font-size: 1rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease-out; }
+    .btn-checkout { position: sticky; bottom: 0; width: 100%; z-index: 1; margin-top: 0.25rem; padding: 0.9rem 1rem; border: 0; border-radius: var(--radius-sm); background: var(--accent); color: #fff; font-family: inherit; font-size: 1rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease-out; box-shadow: 0 -6px 16px rgba(0, 0, 0, 0.35); }
     .btn-checkout:hover:not(:disabled) { background: var(--accent-hover); transform: translateY(-1px); }
     .btn-checkout:disabled { opacity: 0.35; pointer-events: none; }
 
