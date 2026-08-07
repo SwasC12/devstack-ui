@@ -111,6 +111,9 @@
                         <button class="menu-btn" (click)="toggleMenu(s.id)">⋮</button>
                         @if (menuFor() === s.id) {
                           <div class="menu-drop">
+                            @if (s.ownerEmail) {
+                              <button class="menu-item" (click)="emailOwner(s); closeMenu()">✉️ Email owner</button>
+                            }
                             <button class="menu-item" (click)="openOwnerEdit(s); closeMenu()">👤 Owner contact</button>
                             <button class="menu-item" (click)="resetPassword(s); closeMenu()">🔑 Reset password</button>
                             <button class="menu-item" [class.danger]="s.isActive" (click)="toggleStatus(s); closeMenu()">

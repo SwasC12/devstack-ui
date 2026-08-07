@@ -157,6 +157,25 @@ export class ShopsComponent implements OnInit {
 
   // ── Owner contact ────────────────────────────────────
 
+  // One-off email to a shop owner: opens YOUR mail client (e.g. Gmail,
+  // swasteerc@gmail.com) pre-filled with a template - no email service,
+  // no bulk sending, nothing leaves the machine except the draft you send.
+  emailOwner(s: any) {
+    if (!s.ownerEmail) { this.dialog.toast('No owner email on file', 'info'); return; }
+    const subject = `CoffeeShop Pro — ${s.name}`;
+    const body = [
+      'Hi there,',
+      '',
+      '[Write your message here]',
+      '',
+      '—',
+      'Swas · CoffeeShop Pro',
+      'https://devstack-one.vercel.app'
+    ].join('\n');
+    const url = `mailto:${s.ownerEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = url;
+  }
+
   openOwnerEdit(s: any) { this.ownerEdit = s; this.fOwnerEmail = s.ownerEmail ?? ''; this.fOwnerPhone = s.ownerPhone ?? ''; }
   closeOwnerEdit() { this.ownerEdit = null; }
 
