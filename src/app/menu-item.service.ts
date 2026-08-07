@@ -194,6 +194,11 @@ export class MenuItemService {
     return this.http.get(`${API}/platform/overview`);
   }
 
+  // Superadmin: platform health (API/DB/push/storage availability).
+  getPlatformHealth(): Observable<any> {
+    return this.http.get(`${API}/platform/health`);
+  }
+
   createShop(data: { name: string; code: string; adminUsername: string; adminPassword: string; adminDisplayName: string }): Observable<any> {
     return this.http.post(`${API}/shops`, data);
   }

@@ -1,6 +1,28 @@
 
     .shops { max-width: 1100px; }
 
+    /* Welcome banner */
+    .welcome { background: linear-gradient(135deg, var(--surface), var(--surface-2)); border: 1px solid var(--border); border-radius: 1.25em; padding: 1.25em 1.5em; margin-bottom: 1.25rem; }
+    .welcome.warn { border-color: var(--warning); }
+    .welcome-main { font-size: 1.25rem; font-weight: 800; color: var(--text); }
+    .welcome-line { font-size: 0.85rem; color: var(--text-2); margin-top: 0.3rem; }
+    .welcome-issues { margin-top: 0.45rem; font-size: 0.8rem; font-weight: 700; color: var(--warning); }
+    .welcome-ok { margin-top: 0.45rem; font-size: 0.8rem; font-weight: 700; color: var(--green); }
+
+    /* Shop search */
+    .search-row { display: flex; align-items: center; gap: 0.6rem; background: var(--surface); border: 1px solid var(--border-hover); border-radius: 1em; padding: 0.65em 0.95em; margin-bottom: 0.85rem; }
+    .search-row input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--text); font-family: inherit; font-size: 0.875rem; outline: none; padding: 0; }
+    .search-ic { color: var(--muted); font-size: 0.9rem; }
+    .search-count { font-size: 0.7rem; color: var(--muted); font-weight: 600; white-space: nowrap; }
+
+    /* Platform health dots */
+    .health { display: flex; flex-direction: column; gap: 0.55rem; }
+    .health-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.82rem; color: var(--text-2); font-weight: 600; }
+    .dot { font-size: 0.95rem; line-height: 1; color: var(--muted); }
+    .dot.on { color: var(--green); }
+    .dot.off { color: var(--red); }
+    .dot.na { color: var(--muted); }
+
     .section-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; }
     .section-head .page-title { margin: 0; }
 

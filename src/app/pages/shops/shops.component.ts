@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { MenuItemService } from '../../menu-item.service';
 import { BtnComponent } from '../../btn.component';
 import { PasswordInputComponent } from '../../password-input.component';
+import { AuthService } from '../../auth.service';
 import { DialogService } from '../../dialog.service';
 import { SoundService } from '../../sound.service';
 
@@ -18,6 +19,7 @@ export class ShopsComponent implements OnInit {
   private service = inject(MenuItemService);
   private dialog = inject(DialogService);
   private sound = inject(SoundService);
+  auth = inject(AuthService);
 
   readonly shops = signal<any[]>([]);
   readonly showForm = signal(false);
@@ -35,14 +37,46 @@ export class ShopsComponent implements OnInit {
 
   // Platform dashboard (right rail): overview counters + live activity feed
   readonly overview = signal<any | null>(null);
+  // Platform health (API/DB/push/storage dots)
+  readonly health = signal<any | null>(null);
   // Which shop row has its ⋮ menu open (null = none)
   readonly menuFor = signal<number | null>(null);
+  // Shop search: name / code / owner email / owner phone
+  search = '';
 
-  ngOnInit() { this.load(); this.loadOverview(); }
+  ngOnInit() { this.load(); this.loadOverview(); this.loadHealth(); }
 
   private load() { this.service.getShops().subscribe(s => this.shops.set(s)); }
 
   private loadOverview() { this.service.getPlatformOverview().subscribe(o => this.overview.set(o)); }
+
+  private loadHealth() { this.service.getPlatformHealth().subscribe(h => this.health.set(h)); }
+
+  readonly filteredShops = () => {
+    const q = this.search.trim().toLowerCase();
+    if (!q) return this.shops();
+    return this.shops().filter(s =>
+      (s.name ?? '').toLowerCase().includes(q) ||
+      (s.code ?? '').toLowerCase().includes(q) ||
+      (s.ownerEmail ?? '').toLowerCase().includes(q) ||
+      (s.ownerPhone ?? '').toLowerCase().includes(q)
+    );
+  };
+
+  // Welcome banner
+  greeting(): string {
+    const h = new Date().getHours();
+    return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+  }
+
+  welcomeIssues(): string | null {
+    const s = this.overview()?.stats;
+    if (!s) return null;
+    const parts: string[] = [];
+    if (s.suspendedShops > 0) parts.push(`${s.suspendedShops} shop${s.suspendedShops === 1 ? '' : 's'} suspended`);
+    if (s.pushFailures30d > 0) parts.push(`${s.pushFailures30d} push failure${s.pushFailures30d === 1 ? '' : 's'}`);
+    return parts.length ? parts.join(' · ') : null;
+  }
 
   // ⋮ row menu
   toggleMenu(id: number) { this.menuFor.update(m => (m === id ? null : id)); }

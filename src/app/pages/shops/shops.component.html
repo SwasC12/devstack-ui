@@ -1,5 +1,15 @@
 
     <div class="shops">
+      <div class="welcome" [class.warn]="welcomeIssues()">
+        <div class="welcome-main">{{ greeting() }}, {{ auth.getUser()?.displayName || 'boss' }} 👋</div>
+        <div class="welcome-line">{{ overview()?.stats?.activeShops ?? 0 }} shops active · {{ overview()?.stats?.ordersToday ?? 0 }} orders processed today.</div>
+        @if (welcomeIssues(); as issues) {
+          <div class="welcome-issues">⚠️ {{ issues }}.</div>
+        } @else {
+          <div class="welcome-ok">No platform issues detected.</div>
+        }
+      </div>
+
       <div class="section-head">
         <h2 class="page-title">Shops</h2>
         <app-btn variant="primary" (onClick)="openForm()">
@@ -67,11 +77,16 @@
 
       <div class="platform-grid">
         <div class="table-col" (click)="closeMenu()">
+          <div class="search-row">
+            <span class="search-ic">🔎</span>
+            <input [(ngModel)]="search" placeholder="Search by shop name, code, owner or email…" />
+            @if (search.trim()) { <span class="search-count">{{ filteredShops().length }} of {{ shops().length }}</span> }
+          </div>
           <div class="table-card">
             <table>
               <thead><tr><th>Name</th><th>Code</th><th>Status</th><th>Users</th><th>Orders</th><th>Last order</th><th>Created</th><th></th></tr></thead>
               <tbody>
-                @for (s of shops(); track s.id) {
+                @for (s of filteredShops(); track s.id) {
                   <tr [class.row-suspended]="!s.isActive">
                     <td>
                       <strong>{{ s.name }}</strong>
@@ -118,6 +133,16 @@
               <div class="ov-cell"><span class="ov-val">{{ overview()?.stats?.notificationsSent30d ?? '—' }}</span><span class="ov-lbl">Notifications 30d</span></div>
               <div class="ov-cell"><span class="ov-val">{{ overview()?.stats?.passwordResets30d ?? '—' }}</span><span class="ov-lbl">Password resets</span></div>
               <div class="ov-cell"><span class="ov-val" [class.warn]="(overview()?.stats?.pushFailures30d ?? 0) > 0">{{ overview()?.stats?.pushFailures30d ?? '—' }}</span><span class="ov-lbl">Push failures</span></div>
+            </div>
+          </div>
+
+          <div class="rail-card">
+            <h3>Platform Health</h3>
+            <div class="health">
+              <div class="health-row"><span>API</span><span class="dot" [class.on]="health()?.api === true" [class.off]="health()?.api === false">●</span></div>
+              <div class="health-row"><span>Database</span><span class="dot" [class.on]="health()?.database === true" [class.off]="health()?.database === false">●</span></div>
+              <div class="health-row"><span>Push notifications</span><span class="dot" [class.on]="health()?.push === true" [class.off]="health()?.push === false">●</span></div>
+              <div class="health-row"><span>Storage</span><span class="dot" [class.on]="health()?.storage === true" [class.off]="health()?.storage === false" [class.na]="health()?.storage == null">●</span></div>
             </div>
           </div>
 
