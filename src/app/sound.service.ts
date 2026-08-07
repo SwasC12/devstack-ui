@@ -76,4 +76,10 @@ export class SoundService {
     this.tone(1046.5, 0, 0.14, 'triangle', 0.22);
     this.tone(1568, 0.14, 0.3, 'triangle', 0.22);
   }
+
+  // Send confirmation (broadcast): quick snappy double blip.
+  sent() {
+    this.tone(659.25, 0, 0.09, 'sine', 0.26);
+    this.tone(880, 0.09, 0.14, 'sine', 0.26);
+  }
 }

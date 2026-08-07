@@ -5,6 +5,7 @@ import { MenuItemService } from '../../menu-item.service';
 import { BtnComponent } from '../../btn.component';
 import { PasswordInputComponent } from '../../password-input.component';
 import { DialogService } from '../../dialog.service';
+import { SoundService } from '../../sound.service';
 
 @Component({
   selector: 'app-shops',
@@ -16,6 +17,7 @@ import { DialogService } from '../../dialog.service';
 export class ShopsComponent implements OnInit {
   private service = inject(MenuItemService);
   private dialog = inject(DialogService);
+  private sound = inject(SoundService);
 
   readonly shops = signal<any[]>([]);
   readonly showForm = signal(false);
@@ -69,6 +71,7 @@ export class ShopsComponent implements OnInit {
     this.service.broadcastNotification(this.bcTitle.trim(), this.bcBody.trim(), this.bcShopId).subscribe({
       next: (res) => {
         this.bcBusy.set(false);
+        this.sound.sent();
         this.dialog.toast(`Sent to ${res.delivered} owner${res.delivered === 1 ? '' : 's'} (${res.pushed} device${res.pushed === 1 ? '' : 's'})`, 'success');
         this.bcTitle = ''; this.bcBody = '';
       },
