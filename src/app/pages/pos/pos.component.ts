@@ -293,48 +293,44 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
     @if (paymentOpen()) {
       <div class="complete">
         <div class="complete-card pay-card">
-          <div class="pay-scroll">
-            <div class="pay-head">
-              <h3>Payment</h3>
-              <app-btn size="sm" (onClick)="paymentOpen.set(false)">✕</app-btn>
-            </div>
-            <div class="pay-total">
-              <span class="pay-total-lbl">Total due</span>
-              <span class="pay-total-val">R{{ netTotal() | number:'1.2-2' }}</span>
-            </div>
-
-          
-
-            <!-- Method toggle -->
-            <div class="pay-methods">
-              <button class="pay-method" [class.on]="payMethod() === 'cash'" (click)="payMethod.set('cash')">💵 Cash</button>
-              <button class="pay-method" [class.on]="payMethod() === 'card'" (click)="payMethod.set('card')">💳 Card</button>
-            </div>
-
-            @if (payMethod() === 'cash') {
-              <!-- Tendered amount + change -->
-              <div class="pay-received">
-                <span class="pay-received-lbl">Received</span>
-                <span class="pay-received-val">R{{ receivedText() || '0' }}</span>
-              </div>
-              <div class="pay-quick">
-                <button class="qk" (click)="setQuick('exact')">Exact</button>
-                <button class="qk" (click)="setQuick('50')">R50</button>
-                <button class="qk" (click)="setQuick('100')">R100</button>
-                <button class="qk" (click)="setQuick('200')">R200</button>
-              </div>
-              <div class="pay-keys">
-                @for (k of ['1','2','3','4','5','6','7','8','9','.','0','⌫']; track k) {
-                  <button class="pk" (click)="pressKey(k)">{{ k }}</button>
-                }
-              </div>
-              @if (change() > 0) {
-                <div class="pay-change"><span>Change</span><strong>R{{ change() | number:'1.2-2' }}</strong></div>
-              }
-            } @else {
-              <p class="pay-card-note">Take the card payment on the terminal, then confirm.</p>
-            }
+          <div class="pay-head">
+            <h3>Payment</h3>
+            <app-btn size="sm" (onClick)="paymentOpen.set(false)">✕</app-btn>
           </div>
+          <div class="pay-total">
+            <span class="pay-total-lbl">Total due</span>
+            <span class="pay-total-val">R{{ netTotal() | number:'1.2-2' }}</span>
+          </div>
+
+          <!-- Method toggle -->
+          <div class="pay-methods">
+            <button class="pay-method" [class.on]="payMethod() === 'cash'" (click)="payMethod.set('cash')">💵 Cash</button>
+            <button class="pay-method" [class.on]="payMethod() === 'card'" (click)="payMethod.set('card')">💳 Card</button>
+          </div>
+
+          @if (payMethod() === 'cash') {
+            <!-- Tendered amount + change -->
+            <div class="pay-received">
+              <span class="pay-received-lbl">Received</span>
+              <span class="pay-received-val">R{{ receivedText() || '0' }}</span>
+            </div>
+            <div class="pay-quick">
+              <button class="qk" (click)="setQuick('exact')">Exact</button>
+              <button class="qk" (click)="setQuick('50')">R50</button>
+              <button class="qk" (click)="setQuick('100')">R100</button>
+              <button class="qk" (click)="setQuick('200')">R200</button>
+            </div>
+            <div class="pay-keys">
+              @for (k of ['1','2','3','4','5','6','7','8','9','.','0','⌫']; track k) {
+                <button class="pk" (click)="pressKey(k)">{{ k }}</button>
+              }
+            </div>
+            @if (change() > 0) {
+              <div class="pay-change"><span>Change</span><strong>R{{ change() | number:'1.2-2' }}</strong></div>
+            }
+          } @else {
+            <p class="pay-card-note">Take the card payment on the terminal, then confirm.</p>
+          }
 
           <button class="btn-checkout" [disabled]="busy() || !canConfirm()" (click)="confirmPayment()">
             {{ busy() ? 'Placing order…' : payMethod() === 'cash' ? 'Charge R' + (netTotal() | number:'1.2-2') : 'Confirm card payment' }}
@@ -467,7 +463,7 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
     .cart-subtotal { font-size: 0.8125rem; color: var(--text-2); }
     .cart-summary { font-size: 1rem; }
     .cart-summary strong { font-size: 1.375rem; font-weight: 800; color: var(--text); }
-    .btn-checkout { margin: 0.75rem 0 0; flex-shrink: 0; padding: 0.95rem 1rem; border: 0; border-radius: var(--radius-sm); background: var(--accent); color: #fff; font-family: inherit; font-size: 1.0625rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease-out; }
+    .btn-checkout { margin-top: 0.25rem; padding: 0.9rem 1rem; border: 0; border-radius: var(--radius-sm); background: var(--accent); color: #fff; font-family: inherit; font-size: 1rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease-out; }
     .btn-checkout:hover:not(:disabled) { background: var(--accent-hover); transform: translateY(-1px); }
     .btn-checkout:disabled { opacity: 0.35; pointer-events: none; }
 
@@ -513,11 +509,8 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
     .sum-val { font-size: 1.375rem; font-weight: 800; color: var(--accent-2); }
     .sum-lbl { font-size: 0.6875rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; }
 
-    /* Payment sheet: WIDE calculator that fills the popup width; height stays
-       content-sized so no scrollbar. The wrapper + pinned button remain as a
-       safety net only for genuinely short screens. */
-    .pay-card { width: min(720px, 100%); max-height: none; padding: 1.5rem; gap: 0; }
-    .pay-scroll { display: flex; flex-direction: column; align-items: stretch; gap: 0.75rem; }
+    /* Payment sheet */
+    .pay-card { width: min(380px, 100%); padding: 1.5rem; }
     .pay-head { display: flex; justify-content: space-between; align-items: center; width: 100%; }
     .pay-head h3 { margin: 0; font-size: 1rem; }
     .pay-total { display: flex; flex-direction: column; align-items: center; gap: 0.1rem; padding: 0.75rem 0 0.25rem; width: 100%; }
@@ -530,10 +523,10 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
     .pay-received-lbl { font-size: 0.75rem; color: var(--muted); font-weight: 600; }
     .pay-received-val { font-size: 1.5rem; font-weight: 800; color: var(--accent-2); font-variant-numeric: tabular-nums; }
     .pay-quick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.4rem; width: 100%; margin-bottom: 0.5rem; }
-    .qk { padding: 0.6rem; border: 1px solid var(--border-hover); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text-2); font-family: inherit; font-size: 0.85rem; font-weight: 700; cursor: pointer; }
+    .qk { padding: 0.55rem; border: 1px solid var(--border-hover); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text-2); font-family: inherit; font-size: 0.8125rem; font-weight: 700; cursor: pointer; }
     .qk:hover { border-color: var(--accent); color: var(--text); }
     .pay-keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.45rem; width: 100%; }
-    .pk { padding: 0.95rem 0; border: 1px solid var(--border-hover); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); font-family: inherit; font-size: 1.125rem; font-weight: 700; cursor: pointer; transition: all 0.12s; }
+    .pk { padding: 0.85rem 0; border: 1px solid var(--border-hover); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); font-family: inherit; font-size: 1.125rem; font-weight: 700; cursor: pointer; transition: all 0.12s; }
     .pk:hover { background: var(--surface-3); }
     .pk:active { transform: scale(0.95); }
     .pay-change { display: flex; justify-content: space-between; align-items: baseline; width: 100%; padding: 0.5rem 0 0.25rem; border-top: 1px dashed var(--border); margin-top: 0.5rem; }
