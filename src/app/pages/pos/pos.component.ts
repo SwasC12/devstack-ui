@@ -439,14 +439,14 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
     .pick-card { width: min(360px, 100%); padding: 1.5rem; gap: 0.5rem; align-items: stretch; }
     .pick-row { display: flex; justify-content: space-between; align-items: center; padding: 0.8rem 1rem; border: 1px solid var(--border-hover); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); font-family: inherit; cursor: pointer; }
     .pick-row:hover { border-color: var(--accent); }
-    .size-card { width: min(460px, 100%); align-items: stretch; max-height: calc(100dvh - 3rem); max-height: calc(100vh - 3rem); overflow: hidden; padding: 2rem 1.5rem 0; gap: 0; }
+    .size-card { width: min(500px, 100%); align-items: stretch; max-height: calc(100dvh - 3rem); max-height: calc(100vh - 3rem); overflow: hidden; padding: 2rem 1.5rem 0; gap: 0; }
     .cfg-scroll { overflow-y: auto; scrollbar-width: none; display: flex; flex-direction: column; gap: 0.75rem; min-height: 0; padding-bottom: 0.5rem; }
     .cfg-scroll::-webkit-scrollbar { display: none; }
     .cfg-acts { display: flex; justify-content: flex-end; gap: 0.5rem; padding: 1rem 0 1.25rem; margin-top: 0.5rem; border-top: 1px solid var(--border); flex-shrink: 0; }
     .size-sub { margin: -0.25rem 0 0.5rem; font-size: 0.8125rem; color: var(--muted); }
     .cfg-group { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 0.4rem; }
     .cfg-group-name { font-size: 0.68rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.4rem; }
-    .cfg-opt { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border: 1px solid var(--border-hover); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); font-family: inherit; font-size: 0.9375rem; font-weight: 600; cursor: pointer; transition: all 0.12s; }
+    .cfg-opt { display: flex; justify-content: space-between; align-items: center; padding: 0.85rem 1.25rem; border: 1px solid var(--border-hover); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); font-family: inherit; font-size: 0.9375rem; font-weight: 600; cursor: pointer; transition: all 0.12s; }
     .cfg-opt.on { border-color: var(--accent); background: var(--accent-light); color: var(--accent-2); }
     .cfg-price { color: var(--accent-2); font-variant-numeric: tabular-nums; }
     .cfg-note { padding: 0.65rem 0.8rem; border: 1px solid var(--border-hover); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); font-family: inherit; font-size: 0.875rem; outline: none; }
