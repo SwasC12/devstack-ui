@@ -236,9 +236,11 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
     @if (configurator(); as cfg) {
       <div class="complete" (click)="configurator.set(null)">
         <div class="complete-card size-card" (click)="$event.stopPropagation()">
-          <div class="cfg-scroll">
+          <div class="cfg-head">
             <strong>{{ cfg.item.name }}</strong>
-          <span class="size-sub">Choose options</span>
+            <span class="size-sub">Choose options</span>
+          </div>
+          <div class="cfg-scroll">
           @if (cfg.item.sizes?.length) {
             <div class="cfg-group">
               <span class="cfg-group-name">Size</span>
@@ -265,8 +267,8 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
           </div>
           <div class="cfg-total">Total <strong>R{{ cfgTotal(cfg) | number:'1.2-2' }}</strong></div>
           <div class="cfg-acts">
-            <app-btn size="sm" (onClick)="configurator.set(null)">Cancel</app-btn>
-            <app-btn variant="primary" size="sm" (onClick)="addConfig()">Add to order</app-btn>
+            <app-btn size="sm" [block]="true" (onClick)="configurator.set(null)">Cancel</app-btn>
+            <app-btn variant="primary" size="sm" [block]="true" (onClick)="addConfig()">Add to order</app-btn>
           </div>
         </div>
       </div>
@@ -439,10 +441,13 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
     .pick-card { width: min(360px, 100%); padding: 1.5rem; gap: 0.5rem; align-items: stretch; }
     .pick-row { display: flex; justify-content: space-between; align-items: center; padding: 0.8rem 1rem; border: 1px solid var(--border-hover); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); font-family: inherit; cursor: pointer; }
     .pick-row:hover { border-color: var(--accent); }
-    .size-card { width: min(500px, 100%); align-items: stretch; max-height: calc(100dvh - 3rem); max-height: calc(100vh - 3rem); overflow: hidden; padding: 2rem 1.5rem 0; gap: 0; }
+    .size-card { width: min(560px, 100%); align-items: stretch; max-height: calc(100dvh - 3rem); max-height: calc(100vh - 3rem); overflow: hidden; padding: 2rem 1.5rem 0; gap: 0; }
+    /* Fixed header: item name + sub always visible. */
+    .cfg-head { display: flex; flex-direction: column; align-items: stretch; gap: 0.2rem; flex-shrink: 0; padding-bottom: 0.5rem; }
+    .cfg-head .size-sub { margin: 0; }
     .cfg-scroll { overflow-y: auto; scrollbar-width: none; display: flex; flex-direction: column; gap: 0.75rem; min-height: 0; padding-bottom: 0.5rem; }
     .cfg-scroll::-webkit-scrollbar { display: none; }
-    .cfg-acts { display: flex; justify-content: flex-end; gap: 0.5rem; padding: 0.9rem 0 1.25rem; margin-top: 0.25rem; border-top: 1px solid var(--border); flex-shrink: 0; }
+        .cfg-acts { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; padding: 0.9rem 0 1.25rem; margin-top: 0.25rem; border-top: 1px solid var(--border); flex-shrink: 0; }
     .size-sub { margin: -0.25rem 0 0.5rem; font-size: 0.8125rem; color: var(--muted); }
     .cfg-group { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 0.4rem; }
     .cfg-group-name { font-size: 0.68rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.4rem; }
