@@ -4,11 +4,26 @@
       <div class="clockin">
         <div class="clockin-card">
           @if (updateInfo(); as u) {
-            <div class="update-banner" [class.required]="u.isRequired">
+            <div class="update-banner" [class.required]="u.isRequired" [class.ready]="updateState() === 'ready'">
               <strong>📦 CoffeeShop Pro {{ u.version }} available</strong>
               @if (u.releaseNotes) { <span class="upd-notes">{{ u.releaseNotes }}</span> }
-              @if (u.isRequired) { <span class="upd-req">This update is required — please update the app.</span> }
-              <app-btn size="sm" (onClick)="dismissUpdate()">Later</app-btn>
+              @if (u.isRequired) { <span class="upd-req">This update is required — install it to keep using the app.</span> }
+              @if (updateState() === 'downloading') {
+                <div class="upd-progress"><div class="upd-bar" [style.width.%]="updateProgress() * 100"></div></div>
+                <span class="upd-pct">Downloading… {{ (updateProgress() * 100) | number:'1.0-0' }}%</span>
+              } @else if (updateState() === 'ready') {
+                <app-btn variant="primary" size="sm" (onClick)="installUpdate()">Install now</app-btn>
+              } @else if (updateState() === 'failed') {
+                <span class="upd-err">Download failed — check your connection.</span>
+                <app-btn size="sm" (onClick)="downloadUpdate()">Retry download</app-btn>
+              } @else {
+                <app-btn size="sm" (onClick)="downloadUpdate()">Download update</app-btn>
+              }
+              @if (!u.isRequired) {
+                <app-btn size="sm" (onClick)="dismissUpdate()">Later</app-btn>
+              } @else if (updateState() === 'idle' || updateState() === 'failed') {
+                <button class="upd-continue" (click)="dismissUpdate()">Continue anyway</button>
+              }
             </div>
           }
           @if (shopInfo()?.logoUrl) { <img [src]="shopInfo()?.logoUrl" alt="" class="clockin-logo" /> }
@@ -19,7 +34,7 @@
             <label>Starting float (cash in the till)</label>
             <input type="number" step="0.01" min="0" [(ngModel)]="floatInput" placeholder="0.00" />
           </div>
-          <button class="btn-start" (click)="startShift()" [disabled]="startingShift()">
+          <button class="btn-start" (click)="startShift()" [disabled]="startingShift() || (updateInfo()?.isRequired ?? false)">
             {{ startingShift() ? 'Starting…' : 'Start shift' }}
           </button>
           <!-- Handover: the next cashier taps here → straight to PIN sign-in -->

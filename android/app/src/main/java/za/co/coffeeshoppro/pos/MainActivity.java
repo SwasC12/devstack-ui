@@ -12,6 +12,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        registerPlugin(InstallApkPlugin.class);
         // Fullscreen kiosk-style: hide the Android status bar (clock/battery)
         // and navigation bar. Swiping from an edge reveals them briefly, then
         // they hide again - the in-app clock takes over for the cashier.

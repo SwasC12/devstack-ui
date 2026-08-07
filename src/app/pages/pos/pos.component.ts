@@ -13,6 +13,8 @@ import { ClockComponent } from '../../clock.component';
 import { AppLogoComponent } from '../../app-logo.component';
 import { PrintService } from '../../print.service';
 import { SoundService } from '../../sound.service';
+import { UpdaterService } from '../../updater.service';
+import { Capacitor } from '@capacitor/core';
 
 interface CartItem { id: number; name: string; price: number; quantity: number; sizeId?: number; sizeName?: string; modifiers?: { groupName: string; name: string; priceDelta: number }[]; note?: string; }
 
@@ -73,6 +75,9 @@ export class PosComponent implements OnInit {
 
   // In-app updater: published release info when our version is behind
   readonly updateInfo = signal<{ version: string; releaseNotes: string; isRequired: boolean } | null>(null);
+  readonly updateState = signal<'idle' | 'downloading' | 'ready' | 'failed'>('idle');
+  readonly updateProgress = signal(0);
+  private updater = inject(UpdaterService);
 
   // Till: payment sheet + receipt
   readonly paymentOpen = signal(false);
@@ -177,6 +182,9 @@ export class PosComponent implements OnInit {
             const dismissed = localStorage.getItem('update_dismissed');
             if (dismissed !== res.version || res.isRequired) {
               this.updateInfo.set({ version: res.version, releaseNotes: res.releaseNotes ?? '', isRequired: res.isRequired });
+              // Background pre-download (native): by the time the cashier
+              // decides, it's usually already "Ready to install".
+              if (Capacitor.isNativePlatform()) void this.downloadUpdate();
             }
           }
         },
@@ -185,10 +193,29 @@ export class PosComponent implements OnInit {
     } catch { /* web build or no native app info - skip */ }
   }
 
+  // Download the update (with progress) or install the already-downloaded one.
+  async downloadUpdate() {
+    if (this.updateState() === 'downloading') return;
+    this.updateState.set('downloading');
+    this.updateProgress.set(0);
+    const result = await this.updater.download(p => this.updateProgress.set(p));
+    this.updateState.set(result === 'ready' ? 'ready' : 'failed');
+  }
+
+  async installUpdate() {
+    if (this.updateState() === 'ready') {
+      const ok = await this.updater.installDownloaded();
+      if (!ok) this.updateState.set('failed');
+      return;
+    }
+    await this.downloadUpdate();
+  }
+
   dismissUpdate() {
     const v = this.updateInfo()?.version;
     if (v) localStorage.setItem('update_dismissed', v);
     this.updateInfo.set(null);
+    this.updateState.set('idle');
   }
 
   startShift() {
@@ -342,7 +369,9 @@ export class PosComponent implements OnInit {
   }
 
   setQuick(which: string) {
-    if (which === 'exact') this.receivedText.set(this.total().toFixed(2));
+    // 'Exact' must use the DISCOUNTED total - charging pre-discount would
+    // overcharge the customer and confuse the cashier.
+    if (which === 'exact') this.receivedText.set(this.netTotal().toFixed(2));
     else this.receivedText.set(which);
   }
 
