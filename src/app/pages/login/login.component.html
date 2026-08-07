@@ -24,6 +24,7 @@
           <app-password [(ngModel)]="password" placeholder="Password" autocomplete="current-password" (enter)="login()" />
           <app-btn variant="primary" [block]="true" [loading]="busy()" (onClick)="login()">Sign in</app-btn>
           <button class="link-btn" (click)="enablePin()">Use PIN sign-in</button>
+          <p class="login-alt"><a routerLink="/platform">Platform owner? Sign in here</a></p>
         } @else if (!staffList()) {
           <!-- PIN flow: shop code first -->
           <h3 class="step-title">PIN sign-in</h3>
