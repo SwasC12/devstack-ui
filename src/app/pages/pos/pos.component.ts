@@ -513,15 +513,16 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
     .sum-val { font-size: 1.375rem; font-weight: 800; color: var(--accent-2); }
     .sum-lbl { font-size: 0.6875rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; }
 
-    /* Payment sheet: a big screen-filling calculator — fixed sheet size, keypad
-       area stretches, Charge stays pinned. Distinctly larger than the receipt. */
-    .pay-card { width: min(500px, 100%); height: min(620px, calc(100dvh - 3rem)); height: min(620px, calc(100vh - 3rem)); padding: 1.5rem; gap: 0; overflow: hidden; }
-    .pay-scroll { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; align-items: stretch; gap: 0.75rem; padding-bottom: 0.5rem; }
+    /* Payment sheet: WIDE calculator that fills the popup width; height stays
+       content-sized so no scrollbar. The wrapper + pinned button remain as a
+       safety net only for genuinely short screens. */
+    .pay-card { width: min(720px, 100%); max-height: none; padding: 1.5rem; gap: 0; }
+    .pay-scroll { display: flex; flex-direction: column; align-items: stretch; gap: 0.75rem; }
     .pay-head { display: flex; justify-content: space-between; align-items: center; width: 100%; }
     .pay-head h3 { margin: 0; font-size: 1rem; }
     .pay-total { display: flex; flex-direction: column; align-items: center; gap: 0.1rem; padding: 0.75rem 0 0.25rem; width: 100%; }
     .pay-total-lbl { font-size: 0.6875rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; }
-    .pay-total-val { font-size: 2.25rem; font-weight: 800; color: var(--text); }
+    .pay-total-val { font-size: 2rem; font-weight: 800; color: var(--text); }
     .pay-methods { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; width: 100%; margin: 0.75rem 0 0.5rem; }
     .pay-method { padding: 0.8rem; border: 1px solid var(--border-hover); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text-2); font-family: inherit; font-size: 0.9375rem; font-weight: 700; cursor: pointer; transition: all 0.15s; }
     .pay-method.on { background: var(--accent); border-color: var(--accent); color: #fff; }
@@ -529,10 +530,10 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
     .pay-received-lbl { font-size: 0.75rem; color: var(--muted); font-weight: 600; }
     .pay-received-val { font-size: 1.5rem; font-weight: 800; color: var(--accent-2); font-variant-numeric: tabular-nums; }
     .pay-quick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.4rem; width: 100%; margin-bottom: 0.5rem; }
-    .qk { padding: 0.7rem; border: 1px solid var(--border-hover); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text-2); font-family: inherit; font-size: 0.875rem; font-weight: 700; cursor: pointer; }
+    .qk { padding: 0.6rem; border: 1px solid var(--border-hover); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text-2); font-family: inherit; font-size: 0.85rem; font-weight: 700; cursor: pointer; }
     .qk:hover { border-color: var(--accent); color: var(--text); }
     .pay-keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.45rem; width: 100%; }
-    .pk { padding: 1.15rem 0; border: 1px solid var(--border-hover); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); font-family: inherit; font-size: 1.25rem; font-weight: 700; cursor: pointer; transition: all 0.12s; }
+    .pk { padding: 0.95rem 0; border: 1px solid var(--border-hover); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); font-family: inherit; font-size: 1.125rem; font-weight: 700; cursor: pointer; transition: all 0.12s; }
     .pk:hover { background: var(--surface-3); }
     .pk:active { transform: scale(0.95); }
     .pay-change { display: flex; justify-content: space-between; align-items: baseline; width: 100%; padding: 0.5rem 0 0.25rem; border-top: 1px dashed var(--border); margin-top: 0.5rem; }
