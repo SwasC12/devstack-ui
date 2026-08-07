@@ -185,9 +185,13 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
     @if (lastOrder(); as o) {
       <div class="complete">
         <div class="complete-card receipt-wrap" #receiptBox>
-          <app-receipt [order]="o" [shop]="shopInfo()" [cashierName]="auth.getUser()?.displayName ?? ''" />
-          <app-btn size="sm" (onClick)="printReceipt()">Print</app-btn>
-          <app-btn variant="primary" size="sm" (onClick)="closeReceipt()">New order</app-btn>
+          <div class="receipt-scroll">
+            <app-receipt [order]="o" [shop]="shopInfo()" [cashierName]="auth.getUser()?.displayName ?? ''" />
+          </div>
+          <div class="receipt-acts">
+            <app-btn size="sm" (onClick)="printReceipt()">Print</app-btn>
+            <app-btn variant="primary" size="sm" (onClick)="closeReceipt()">New order</app-btn>
+          </div>
         </div>
       </div>
     }
@@ -196,30 +200,34 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
     @if (shiftSummary(); as s) {
       <div class="complete">
         <div class="complete-card summary-card">
-          <span class="complete-check">✓</span>
-          <strong>Shift over — well done!</strong>
-          <div class="sum-grid">
-            <div class="sum-cell"><span class="sum-val">{{ s.orderCount }}</span><span class="sum-lbl">Orders</span></div>
-            <div class="sum-cell"><span class="sum-val">{{ s.itemCount }}</span><span class="sum-lbl">Items sold</span></div>
-            <div class="sum-cell"><span class="sum-val">R{{ s.revenue | number:'1.2-2' }}</span><span class="sum-lbl">Revenue</span></div>
-            <div class="sum-cell"><span class="sum-val">R{{ s.cashRevenue | number:'1.2-2' }}</span><span class="sum-lbl">Cash</span></div>
-            <div class="sum-cell"><span class="sum-val">R{{ s.cardRevenue | number:'1.2-2' }}</span><span class="sum-lbl">Card</span></div>
-            <div class="sum-cell"><span class="sum-val">R{{ s.averageOrder | number:'1.2-2' }}</span><span class="sum-lbl">Avg order</span></div>
-          </div>
-          @if (s.voidedCount > 0) { <div class="sum-void">Voided orders: {{ s.voidedCount }}</div> }
-          <div class="cashup">
-            <label>Cash counted in till</label>
-            <input type="number" step="0.01" [ngModel]="cashCounted" (ngModelChange)="cashCounted = $event ? +$event : null" placeholder="0.00" />
-            @if (cashCounted !== null) {
-              @if (expectedTill() !== null) {
-                <div class="cashup-line">Expected: R{{ expectedTill() | number:'1.2-2' }} <span class="muted-note">(R{{ s.cashRevenue | number:'1.2-2' }} cash + R{{ (s.startingFloat ?? 0) | number:'1.2-2' }} float)</span></div>
+          <div class="sum-scroll">
+            <span class="complete-check">✓</span>
+            <strong>Shift over — well done!</strong>
+            <div class="sum-grid">
+              <div class="sum-cell"><span class="sum-val">{{ s.orderCount }}</span><span class="sum-lbl">Orders</span></div>
+              <div class="sum-cell"><span class="sum-val">{{ s.itemCount }}</span><span class="sum-lbl">Items sold</span></div>
+              <div class="sum-cell"><span class="sum-val">R{{ s.revenue | number:'1.2-2' }}</span><span class="sum-lbl">Revenue</span></div>
+              <div class="sum-cell"><span class="sum-val">R{{ s.cashRevenue | number:'1.2-2' }}</span><span class="sum-lbl">Cash</span></div>
+              <div class="sum-cell"><span class="sum-val">R{{ s.cardRevenue | number:'1.2-2' }}</span><span class="sum-lbl">Card</span></div>
+              <div class="sum-cell"><span class="sum-val">R{{ s.averageOrder | number:'1.2-2' }}</span><span class="sum-lbl">Avg order</span></div>
+            </div>
+            @if (s.voidedCount > 0) { <div class="sum-void">Voided orders: {{ s.voidedCount }}</div> }
+            <div class="cashup">
+              <label>Cash counted in till</label>
+              <input type="number" step="0.01" [ngModel]="cashCounted" (ngModelChange)="cashCounted = $event ? +$event : null" placeholder="0.00" />
+              @if (cashCounted !== null) {
+                @if (expectedTill() !== null) {
+                  <div class="cashup-line">Expected: R{{ expectedTill() | number:'1.2-2' }} <span class="muted-note">(R{{ s.cashRevenue | number:'1.2-2' }} cash + R{{ (s.startingFloat ?? 0) | number:'1.2-2' }} float)</span></div>
+                }
+                <div class="cashup-diff" [class.short]="cashCounted < expectedTill()!" [class.over]="cashCounted > expectedTill()!">
+                  {{ cashCounted < expectedTill()! ? 'Short' : cashCounted > expectedTill()! ? 'Over' : 'Balanced' }}: R{{ (cashCounted - expectedTill()!) | number:'1.2-2' }}
+                </div>
               }
-              <div class="cashup-diff" [class.short]="cashCounted < expectedTill()!" [class.over]="cashCounted > expectedTill()!">
-                {{ cashCounted < expectedTill()! ? 'Short' : cashCounted > expectedTill()! ? 'Over' : 'Balanced' }}: R{{ (cashCounted - expectedTill()!) | number:'1.2-2' }}
-              </div>
-            }
+            </div>
           </div>
-          <app-btn variant="primary" (onClick)="shiftSummary.set(null)">Done</app-btn>
+          <div class="sum-acts">
+            <app-btn variant="primary" (onClick)="shiftSummary.set(null)">Done</app-btn>
+          </div>
         </div>
       </div>
     }
@@ -228,7 +236,8 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
     @if (configurator(); as cfg) {
       <div class="complete" (click)="configurator.set(null)">
         <div class="complete-card size-card" (click)="$event.stopPropagation()">
-          <strong>{{ cfg.item.name }}</strong>
+          <div class="cfg-scroll">
+            <strong>{{ cfg.item.name }}</strong>
           <span class="size-sub">Choose options</span>
           @if (cfg.item.sizes?.length) {
             <div class="cfg-group">
@@ -254,6 +263,7 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
           }
           <input class="cfg-note" [(ngModel)]="cfg.note" placeholder="Note for the barista (optional)" />
           <div class="cfg-total">Total <strong>R{{ cfgTotal(cfg) | number:'1.2-2' }}</strong></div>
+          </div>
           <div class="cfg-acts">
             <app-btn size="sm" (onClick)="configurator.set(null)">Cancel</app-btn>
             <app-btn variant="primary" size="sm" (onClick)="addConfig()">Add to order</app-btn>
@@ -283,46 +293,48 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
     @if (paymentOpen()) {
       <div class="complete">
         <div class="complete-card pay-card">
-          <div class="pay-head">
-            <h3>Payment</h3>
-            <app-btn size="sm" (onClick)="paymentOpen.set(false)">✕</app-btn>
-          </div>
-          <div class="pay-total">
-            <span class="pay-total-lbl">Total due</span>
-            <span class="pay-total-val">R{{ netTotal() | number:'1.2-2' }}</span>
-          </div>
-
-        
-
-          <!-- Method toggle -->
-          <div class="pay-methods">
-            <button class="pay-method" [class.on]="payMethod() === 'cash'" (click)="payMethod.set('cash')">💵 Cash</button>
-            <button class="pay-method" [class.on]="payMethod() === 'card'" (click)="payMethod.set('card')">💳 Card</button>
-          </div>
-
-          @if (payMethod() === 'cash') {
-            <!-- Tendered amount + change -->
-            <div class="pay-received">
-              <span class="pay-received-lbl">Received</span>
-              <span class="pay-received-val">R{{ receivedText() || '0' }}</span>
+          <div class="pay-scroll">
+            <div class="pay-head">
+              <h3>Payment</h3>
+              <app-btn size="sm" (onClick)="paymentOpen.set(false)">✕</app-btn>
             </div>
-            <div class="pay-quick">
-              <button class="qk" (click)="setQuick('exact')">Exact</button>
-              <button class="qk" (click)="setQuick('50')">R50</button>
-              <button class="qk" (click)="setQuick('100')">R100</button>
-              <button class="qk" (click)="setQuick('200')">R200</button>
+            <div class="pay-total">
+              <span class="pay-total-lbl">Total due</span>
+              <span class="pay-total-val">R{{ netTotal() | number:'1.2-2' }}</span>
             </div>
-            <div class="pay-keys">
-              @for (k of ['1','2','3','4','5','6','7','8','9','.','0','⌫']; track k) {
-                <button class="pk" (click)="pressKey(k)">{{ k }}</button>
+
+          
+
+            <!-- Method toggle -->
+            <div class="pay-methods">
+              <button class="pay-method" [class.on]="payMethod() === 'cash'" (click)="payMethod.set('cash')">💵 Cash</button>
+              <button class="pay-method" [class.on]="payMethod() === 'card'" (click)="payMethod.set('card')">💳 Card</button>
+            </div>
+
+            @if (payMethod() === 'cash') {
+              <!-- Tendered amount + change -->
+              <div class="pay-received">
+                <span class="pay-received-lbl">Received</span>
+                <span class="pay-received-val">R{{ receivedText() || '0' }}</span>
+              </div>
+              <div class="pay-quick">
+                <button class="qk" (click)="setQuick('exact')">Exact</button>
+                <button class="qk" (click)="setQuick('50')">R50</button>
+                <button class="qk" (click)="setQuick('100')">R100</button>
+                <button class="qk" (click)="setQuick('200')">R200</button>
+              </div>
+              <div class="pay-keys">
+                @for (k of ['1','2','3','4','5','6','7','8','9','.','0','⌫']; track k) {
+                  <button class="pk" (click)="pressKey(k)">{{ k }}</button>
+                }
+              </div>
+              @if (change() > 0) {
+                <div class="pay-change"><span>Change</span><strong>R{{ change() | number:'1.2-2' }}</strong></div>
               }
-            </div>
-            @if (change() > 0) {
-              <div class="pay-change"><span>Change</span><strong>R{{ change() | number:'1.2-2' }}</strong></div>
+            } @else {
+              <p class="pay-card-note">Take the card payment on the terminal, then confirm.</p>
             }
-          } @else {
-            <p class="pay-card-note">Take the card payment on the terminal, then confirm.</p>
-          }
+          </div>
 
           <button class="btn-checkout" [disabled]="busy() || !canConfirm()" (click)="confirmPayment()">
             {{ busy() ? 'Placing order…' : payMethod() === 'cash' ? 'Charge R' + (netTotal() | number:'1.2-2') : 'Confirm card payment' }}
@@ -431,7 +443,9 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
     .pick-card { width: min(360px, 100%); padding: 1.5rem; gap: 0.5rem; align-items: stretch; }
     .pick-row { display: flex; justify-content: space-between; align-items: center; padding: 0.8rem 1rem; border: 1px solid var(--border-hover); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); font-family: inherit; cursor: pointer; }
     .pick-row:hover { border-color: var(--accent); }
-    .size-card { width: min(420px, 100%); align-items: stretch; max-height: 84vh; overflow-y: auto; }
+    .size-card { width: min(420px, 100%); align-items: stretch; max-height: calc(100dvh - 3rem); max-height: calc(100vh - 3rem); overflow: hidden; padding: 2.5rem 3rem 0; gap: 0; }
+    .cfg-scroll { overflow-y: auto; display: flex; flex-direction: column; gap: 0.75rem; min-height: 0; padding-bottom: 0.5rem; }
+    .cfg-acts { display: flex; justify-content: flex-end; gap: 0.5rem; padding: 1rem 0 1.25rem; margin-top: 0.5rem; border-top: 1px solid var(--border); flex-shrink: 0; }
     .size-sub { margin: -0.25rem 0 0.5rem; font-size: 0.8125rem; color: var(--muted); }
     .cfg-group { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 0.4rem; }
     .cfg-group-name { font-size: 0.68rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.4rem; }
@@ -453,7 +467,7 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
     .cart-subtotal { font-size: 0.8125rem; color: var(--text-2); }
     .cart-summary { font-size: 1rem; }
     .cart-summary strong { font-size: 1.375rem; font-weight: 800; color: var(--text); }
-    .btn-checkout { margin-top: 0.25rem; padding: 0.9rem 1rem; border: 0; border-radius: var(--radius-sm); background: var(--accent); color: #fff; font-family: inherit; font-size: 1rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease-out; }
+    .btn-checkout { margin: 0.75rem 0 1.25rem; flex-shrink: 0; padding: 0.9rem 1rem; border: 0; border-radius: var(--radius-sm); background: var(--accent); color: #fff; font-family: inherit; font-size: 1rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease-out; }
     .btn-checkout:hover:not(:disabled) { background: var(--accent-hover); transform: translateY(-1px); }
     .btn-checkout:disabled { opacity: 0.35; pointer-events: none; }
 
@@ -487,16 +501,21 @@ interface CartItem { id: number; name: string; price: number; quantity: number; 
     .complete-check { width: 72px; height: 72px; border-radius: 50%; background: var(--green); color: #fff; font-size: 2.25rem; display: flex; align-items: center; justify-content: center; animation: pop 0.3s ease-out; }
     .complete-card strong { font-size: 1.25rem; color: var(--text); }
 
-    /* Receipt + summary overlays */
-    .receipt-wrap { padding: 2rem; gap: 1.25rem; width: min(440px, 100%); }
-    .summary-card { width: min(420px, 100%); }
+    /* Receipt + summary overlays: scrollable body, actions always pinned. */
+    .receipt-wrap { padding: 0; gap: 0; width: min(440px, 100%); overflow: hidden; }
+    .receipt-scroll { overflow-y: auto; padding: 2rem 2rem 0.75rem; display: flex; flex-direction: column; align-items: center; min-height: 0; }
+    .receipt-acts { display: flex; justify-content: center; gap: 0.5rem; padding: 0.9rem 2rem 1.25rem; border-top: 1px solid var(--border); background: var(--surface); flex-shrink: 0; }
+    .summary-card { width: min(420px, 100%); padding: 2.5rem 3rem 0; gap: 0; overflow: hidden; }
+    .sum-scroll { overflow-y: auto; display: flex; flex-direction: column; align-items: center; gap: 0.75rem; min-height: 0; padding-bottom: 0.5rem; }
+    .sum-acts { flex-shrink: 0; width: 100%; display: flex; justify-content: center; padding: 1rem 0 1.5rem; margin-top: 0.5rem; border-top: 1px solid var(--border); }
     .sum-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; width: 100%; margin: 0.5rem 0; }
     .sum-cell { display: flex; flex-direction: column; align-items: center; gap: 0.15rem; background: var(--surface-2); border-radius: var(--radius-sm); padding: 1rem; }
     .sum-val { font-size: 1.375rem; font-weight: 800; color: var(--accent-2); }
     .sum-lbl { font-size: 0.6875rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; }
 
-    /* Payment sheet */
-    .pay-card { width: min(380px, 100%); padding: 1.5rem; }
+    /* Payment sheet: keypad scrolls, Charge stays pinned. */
+    .pay-card { width: min(380px, 100%); padding: 1.5rem 1.5rem 0; gap: 0; overflow: hidden; }
+    .pay-scroll { overflow-y: auto; display: flex; flex-direction: column; align-items: stretch; gap: 0.75rem; min-height: 0; padding-bottom: 0.5rem; }
     .pay-head { display: flex; justify-content: space-between; align-items: center; width: 100%; }
     .pay-head h3 { margin: 0; font-size: 1rem; }
     .pay-total { display: flex; flex-direction: column; align-items: center; gap: 0.1rem; padding: 0.75rem 0 0.25rem; width: 100%; }
