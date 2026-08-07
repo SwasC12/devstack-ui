@@ -78,8 +78,13 @@
     .menu-drop { position: fixed; z-index: 300; transform: translateX(-100%); background: var(--surface); border: 1px solid var(--border-hover); border-radius: var(--radius-sm); box-shadow: var(--shadow-lg); min-width: 175px; padding: 0.35rem; display: flex; flex-direction: column; }
     .menu-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.55rem 0.7rem; border: 0; background: transparent; color: var(--text-2); font-family: inherit; font-size: 0.8rem; font-weight: 600; cursor: pointer; border-radius: 0.5em; text-align: left; white-space: nowrap; }
     .menu-item:hover { background: var(--surface-2); color: var(--text); }
-    .menu-item.danger { color: var(--red); }
+        .menu-item.danger { color: var(--red); }
     .menu-item.danger:hover { background: var(--red-bg); color: var(--red); }
+    .picker { min-width: 280px; }
+    .picker-title { font-size: 0.68rem; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; padding: 0.4rem 0.6rem 0.3rem; }
+    .menu-item.tmpl { flex-direction: column; align-items: flex-start; gap: 0.12rem; }
+    .tmpl-label { font-size: 0.82rem; font-weight: 700; color: var(--text); }
+    .tmpl-desc { font-size: 0.7rem; color: var(--muted); font-weight: 500; }
 
     /* Platform dashboard: table + right rail */
     .platform-grid { display: grid; grid-template-columns: 1fr 310px; gap: 1.25rem; align-items: start; }

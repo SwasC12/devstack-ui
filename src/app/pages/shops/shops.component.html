@@ -137,6 +137,22 @@
               </div>
             }
           }
+
+          <!-- Email template picker: choose a draft, opens in your mail app -->
+          @if (emailPickerFor(); as id) {
+            @if (shopById(id); as s) {
+              <div class="menu-drop picker" [style.left.px]="menuPos()?.x ?? 0" [style.top.px]="menuPos()?.y ?? 0" (click)="$event.stopPropagation()">
+                <div class="picker-title">Email — {{ s.name }}</div>
+                @for (t of emailTemplates; track t.key) {
+                  <button class="menu-item tmpl" (click)="sendEmailTemplate(s, t); closeEmailPicker()">
+                    <span class="tmpl-label">{{ t.label }}</span>
+                    <span class="tmpl-desc">{{ t.desc }}</span>
+                  </button>
+                }
+                <button class="menu-item" (click)="closeEmailPicker()">✕ Cancel</button>
+              </div>
+            }
+          }
         </div>
 
         <aside class="rail">

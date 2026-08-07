@@ -179,31 +179,122 @@ export class ShopsComponent implements OnInit {
 
   // ── Owner contact ────────────────────────────────────
 
-  // One-off email to a shop owner: opens YOUR mail client (e.g. Gmail,
-  // swasteerc@gmail.com) pre-filled with a template - no email service,
-  // no bulk sending, nothing leaves the machine except the draft you send.
-  emailOwner(s: any) {
-    if (!s.ownerEmail) { this.dialog.toast('No owner email on file', 'info'); return; }
-    const subject = `CoffeeShop Pro — ${s.name}`;
-    const body = [
-      'Hi there,',
-      '',
-      '[Write your message here]',
-      '',
-      '—',
-      'Swas · CoffeeShop Pro',
-      'https://devstack-one.vercel.app'
-    ].join('\n');
-    const url = `mailto:${s.ownerEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    // Anchor click with _system: opens the device mail app (Gmail) from the
-    // Capacitor WebView AND from the browser. window.location.href alone gets
-    // swallowed by the WebView navigation handler.
+  // Ready-made email templates (plain text - mailto can't carry HTML).
+  // Each builds a subject + body personalised with the shop's details.
+  readonly emailTemplates: { key: string; label: string; desc: string; subject: (s: any) => string; body: (s: any) => string }[] = [
+    {
+      key: 'welcome', label: '🎉 Welcome / onboarding', desc: 'New shop: logins, install, printer',
+      subject: (s) => `Welcome to CoffeeShop Pro — ${s.name} ☕`,
+      body: (s) => [
+        `Hi ${s.name} team,`,
+        '',
+        'Welcome to CoffeeShop Pro! 🎉 Your shop is live and ready to go.',
+        '',
+        'Here\'s your quick start:',
+        `🔑 Sign in — shop code ${s.code}, using the admin username we created for you.`,
+        '📱 Get the app — I\'ll send you the install link/APK.',
+        '🖨 Receipt printer — connect it via Android print and you\'re set.',
+        '',
+        'Need a hand with the menu, staff PINs or anything else? Just reply to this email.',
+        '',
+        '—',
+        'Swas · CoffeeShop Pro',
+        'https://devstack-one.vercel.app'
+      ].join('\n')
+    },
+    {
+      key: 'update', label: '📦 Update available', desc: 'New version released — install now',
+      subject: (s) => `CoffeeShop Pro update available — ${s.name}`,
+      body: (s) => [
+        `Hi ${s.name} team,`,
+        '',
+        'A new version of CoffeeShop Pro is available. 📦',
+        '',
+        'At sign-in you\'ll see an update banner — it downloads automatically, then tap "Install now" when it\'s ready. Takes about a minute.',
+        '',
+        'If anything looks off after updating, reply and I\'ll sort it out.',
+        '',
+        '—',
+        'Swas · CoffeeShop Pro',
+        'https://devstack-one.vercel.app'
+      ].join('\n')
+    },
+    {
+      key: 'maintenance', label: '🔧 Maintenance notice', desc: 'Planned downtime — heads up',
+      subject: (s) => `Planned maintenance — ${s.name}`,
+      body: (s) => [
+        `Hi ${s.name} team,`,
+        '',
+        'Heads up: we\'re doing planned maintenance on CoffeeShop Pro. 🔧',
+        '',
+        '⏰ When: [date/time]',
+        '⏳ Expected downtime: [~X minutes]',
+        '',
+        'During that window the till may not be able to place orders. If you\'re open then, let me know and I\'ll reschedule.',
+        '',
+        '—',
+        'Swas · CoffeeShop Pro',
+        'https://devstack-one.vercel.app'
+      ].join('\n')
+    },
+    {
+      key: 'suspended', label: '⚠️ Action needed', desc: 'Shop suspended / account issue',
+      subject: (s) => `Action needed — ${s.name}`,
+      body: (s) => [
+        `Hi ${s.name} team,`,
+        '',
+        'Your shop has been suspended, so staff can\'t sign in for now. ⚠️',
+        '',
+        '[What\'s needed to get you back online — e.g. payment, review, etc.]',
+        '',
+        'Reply to this email and we\'ll get you sorted as fast as possible.',
+        '',
+        '—',
+        'Swas · CoffeeShop Pro',
+        'https://devstack-one.vercel.app'
+      ].join('\n')
+    },
+    {
+      key: 'tip', label: '💡 Feature tip', desc: 'A handy feature you might have missed',
+      subject: (s) => `A handy CoffeeShop Pro tip — ${s.name}`,
+      body: (s) => [
+        `Hi ${s.name} team,`,
+        '',
+        'Quick tip: use the cash-up screen when you close a shift. 💡',
+        '',
+        'Enter the float you started with at clock-in, count the till when you close, and the app tells you if it\'s short, over or balanced — no more guessing at end of day.',
+        '',
+        'Want more tips? Reply and I\'ll send a few.',
+        '',
+        '—',
+        'Swas · CoffeeShop Pro',
+        'https://devstack-one.vercel.app'
+      ].join('\n')
+    }
+  ];
+
+  // Template picker state (opens as a second panel at the ⋮ menu position)
+  readonly emailPickerFor = signal<number | null>(null);
+  openEmailPicker(s: any) { this.emailPickerFor.set(s.id); }
+  closeEmailPicker() { this.emailPickerFor.set(null); }
+
+  // Open the chosen template in the device mail app (Gmail) as a pre-filled draft.
+  sendEmailTemplate(s: any, t: { subject: (s: any) => string; body: (s: any) => string }) {
+    const url = `mailto:${s.ownerEmail}?subject=${encodeURIComponent(t.subject(s))}&body=${encodeURIComponent(t.body(s))}`;
     const a = document.createElement('a');
     a.href = url;
     a.target = '_system';
     document.body.appendChild(a);
     a.click();
     a.remove();
+  }
+
+  // One-off email to a shop owner: opens YOUR mail client (e.g. Gmail,
+  // swasteerc@gmail.com) pre-filled with a template - no email service,
+  // no bulk sending, nothing leaves the machine except the draft you send.
+  emailOwner(s: any) {
+    if (!s.ownerEmail) { this.dialog.toast('No owner email on file', 'info'); return; }
+    this.openEmailPicker(s);
   }
 
   openOwnerEdit(s: any) { this.ownerEdit = s; this.fOwnerEmail = s.ownerEmail ?? ''; this.fOwnerPhone = s.ownerPhone ?? ''; }
