@@ -116,6 +116,18 @@ export class ShopsComponent implements OnInit {
     return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
   }
 
+  // Dismissible for the day (fresh numbers each morning, no clutter mid-day).
+  readonly welcomeHidden = signal(this.welcomeDismissedForToday());
+
+  private welcomeDismissedForToday(): boolean {
+    return localStorage.getItem('platform_welcome_hidden') === new Date().toISOString().slice(0, 10);
+  }
+
+  dismissWelcome() {
+    localStorage.setItem('platform_welcome_hidden', new Date().toISOString().slice(0, 10));
+    this.welcomeHidden.set(true);
+  }
+
   welcomeIssues(): string | null {
     const s = this.overview()?.stats;
     if (!s) return null;

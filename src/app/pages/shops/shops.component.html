@@ -6,7 +6,9 @@
       </div>
 
       @if (tab() === 'shops') {
+      @if (!welcomeHidden()) {
       <div class="welcome" [class.warn]="welcomeIssues()">
+        <button class="welcome-close" (click)="dismissWelcome()" title="Hide for today">✕</button>
         <div class="welcome-main">{{ greeting() }}, {{ auth.getUser()?.displayName || 'boss' }} 👋</div>
         <div class="welcome-line">{{ overview()?.stats?.activeShops ?? 0 }} shops active · {{ overview()?.stats?.ordersToday ?? 0 }} orders processed today.</div>
         @if (welcomeIssues(); as issues) {
@@ -15,6 +17,7 @@
           <div class="welcome-ok">No platform issues detected.</div>
         }
       </div>
+      }
 
       <div class="section-head">
         <h2 class="page-title">Shops</h2>
