@@ -5,19 +5,8 @@ import { Component, OnDestroy, OnInit } from '@angular/core';
 @Component({
   selector: 'app-clock',
   standalone: true,
-  template: `<span class="clock">{{ time }}</span>`,
-  styles: [
-    `
-      .clock {
-        font-size: 0.8125rem;
-        font-weight: 600;
-        color: var(--text-2);
-        font-variant-numeric: tabular-nums;
-        white-space: nowrap;
-        letter-spacing: 0.02em;
-      }
-    `,
-  ],
+  templateUrl: './clock.component.html',
+  styleUrl: './clock.component.scss',
 })
 export class ClockComponent implements OnInit, OnDestroy {
   time = '';

@@ -1,0 +1,40 @@
+
+    @if (state(); as s) {
+      @switch (s.kind) {
+        @case ('toast') {
+          <div class="toast" [class.err]="s.type === 'error'" [class.ok]="s.type === 'success'">
+            {{ s.message }}
+          </div>
+        }
+        @default {
+          <div class="scrim" (click)="cancel()">
+            <div class="panel" (click)="$event.stopPropagation()">
+              <h3 class="panel-title">{{ s.title }}</h3>
+              <p class="panel-msg">{{ s.message }}</p>
+              @if (s.kind === 'prompt') {
+                <input class="panel-input" [class.reveal]="s.inputType === 'text'"
+                  [type]="s.inputType === 'pin' ? 'password' : 'text'"
+                  [attr.inputmode]="s.inputType === 'pin' ? 'numeric' : null"
+                  [maxlength]="s.inputType === 'pin' ? 6 : null"
+                  [(ngModel)]="promptValue" (keyup.enter)="ok()" autocomplete="off" [placeholder]="s.placeholder" />
+              }
+              @if (s.kind === 'reveal') {
+                <div class="reveal-row">
+                  <input class="panel-input reveal" [value]="s.value" readonly (focus)="onRevealFocus($event)" />
+                  <button type="button" class="btn ghost copy" (click)="copyReveal(s.value)">{{ copied() ? 'Copied ✓' : 'Copy' }}</button>
+                </div>
+              }
+              <div class="panel-actions">
+                @if (s.kind !== 'alert' && s.kind !== 'reveal') {
+                  <button type="button" class="btn ghost" (click)="cancel()">Cancel</button>
+                }
+                <button type="button" class="btn primary" (click)="ok()">
+                  {{ s.kind === 'confirm' ? 'Delete' : s.kind === 'prompt' ? 'Set' : 'Done' }}
+                </button>
+              </div>
+            </div>
+          </div>
+        }
+      }
+    }
+  

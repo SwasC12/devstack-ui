@@ -1,0 +1,321 @@
+
+    <!-- Not on shift: one big, obvious clock-in screen. No POS until you're in. -->
+    @if (!shiftActive()) {
+      <div class="clockin">
+        <div class="clockin-card">
+          @if (shopInfo()?.logoUrl) { <img [src]="shopInfo()?.logoUrl" alt="" class="clockin-logo" /> }
+          @else { <div class="clockin-logo placeholder"><app-logo [size]="40" /></div> }
+          <h2>{{ auth.getUser()?.displayName }}</h2>
+          <p class="clockin-sub">{{ shopInfo()?.name || 'CoffeeShop Pro' }}</p>
+          <div class="clockin-float">
+            <label>Starting float (cash in the till)</label>
+            <input type="number" step="0.01" min="0" [(ngModel)]="floatInput" placeholder="0.00" />
+          </div>
+          <button class="btn-start" (click)="startShift()" [disabled]="startingShift()">
+            {{ startingShift() ? 'Starting…' : 'Start shift' }}
+          </button>
+          <!-- Handover: the next cashier taps here → straight to PIN sign-in -->
+          <button class="btn-switch" (click)="switchUser()">Switch user</button>
+        </div>
+      </div>
+    } @else {
+      <!-- Top bar: logo · search · end shift -->
+      <div class="pos-bar">
+        <div class="pos-bar-left">
+          @if (shopInfo()?.logoUrl) { <img [src]="shopInfo()?.logoUrl" alt="" class="pos-logo" /> }
+          <div class="pos-user-wrap">
+            <span class="pos-user">{{ auth.getUser()?.displayName }}</span>
+            <span class="shift-badge on">Shift on</span>
+          </div>
+        </div>
+        <div class="pos-search">
+          <span class="search-ic">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
+          </span>
+          <input [(ngModel)]="search" (ngModelChange)="onSearch()" placeholder="Search drinks…" />
+        </div>
+        <div class="pos-bar-right">
+          <app-clock />
+          <button class="pos-reprint" (click)="reprintLast()" [disabled]="!lastReceipt()" title="Reprint last receipt">🖨</button>
+          <app-btn size="sm" (onClick)="endShift()">End shift</app-btn>
+        </div>
+      </div>
+
+      <!-- Order complete -->
+      @if (complete()) {
+        <div class="complete">
+          <div class="complete-card">
+            <span class="complete-check">✓</span>
+            <strong>Order Complete</strong>
+          </div>
+        </div>
+      }
+
+      <!-- Main POS layout: categories · products · current order -->
+      <div class="pos-layout">
+        <aside class="cats">
+          @for (cat of categories; track cat) {
+            <button class="cat-btn" [class.active]="cat === activeCat" (click)="activeCat = cat">{{ cat }}</button>
+          }
+        </aside>
+
+        <div class="pos-menu">
+          @if (searching()) {
+            <p class="results-hint">{{ filtered().length }} result{{ filtered().length === 1 ? '' : 's' }} for “{{ query() }}”</p>
+          }
+          @if (loading()) {
+            <div class="items">
+              @for (s of skeletonCards(); track s) {
+                <div class="item skel">
+                  <div class="item-img shimmer"></div>
+                  <div class="item-body">
+                    <span class="sk-line shimmer" style="width:70%"></span>
+                    <span class="sk-line shimmer" style="width:40%"></span>
+                  </div>
+                </div>
+              }
+            </div>
+          } @else {
+          <div class="items">
+            @for (item of filtered(); track item.id) {
+              <button class="item" [class.sold]="!item.isAvailable || item.stockQuantity < 1 || inCartAtStock(item.id)"
+                (click)="addToCart(item)" [disabled]="!item.isAvailable || item.stockQuantity < 1 || inCartAtStock(item.id)">
+                @if (item.imageUrl) { <img [src]="item.imageUrl" alt="" class="item-img" /> }
+                @else { <div class="item-img placeholder"><app-logo [size]="54" /></div> }
+                <div class="item-body">
+                  <span class="item-name">{{ item.name }}</span>
+                  @if (item.sizes?.length) {
+                    <span class="item-price">from R{{ minSizePrice(item) | number:'1.2-2' }}</span>
+                    <span class="item-sizes">{{ sizeNames(item) }}</span>
+                  } @else {
+                    <span class="item-price">R{{ item.price | number:'1.2-2' }}</span>
+                  }
+                </div>
+                @if (!item.isAvailable || item.stockQuantity < 1) { <span class="item-badge">Sold out</span> }
+              </button>
+            } @empty {
+              <div class="items-empty">
+                <span class="empty-ic">☕</span>
+                <p>No products here</p>
+                <p class="sub">Add products in the admin panel.</p>
+              </div>
+            }
+          </div>
+          }
+        </div>
+
+        <!-- Current order — always visible, never hidden. On narrow screens the
+             whole panel becomes a bottom drawer whose header stays peeking. -->
+        <div class="cart" [class.cart-open]="cartOpen()">
+          <div class="cart-head" (click)="toggleCart()">
+            <h2 class="cart-title">Current order</h2>
+            <span class="cart-head-total">R{{ total() | number:'1.2-2' }}</span>
+            @if (cart().length) { <span class="cart-count">{{ cart().length }} item{{ cart().length !== 1 ? 's' : '' }}</span> }
+            <span class="cart-chev">{{ cartOpen() ? '▾' : '▴' }}</span>
+          </div>
+          <div class="cart-items">
+            @if (cart().length === 0) {
+              <div class="cart-empty">
+                <span class="empty-ic">🛒</span>
+                <p>No items yet</p>
+                <p class="sub">Tap a drink to begin.</p>
+              </div>
+            }
+            @for (ci of cart(); track lineKey(ci)) {
+              <div class="cart-row">
+                <div class="cart-info">
+                  <span class="cart-name">{{ ci.name }}</span>
+                  @if (ci.sizeName) { <span class="cart-size">{{ ci.sizeName }}</span> }
+                  @if (ci.modifiers?.length) { <span class="cart-mod">{{ modSummary(ci) }}</span> }
+                  @if (ci.note) { <span class="cart-note">📝 {{ ci.note }}</span> }
+                  <span class="cart-unit">R{{ ci.price | number:'1.2-2' }} ea</span>
+                </div>
+                <div class="cart-qty">
+                  <button class="qty-btn" (click)="updateQty(ci, -1)">−</button>
+                  <span class="qty-val">{{ ci.quantity }}</span>
+                  <button class="qty-btn" [disabled]="inCartAtStock(ci.id)" (click)="updateQty(ci, 1)">+</button>
+                </div>
+                <span class="cart-total">R{{ (ci.price * ci.quantity) | number:'1.2-2' }}</span>
+              </div>
+            }
+          </div>
+          <div class="cart-foot">
+            <div class="cart-subtotal"><span>Subtotal</span><span>R{{ total() | number:'1.2-2' }}</span></div>
+            @if (selectedDiscount(); as d) {
+              <div class="cart-discount"><span>{{ d.name }}</span><span>−R{{ discountAmount() | number:'1.2-2' }}</span></div>
+              <button class="link-clear" (click)="selectedDiscount.set(null)">Remove discount</button>
+            } @else if (liveDiscounts().length) {
+              <button class="disc-btn" (click)="discountOpen.set(true)">🏷 Add discount</button>
+            }
+            <div class="cart-summary"><span>Total</span><strong>R{{ netTotal() | number:'1.2-2' }}</strong></div>
+            <button class="btn-checkout" (click)="checkout()" [disabled]="cart().length === 0 || busy()">
+              {{ busy() ? 'Placing order…' : 'Checkout · R' + (netTotal() | number:'1.2-2') }}
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- Overlays at the ROOT so they render on the clock-in screen too —
+         the shift summary must pop up the moment a shift ENDS. -->
+
+    <!-- Receipt after checkout -->
+    @if (lastOrder(); as o) {
+      <div class="complete">
+        <div class="complete-card receipt-wrap" #receiptBox>
+          <div class="receipt-scroll">
+            <app-receipt [order]="o" [shop]="shopInfo()" [cashierName]="auth.getUser()?.displayName ?? ''" />
+          </div>
+          <div class="receipt-acts">
+            <app-btn size="sm" (onClick)="printReceipt()">Print</app-btn>
+            <app-btn variant="primary" size="sm" (onClick)="closeReceipt()">New order</app-btn>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- Shift summary after clock-out -->
+    @if (shiftSummary(); as s) {
+      <div class="complete">
+        <div class="complete-card summary-card">
+          <div class="sum-scroll">
+            <span class="complete-check">✓</span>
+            <strong>Shift over — well done!</strong>
+            <div class="sum-grid">
+              <div class="sum-cell"><span class="sum-val">{{ s.orderCount }}</span><span class="sum-lbl">Orders</span></div>
+              <div class="sum-cell"><span class="sum-val">{{ s.itemCount }}</span><span class="sum-lbl">Items sold</span></div>
+              <div class="sum-cell"><span class="sum-val">R{{ s.revenue | number:'1.2-2' }}</span><span class="sum-lbl">Revenue</span></div>
+              <div class="sum-cell"><span class="sum-val">R{{ s.cashRevenue | number:'1.2-2' }}</span><span class="sum-lbl">Cash</span></div>
+              <div class="sum-cell"><span class="sum-val">R{{ s.cardRevenue | number:'1.2-2' }}</span><span class="sum-lbl">Card</span></div>
+              <div class="sum-cell"><span class="sum-val">R{{ s.averageOrder | number:'1.2-2' }}</span><span class="sum-lbl">Avg order</span></div>
+            </div>
+            @if (s.voidedCount > 0) { <div class="sum-void">Voided orders: {{ s.voidedCount }}</div> }
+            <div class="cashup">
+              <label>Cash counted in till</label>
+              <input type="number" step="0.01" [ngModel]="cashCounted" (ngModelChange)="cashCounted = $event ? +$event : null" placeholder="0.00" />
+              @if (cashCounted !== null) {
+                @if (expectedTill() !== null) {
+                  <div class="cashup-line">Expected: R{{ expectedTill() | number:'1.2-2' }} <span class="muted-note">(R{{ s.cashRevenue | number:'1.2-2' }} cash + R{{ (s.startingFloat ?? 0) | number:'1.2-2' }} float)</span></div>
+                }
+                <div class="cashup-diff" [class.short]="cashCounted < expectedTill()!" [class.over]="cashCounted > expectedTill()!">
+                  {{ cashCounted < expectedTill()! ? 'Short' : cashCounted > expectedTill()! ? 'Over' : 'Balanced' }}: R{{ (cashCounted - expectedTill()!) | number:'1.2-2' }}
+                </div>
+              }
+            </div>
+          </div>
+          <div class="sum-acts">
+            <app-btn variant="primary" (onClick)="shiftSummary.set(null)">Done</app-btn>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- Product configurator (sizes / modifiers / note) -->
+    @if (configurator(); as cfg) {
+      <div class="complete" (click)="configurator.set(null)">
+        <div class="complete-card size-card" (click)="$event.stopPropagation()">
+          <div class="cfg-head">
+            <strong>{{ cfg.item.name }}</strong>
+            <span class="size-sub">Choose options</span>
+          </div>
+          <div class="cfg-scroll">
+          @if (cfg.item.sizes?.length) {
+            <div class="cfg-group">
+              <span class="cfg-group-name">Size</span>
+              @for (s of cfg.item.sizes; track s.id) {
+                <button class="cfg-opt" [class.on]="cfg.sizeId === s.id" (click)="cfgPickSize(cfg, s.id)">
+                  <span>{{ s.name }}</span>
+                  <span class="cfg-price">R{{ s.price | number:'1.2-2' }}</span>
+                </button>
+              }
+            </div>
+          }
+          @for (g of cfg.item.modifierGroups ?? []; track g.id) {
+            <div class="cfg-group">
+              <span class="cfg-group-name">{{ g.name }}</span>
+              @for (m of g.modifiers; track m.id) {
+                <button class="cfg-opt" [class.on]="cfg.mods[m.id]" (click)="cfgToggleMod(cfg, g, m.id)">
+                  <span>{{ m.name }}</span>
+                  <span class="cfg-price">{{ m.priceDelta > 0 ? '+' + (m.priceDelta | number:'1.2-2') : '' }}</span>
+                </button>
+              }
+            </div>
+          }
+          <input class="cfg-note" [(ngModel)]="cfg.note" placeholder="Note for the barista (optional)" />
+          </div>
+          <div class="cfg-total">Total <strong>R{{ cfgTotal(cfg) | number:'1.2-2' }}</strong></div>
+          <div class="cfg-acts">
+            <app-btn size="sm" [block]="true" (onClick)="configurator.set(null)">Cancel</app-btn>
+            <app-btn variant="primary" size="sm" [block]="true" (onClick)="addConfig()">Add to order</app-btn>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- Discount picker -->
+    @if (discountOpen()) {
+      <div class="complete">
+        <div class="complete-card pick-card">
+          <div class="pay-head"><h3>Discounts &amp; specials</h3><app-btn size="sm" (onClick)="discountOpen.set(false)">✕</app-btn></div>
+          @for (d of liveDiscounts(); track d.id) {
+            <button class="pick-row" (click)="applyDiscount(d)">
+              <span class="pick-name">{{ d.name }}</span>
+              <span class="pick-val">{{ d.type === 'percent' ? d.value + '% off' : 'R' + (d.value | number:'1.2-2') + ' off' }}</span>
+            </button>
+          } @empty {
+            <p class="hint" style="margin:0.5rem 0;">No discounts live right now.</p>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- Payment sheet -->
+    @if (paymentOpen()) {
+      <div class="complete">
+        <div class="complete-card pay-card">
+          <div class="pay-head">
+            <h3>Payment</h3>
+            <app-btn size="sm" (onClick)="paymentOpen.set(false)">✕</app-btn>
+          </div>
+          <div class="pay-total">
+            <span class="pay-total-lbl">Total due</span>
+            <span class="pay-total-val">R{{ netTotal() | number:'1.2-2' }}</span>
+          </div>
+
+          <!-- Method toggle -->
+          <div class="pay-methods">
+            <button class="pay-method" [class.on]="payMethod() === 'cash'" (click)="payMethod.set('cash')">💵 Cash</button>
+            <button class="pay-method" [class.on]="payMethod() === 'card'" (click)="payMethod.set('card')">💳 Card</button>
+          </div>
+
+          @if (payMethod() === 'cash') {
+            <!-- Tendered amount + change -->
+            <div class="pay-received">
+              <span class="pay-received-lbl">Received</span>
+              <span class="pay-received-val">R{{ receivedText() || '0' }}</span>
+            </div>
+            <div class="pay-quick">
+              <button class="qk" (click)="setQuick('exact')">Exact</button>
+              <button class="qk" (click)="setQuick('50')">R50</button>
+              <button class="qk" (click)="setQuick('100')">R100</button>
+              <button class="qk" (click)="setQuick('200')">R200</button>
+            </div>
+            <div class="pay-keys">
+              @for (k of ['1','2','3','4','5','6','7','8','9','.','0','⌫']; track k) {
+                <button class="pk" (click)="pressKey(k)">{{ k }}</button>
+              }
+            </div>
+            @if (change() > 0) {
+              <div class="pay-change"><span>Change</span><strong>R{{ change() | number:'1.2-2' }}</strong></div>
+            }
+          } @else {
+            <p class="pay-card-note">Take the card payment on the terminal, then confirm.</p>
+          }
+
+          <button class="btn-checkout" [disabled]="busy() || !canConfirm()" (click)="confirmPayment()">
+            {{ busy() ? 'Placing order…' : payMethod() === 'cash' ? 'Charge R' + (netTotal() | number:'1.2-2') : 'Confirm card payment' }}
+          </button>
+        </div>
+      </div>
+    }
+  

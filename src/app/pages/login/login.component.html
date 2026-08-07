@@ -1,0 +1,59 @@
+
+    <div class="login">
+      <div class="login-card card">
+        <div class="login-header">
+          <div class="login-logo"><app-logo [size]="40" /></div>
+          <h2>{{ platform ? 'Platform sign in' : 'Shop sign in' }}</h2>
+          <p class="login-sub">{{ platform ? 'DevStack — platform owner access' : 'CoffeeShop Pro' }}</p>
+        </div>
+
+        @if (error()) {
+          <div class="alert-error">{{ error() }}</div>
+        }
+
+        @if (platform) {
+          <!-- Platform owner: no shop code, private URL -->
+          <input [(ngModel)]="username" placeholder="Username" (keyup.enter)="login()" autocomplete="username" />
+          <app-password [(ngModel)]="password" placeholder="Password" autocomplete="current-password" (enter)="login()" />
+          <app-btn variant="primary" [block]="true" [loading]="busy()" (onClick)="login()">Sign in to platform</app-btn>
+          <p class="login-alt"><a routerLink="/login">Shop staff? Sign in here</a></p>
+        } @else if (!pinMode()) {
+          <!-- Shop staff, password -->
+          <input [(ngModel)]="shopCode" placeholder="Shop code" (keyup.enter)="login()" autocomplete="organization" />
+          <input [(ngModel)]="username" placeholder="Username" (keyup.enter)="login()" autocomplete="username" />
+          <app-password [(ngModel)]="password" placeholder="Password" autocomplete="current-password" (enter)="login()" />
+          <app-btn variant="primary" [block]="true" [loading]="busy()" (onClick)="login()">Sign in</app-btn>
+          <button class="link-btn" (click)="enablePin()">Use PIN sign-in</button>
+        } @else if (!staffList()) {
+          <!-- PIN flow: shop code first -->
+          <h3 class="step-title">PIN sign-in</h3>
+          <p class="step-sub">Enter your shop code</p>
+          <input [(ngModel)]="shopCode" placeholder="Shop code" (keyup.enter)="loadStaff()" autocomplete="organization" />
+          <app-btn variant="primary" [block]="true" [loading]="pinBusy()" (onClick)="loadStaff()">Continue</app-btn>
+          <button class="link-btn" (click)="exitPin()">Back to password</button>
+        } @else if (!pinUser()) {
+          <!-- PIN flow: pick your name -->
+          <h3 class="step-title">Who are you?</h3>
+          <div class="staff-list">
+            @for (m of staffList()!; track m.id) {
+              <button class="staff-btn" (click)="selectStaff(m)">
+                <span class="staff-avatar">{{ m.displayName.charAt(0) }}</span>
+                <span class="staff-name">{{ m.displayName }}</span>
+                <span class="staff-role">{{ m.role }}</span>
+              </button>
+            } @empty {
+              <p class="step-sub">No staff yet — an owner needs to add staff and set a PIN.</p>
+            }
+          </div>
+          <button class="link-btn" (click)="exitPin()">Back to password</button>
+        } @else {
+          <!-- PIN flow: enter PIN -->
+          <h3 class="step-title">Enter your PIN</h3>
+          <p class="step-sub">{{ pinUser()?.displayName }}</p>
+          <app-password [pin]="true" [(ngModel)]="pin" placeholder="••••" inputmode="numeric" [maxlength]="6" (enter)="pinLogin()" />
+          <app-btn variant="primary" [block]="true" [loading]="pinBusy()" (onClick)="pinLogin()">Sign in</app-btn>
+          <button class="link-btn" (click)="pinUser.set(null); pin = ''">Not you?</button>
+        }
+      </div>
+    </div>
+  

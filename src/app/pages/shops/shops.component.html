@@ -1,0 +1,101 @@
+
+    <div class="shops">
+      <div class="section-head">
+        <h2 class="page-title">Shops</h2>
+        <app-btn variant="primary" (onClick)="openForm()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          New shop
+        </app-btn>
+      </div>
+
+      <!-- Announcement composer: type a message, push it to owners' notifications -->
+      <div class="form-sheet announce">
+        <div class="form-head"><h3>📣 Notify owners</h3></div>
+        <div class="form-grid">
+          <div class="field"><label>Title</label><input [(ngModel)]="bcTitle" placeholder="e.g. Update available" /></div>
+          <div class="field">
+            <label>Send to</label>
+            <select [(ngModel)]="bcShopId" class="sel">
+              <option [ngValue]="null">All shops</option>
+              @for (s of shops(); track s.id) { <option [ngValue]="s.id">{{ s.name }}</option> }
+            </select>
+          </div>
+          <div class="field wide"><label>Message</label><textarea [(ngModel)]="bcBody" rows="3" placeholder="Type your announcement here…"></textarea></div>
+        </div>
+        <div class="form-acts">
+          <app-btn variant="primary" size="sm" (onClick)="broadcast()" [loading]="bcBusy()">Send notification</app-btn>
+        </div>
+      </div>
+
+      @if (showForm()) {
+        <div class="form-sheet">
+          <div class="form-head">
+            <h3>New shop</h3>
+            <app-btn size="sm" (onClick)="closeForm()">✕</app-btn>
+          </div>
+          <div class="form-grid">
+            <div class="field"><label>Shop name</label><input [(ngModel)]="fName" placeholder="e.g. Rosebank Coffee" /></div>
+            <div class="field"><label>Shop code</label><input [(ngModel)]="fCode" placeholder="e.g. ROSEBANK" (keyup)="fCode = fCode.toUpperCase()" /></div>
+            <div class="field"><label>First admin username</label><input [(ngModel)]="fAdminUser" placeholder="e.g. owner" /></div>
+            <div class="field"><label>First admin password</label><app-password [(ngModel)]="fAdminPass" placeholder="Min 10 · upper + lower + digit" autocomplete="new-password" /></div>
+            <div class="field"><label>Admin display name</label><input [(ngModel)]="fAdminDisplay" placeholder="e.g. Jane" /></div>
+          </div>
+          <div class="form-acts">
+            <app-btn size="sm" (onClick)="closeForm()">Cancel</app-btn>
+            <app-btn variant="primary" size="sm" (onClick)="save()">Create shop</app-btn>
+          </div>
+        </div>
+      }
+
+      <!-- Owner contact (for future direct emails to shop owners) -->
+      @if (ownerEdit) {
+        <div class="form-sheet">
+          <div class="form-head">
+            <h3>Owner contact — {{ ownerEdit.name }}</h3>
+            <app-btn size="sm" (onClick)="closeOwnerEdit()">✕</app-btn>
+          </div>
+          <div class="form-grid">
+            <div class="field"><label>Owner email</label><input [(ngModel)]="fOwnerEmail" type="email" placeholder="owner@shop.co.za" /></div>
+            <div class="field"><label>Owner phone</label><input [(ngModel)]="fOwnerPhone" placeholder="+27 82 000 0000" /></div>
+          </div>
+          <div class="form-acts">
+            <app-btn size="sm" (onClick)="closeOwnerEdit()">Cancel</app-btn>
+            <app-btn variant="primary" size="sm" (onClick)="saveOwner()" [loading]="ownerBusy()">Save owner</app-btn>
+          </div>
+        </div>
+      }
+
+      <div class="table-card">
+        <table>
+          <thead><tr><th>Name</th><th>Code</th><th>Status</th><th>Users</th><th>Orders</th><th>Last order</th><th>Created</th><th></th></tr></thead>
+          <tbody>
+            @for (s of shops(); track s.id) {
+              <tr [class.row-suspended]="!s.isActive">
+                <td>
+                  <strong>{{ s.name }}</strong>
+                  @if (s.ownerEmail || s.ownerPhone) {
+                    <div class="owner-line">{{ s.ownerEmail || '—' }}@if (s.ownerPhone) { · {{ s.ownerPhone }} }</div>
+                  }
+                </td>
+                <td><span class="pill">{{ s.code }}</span></td>
+                <td><span class="status" [class.on]="s.isActive">{{ s.isActive ? 'Active' : 'Suspended' }}</span></td>
+                <td>{{ s.userCount }}</td>
+                <td>{{ s.orderCount }}</td>
+                <td class="muted">{{ s.lastOrderAt ? (s.lastOrderAt | date:'short') : '—' }}</td>
+                <td class="muted">{{ s.createdAt | date:'mediumDate' }}</td>
+                <td class="cell-acts">
+                  <app-btn size="sm" (onClick)="openOwnerEdit(s)">Owner</app-btn>
+                  <app-btn size="sm" [variant]="s.isActive ? 'danger' : 'primary'" (onClick)="toggleStatus(s)" [loading]="busyId() === s.id">
+                    {{ s.isActive ? 'Suspend' : 'Activate' }}
+                  </app-btn>
+                  <app-btn size="sm" (onClick)="resetPassword(s)">Reset password</app-btn>
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="8" style="color:var(--muted);text-align:center;padding:1.5rem;">No shops yet — create one.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  

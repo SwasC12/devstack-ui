@@ -1,0 +1,16 @@
+
+    <button
+      class="app-btn"
+      [class.primary]="variant === 'primary'"
+      [class.danger]="variant === 'danger'"
+      [class.sm]="size === 'sm'"
+      [class.block]="block"
+      [class.loading]="loading"
+      [disabled]="disabled || loading"
+      (click)="onClick.emit($event)">
+      @if (loading) {
+        <span class="spinner"></span>
+      }
+      <ng-content />
+    </button>
+  
