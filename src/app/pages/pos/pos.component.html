@@ -3,6 +3,14 @@
     @if (!shiftActive()) {
       <div class="clockin">
         <div class="clockin-card">
+          @if (updateInfo(); as u) {
+            <div class="update-banner" [class.required]="u.isRequired">
+              <strong>📦 CoffeeShop Pro {{ u.version }} available</strong>
+              @if (u.releaseNotes) { <span class="upd-notes">{{ u.releaseNotes }}</span> }
+              @if (u.isRequired) { <span class="upd-req">This update is required — please update the app.</span> }
+              <app-btn size="sm" (onClick)="dismissUpdate()">Later</app-btn>
+            </div>
+          }
           @if (shopInfo()?.logoUrl) { <img [src]="shopInfo()?.logoUrl" alt="" class="clockin-logo" /> }
           @else { <div class="clockin-logo placeholder"><app-logo [size]="40" /></div> }
           <h2>{{ auth.getUser()?.displayName }}</h2>

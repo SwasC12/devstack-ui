@@ -4,6 +4,16 @@
     .clockin-card { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; padding: 3rem 3.5rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); text-align: center; }
     .clockin-logo { width: 76px; height: 76px; border-radius: 20px; object-fit: cover; border: 1px solid var(--border); background: var(--surface-2); }
     .clockin-logo.placeholder { display: flex; align-items: center; justify-content: center; color: var(--accent-2); background: linear-gradient(135deg, var(--surface-2), var(--surface-3)); }
+    /* Update banner (clock-in screen only - never interrupts a sale) */
+    .update-banner { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 0.35rem; background: var(--accent-light); border: 1px solid var(--accent); border-radius: var(--radius-sm); padding: 0.8rem 1rem; margin-bottom: 0.75rem; }
+    .update-banner strong { font-size: 0.9rem; color: var(--accent-2); }
+    .upd-notes { font-size: 0.78rem; color: var(--text-2); text-align: center; }
+    .upd-req { font-size: 0.72rem; font-weight: 700; color: var(--warning); text-align: center; }
+    .update-banner.required { border-color: var(--warning); background: var(--warning); }
+    .update-banner.required strong { color: #1a140c; }
+    .update-banner.required .upd-notes { color: #1a140c; }
+    .update-banner.required .upd-req { color: #1a140c; }
+
     .clockin-card h2 { margin: 0.75rem 0 0; font-size: 1.375rem; color: var(--text); }
     .clockin-sub { margin: 0 0 1rem; font-size: 0.8125rem; color: var(--muted); }
     .clockin-float { display: flex; flex-direction: column; gap: 0.3rem; width: 240px; margin-bottom: 0.75rem; }

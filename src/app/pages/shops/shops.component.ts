@@ -44,13 +44,60 @@ export class ShopsComponent implements OnInit {
   // Shop search: name / code / owner email / owner phone
   search = '';
 
-  ngOnInit() { this.load(); this.loadOverview(); this.loadHealth(); }
+  // Tabs: shops dashboard | app releases
+  readonly tab = signal<'shops' | 'releases'>('shops');
+
+  // App releases (superadmin publish/rollback)
+  readonly releases = signal<any[]>([]);
+  rVersion = ''; rNotes = ''; rRequired = false; rApk: File | null = null;
+  readonly rBusy = signal(false);
+
+  ngOnInit() { this.load(); this.loadOverview(); this.loadHealth(); this.loadReleases(); }
 
   private load() { this.service.getShops().subscribe(s => this.shops.set(s)); }
 
   private loadOverview() { this.service.getPlatformOverview().subscribe(o => this.overview.set(o)); }
 
   private loadHealth() { this.service.getPlatformHealth().subscribe(h => this.health.set(h)); }
+
+  private loadReleases() { this.service.getReleases().subscribe(r => this.releases.set(r)); }
+
+  // ── App releases ────────────────────────────────────
+
+  onApkFile(e: Event) {
+    const f = (e.target as HTMLInputElement).files?.[0];
+    this.rApk = f ?? null;
+  }
+
+  publishRelease() {
+    if (!this.rVersion.trim() || !this.rApk) { this.dialog.toast('Version and APK file are required', 'error'); return; }
+    const fd = new FormData();
+    fd.append('version', this.rVersion.trim());
+    fd.append('releaseNotes', this.rNotes.trim());
+    fd.append('isRequired', String(this.rRequired));
+    fd.append('file', this.rApk);
+    this.rBusy.set(true);
+    this.service.publishRelease(fd).subscribe({
+      next: () => {
+        this.rBusy.set(false);
+        this.loadReleases();
+        this.loadOverview();
+        this.rVersion = ''; this.rNotes = ''; this.rRequired = false; this.rApk = null;
+        this.dialog.toast('Release published — shops notified', 'success');
+      },
+      error: (e) => { this.rBusy.set(false); this.dialog.toast(e.error?.error || 'Publish failed', 'error'); }
+    });
+  }
+
+  deleteRelease(r: any) {
+    this.dialog.confirm('Delete release', `Delete v${r.version}?${r.isCurrent ? ' The newest remaining release becomes current again.' : ''}`).then(ok => {
+      if (!ok) return;
+      this.service.deleteRelease(r.id).subscribe({
+        next: () => { this.loadReleases(); this.loadOverview(); },
+        error: (e) => this.dialog.toast(e.error?.error || 'Delete failed', 'error')
+      });
+    });
+  }
 
   readonly filteredShops = () => {
     const q = this.search.trim().toLowerCase();

@@ -199,6 +199,28 @@ export class MenuItemService {
     return this.http.get(`${API}/platform/health`);
   }
 
+  // ── In-app updater ──────────────────────────────────
+
+  getAppVersion(): Observable<any> {
+    return this.http.get(`${API}/app/version`);
+  }
+
+  checkinApp(version: string): Observable<void> {
+    return this.http.post<void>(`${API}/app/checkin`, { version });
+  }
+
+  getReleases(): Observable<any[]> {
+    return this.http.get<any[]>(`${API}/app/releases`);
+  }
+
+  publishRelease(form: FormData): Observable<any> {
+    return this.http.post(`${API}/app/releases`, form);
+  }
+
+  deleteRelease(id: number): Observable<void> {
+    return this.http.delete<void>(`${API}/app/releases/${id}`);
+  }
+
   createShop(data: { name: string; code: string; adminUsername: string; adminPassword: string; adminDisplayName: string }): Observable<any> {
     return this.http.post(`${API}/shops`, data);
   }

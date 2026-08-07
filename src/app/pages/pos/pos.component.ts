@@ -16,6 +16,17 @@ import { SoundService } from '../../sound.service';
 
 interface CartItem { id: number; name: string; price: number; quantity: number; sizeId?: number; sizeName?: string; modifiers?: { groupName: string; name: string; priceDelta: number }[]; note?: string; }
 
+// Semver-ish compare: "1.10" > "1.9", "1.3.0" == "1.3".
+function compareVersions(a: string, b: string): number {
+  const pa = a.split('.').map(n => parseInt(n, 10) || 0);
+  const pb = b.split('.').map(n => parseInt(n, 10) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const d = (pa[i] ?? 0) - (pb[i] ?? 0);
+    if (d !== 0) return d > 0 ? 1 : -1;
+  }
+  return 0;
+}
+
 @Component({
   selector: 'app-pos',
   standalone: true,
@@ -59,6 +70,9 @@ export class PosComponent implements OnInit {
 
   // Order complete overlay
   readonly complete = signal(false);
+
+  // In-app updater: published release info when our version is behind
+  readonly updateInfo = signal<{ version: string; releaseNotes: string; isRequired: boolean } | null>(null);
 
   // Till: payment sheet + receipt
   readonly paymentOpen = signal(false);
@@ -122,7 +136,7 @@ export class PosComponent implements OnInit {
   minSizePrice(item: MenuItem): number { return Math.min(...(item.sizes ?? []).map(s => s.price)); }
   sizeNames(item: MenuItem): string { return (item.sizes ?? []).map(s => s.name).join(' · '); }
 
-  ngOnInit() { this.restoreCart(); this.load(); this.checkShift(); this.loadShop(); this.loadDiscounts(); }
+  ngOnInit() { this.restoreCart(); this.load(); this.checkShift(); this.loadShop(); this.loadDiscounts(); void this.checkForUpdate(); }
 
   private load() {
     this.loading.set(true);
@@ -145,6 +159,37 @@ export class PosComponent implements OnInit {
   }
   private checkShift() { this.service.getActiveShift().subscribe({ next: s => this.shiftActive.set(s.active), error: () => this.dialog.toast('Could not check shift status', 'error') }); }
   private loadShop() { this.service.getShopInfo().subscribe(s => this.shopInfo.set(s)); }
+
+  // In-app updater: compare our native version against the published release
+  // and check in. The banner shows only on the clock-in screen (idle), so a
+  // sale is never interrupted. Required updates reappear on every start.
+  async checkForUpdate() {
+    try {
+      const { App } = await import('@capacitor/app');
+      const info = await App.getInfo();
+      const current = (info.version ?? '').trim();
+      if (!current) return;
+      this.service.getAppVersion().subscribe({
+        next: (res) => {
+          if (!res?.available) return;
+          void this.service.checkinApp(current).subscribe({ error: () => {} });
+          if (compareVersions(res.version, current) > 0) {
+            const dismissed = localStorage.getItem('update_dismissed');
+            if (dismissed !== res.version || res.isRequired) {
+              this.updateInfo.set({ version: res.version, releaseNotes: res.releaseNotes ?? '', isRequired: res.isRequired });
+            }
+          }
+        },
+        error: () => { /* offline or API down - no banner */ }
+      });
+    } catch { /* web build or no native app info - skip */ }
+  }
+
+  dismissUpdate() {
+    const v = this.updateInfo()?.version;
+    if (v) localStorage.setItem('update_dismissed', v);
+    this.updateInfo.set(null);
+  }
 
   startShift() {
     this.startingShift.set(true);

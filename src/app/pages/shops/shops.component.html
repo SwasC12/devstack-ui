@@ -1,5 +1,11 @@
 
     <div class="shops">
+      <div class="page-tabs">
+        <button class="page-tab" [class.on]="tab() === 'shops'" (click)="tab.set('shops')">Shops</button>
+        <button class="page-tab" [class.on]="tab() === 'releases'" (click)="tab.set('releases')">App Releases</button>
+      </div>
+
+      @if (tab() === 'shops') {
       <div class="welcome" [class.warn]="welcomeIssues()">
         <div class="welcome-main">{{ greeting() }}, {{ auth.getUser()?.displayName || 'boss' }} 👋</div>
         <div class="welcome-line">{{ overview()?.stats?.activeShops ?? 0 }} shops active · {{ overview()?.stats?.ordersToday ?? 0 }} orders processed today.</div>
@@ -147,6 +153,19 @@
           </div>
 
           <div class="rail-card">
+            <h3>App Updates</h3>
+            @if (overview()?.update?.currentVersion) {
+              <div class="upd-line"><strong>v{{ overview()?.update?.currentVersion }}</strong> is current</div>
+              <div class="upd-line">{{ overview()?.update?.shopsUpdated ?? 0 }} of {{ overview()?.update?.shopsCheckedIn ?? 0 }} shops updated</div>
+              @if ((overview()?.update?.shopsOnOldVersion ?? 0) > 0) {
+                <div class="upd-line warn">{{ overview()?.update?.shopsOnOldVersion }} still on an old version</div>
+              }
+            } @else {
+              <p class="rail-empty">No release published yet.</p>
+            }
+          </div>
+
+          <div class="rail-card">
             <h3>Live Activity</h3>
             <div class="feed">
               @for (ev of overview()?.events ?? []; track ev.id) {
@@ -172,5 +191,46 @@
           </div>
         </aside>
       </div>
+      }
+
+      @if (tab() === 'releases') {
+        <div class="section-head">
+          <h2 class="page-title">App Releases</h2>
+          <span class="muted">Publish the APK — every shop gets notified, and clients check for updates at startup.</span>
+        </div>
+
+        <div class="form-sheet">
+          <div class="form-head"><h3>Publish a new version</h3></div>
+          <div class="form-grid">
+            <div class="field"><label>Version</label><input [(ngModel)]="rVersion" placeholder="e.g. 1.3.0" /></div>
+            <div class="field"><label>APK file</label><input type="file" accept=".apk" (change)="onApkFile($event)" /></div>
+            <div class="field wide"><label>Release notes</label><textarea [(ngModel)]="rNotes" rows="3" placeholder="What's new in this version…"></textarea></div>
+            <div class="field"><label class="check-label"><input type="checkbox" [(ngModel)]="rRequired" /> Force update (required)</label></div>
+          </div>
+          <div class="form-acts">
+            <app-btn variant="primary" size="sm" (onClick)="publishRelease()" [loading]="rBusy()">Publish</app-btn>
+          </div>
+        </div>
+
+        <div class="table-card">
+          <table class="releases">
+            <thead><tr><th>Version</th><th>Type</th><th>Size</th><th>Notes</th><th>Published</th><th></th></tr></thead>
+            <tbody>
+              @for (r of releases(); track r.id) {
+                <tr>
+                  <td><strong>v{{ r.version }}</strong> @if (r.isCurrent) { <span class="pill">current</span> }</td>
+                  <td>@if (r.isRequired) { <span class="status">Required</span> } @else { <span class="muted">Optional</span> }</td>
+                  <td class="muted">{{ (r.sizeBytes / 1048576) | number:'1.1-1' }} MB</td>
+                  <td class="muted notes-cell">{{ r.releaseNotes }}</td>
+                  <td class="muted">{{ r.createdAtUtc | date:'short' }}</td>
+                  <td class="cell-del"><button class="del-btn" (click)="deleteRelease(r)">Delete</button></td>
+                </tr>
+              } @empty {
+                <tr><td colspan="6" style="color:var(--muted);text-align:center;padding:1.5rem;">No releases yet — publish the first APK.</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
     </div>
   
