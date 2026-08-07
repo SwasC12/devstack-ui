@@ -33,16 +33,41 @@ export class ShopsComponent implements OnInit {
   bcTitle = ''; bcBody = ''; bcShopId: number | null = null;
   readonly bcBusy = signal(false);
 
-  ngOnInit() { this.load(); }
+  // Platform dashboard (right rail): overview counters + live activity feed
+  readonly overview = signal<any | null>(null);
+  // Which shop row has its ⋮ menu open (null = none)
+  readonly menuFor = signal<number | null>(null);
+
+  ngOnInit() { this.load(); this.loadOverview(); }
 
   private load() { this.service.getShops().subscribe(s => this.shops.set(s)); }
+
+  private loadOverview() { this.service.getPlatformOverview().subscribe(o => this.overview.set(o)); }
+
+  // ⋮ row menu
+  toggleMenu(id: number) { this.menuFor.update(m => (m === id ? null : id)); }
+  closeMenu() { this.menuFor.set(null); }
+
+  eventIcon(t: string): string {
+    switch (t) {
+      case 'shop_created': return '🏪';
+      case 'shop_activated': return '✅';
+      case 'shop_suspended': return '⏸️';
+      case 'password_reset': return '🔑';
+      case 'broadcast_sent': return '📣';
+      case 'push_failed': return '⚠️';
+      default: return '•';
+    }
+  }
+
+  focusComposer() { document.querySelector('.announce')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
 
   openForm() { this.showForm.set(true); }
   closeForm() { this.showForm.set(false); }
 
   save() {
     this.service.createShop({ name: this.fName, code: this.fCode, adminUsername: this.fAdminUser, adminPassword: this.fAdminPass, adminDisplayName: this.fAdminDisplay }).subscribe({
-      next: () => { this.load(); this.closeForm(); this.reset(); },
+      next: () => { this.load(); this.loadOverview(); this.closeForm(); this.reset(); },
       error: (e) => this.dialog.toast(e.error?.error || 'Save failed', 'error')
     });
   }
@@ -72,6 +97,7 @@ export class ShopsComponent implements OnInit {
       next: (res) => {
         this.bcBusy.set(false);
         this.sound.sent();
+        this.loadOverview();
         this.dialog.toast(`Sent to ${res.delivered} owner${res.delivered === 1 ? '' : 's'} (${res.pushed} device${res.pushed === 1 ? '' : 's'})`, 'success');
         this.bcTitle = ''; this.bcBody = '';
       },
@@ -87,7 +113,7 @@ export class ShopsComponent implements OnInit {
       if (!ok) return;
       this.busyId.set(s.id);
       this.service.setShopStatus(s.id, !s.isActive).subscribe({
-        next: () => { this.busyId.set(null); this.load(); this.dialog.toast(action === 'suspend' ? 'Shop suspended' : 'Shop activated', 'success'); },
+        next: () => { this.busyId.set(null); this.load(); this.loadOverview(); this.dialog.toast(action === 'suspend' ? 'Shop suspended' : 'Shop activated', 'success'); },
         error: (e) => { this.busyId.set(null); this.dialog.toast(e.error?.error || 'Failed', 'error'); }
       });
     });
@@ -100,6 +126,7 @@ export class ShopsComponent implements OnInit {
       this.service.resetShopAdminPassword(s.id).subscribe({
         next: (res) => {
           this.busyId.set(null);
+          this.loadOverview();
           this.dialog.reveal('New password', `For ${res.username} (${res.displayName}) at ${s.name}. Relay it to the owner — this is the only time it's shown.`, res.password);
         },
         error: (e) => { this.busyId.set(null); this.dialog.toast(e.error?.error || 'Failed', 'error'); }

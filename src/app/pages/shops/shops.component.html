@@ -65,37 +65,87 @@
         </div>
       }
 
-      <div class="table-card">
-        <table>
-          <thead><tr><th>Name</th><th>Code</th><th>Status</th><th>Users</th><th>Orders</th><th>Last order</th><th>Created</th><th></th></tr></thead>
-          <tbody>
-            @for (s of shops(); track s.id) {
-              <tr [class.row-suspended]="!s.isActive">
-                <td>
-                  <strong>{{ s.name }}</strong>
-                  @if (s.ownerEmail || s.ownerPhone) {
-                    <div class="owner-line">{{ s.ownerEmail || '—' }}@if (s.ownerPhone) { · {{ s.ownerPhone }} }</div>
-                  }
-                </td>
-                <td><span class="pill">{{ s.code }}</span></td>
-                <td><span class="status" [class.on]="s.isActive">{{ s.isActive ? 'Active' : 'Suspended' }}</span></td>
-                <td>{{ s.userCount }}</td>
-                <td>{{ s.orderCount }}</td>
-                <td class="muted">{{ s.lastOrderAt ? (s.lastOrderAt | date:'short') : '—' }}</td>
-                <td class="muted">{{ s.createdAt | date:'mediumDate' }}</td>
-                <td class="cell-acts">
-                  <app-btn size="sm" (onClick)="openOwnerEdit(s)">Owner</app-btn>
-                  <app-btn size="sm" [variant]="s.isActive ? 'danger' : 'primary'" (onClick)="toggleStatus(s)" [loading]="busyId() === s.id">
-                    {{ s.isActive ? 'Suspend' : 'Activate' }}
-                  </app-btn>
-                  <app-btn size="sm" (onClick)="resetPassword(s)">Reset password</app-btn>
-                </td>
-              </tr>
-            } @empty {
-              <tr><td colspan="8" style="color:var(--muted);text-align:center;padding:1.5rem;">No shops yet — create one.</td></tr>
-            }
-          </tbody>
-        </table>
+      <div class="platform-grid">
+        <div class="table-col" (click)="closeMenu()">
+          <div class="table-card">
+            <table>
+              <thead><tr><th>Name</th><th>Code</th><th>Status</th><th>Users</th><th>Orders</th><th>Last order</th><th>Created</th><th></th></tr></thead>
+              <tbody>
+                @for (s of shops(); track s.id) {
+                  <tr [class.row-suspended]="!s.isActive">
+                    <td>
+                      <strong>{{ s.name }}</strong>
+                      @if (s.ownerEmail || s.ownerPhone) {
+                        <div class="owner-line">{{ s.ownerEmail || '—' }}@if (s.ownerPhone) { · {{ s.ownerPhone }} }</div>
+                      }
+                    </td>
+                    <td><span class="pill">{{ s.code }}</span></td>
+                    <td><span class="status" [class.on]="s.isActive">{{ s.isActive ? 'Active' : 'Suspended' }}</span></td>
+                    <td>{{ s.userCount }}</td>
+                    <td>{{ s.orderCount }}</td>
+                    <td class="muted">{{ s.lastOrderAt ? (s.lastOrderAt | date:'short') : '—' }}</td>
+                    <td class="muted">{{ s.createdAt | date:'mediumDate' }}</td>
+                    <td>
+                      <div class="row-menu" (click)="$event.stopPropagation()">
+                        <button class="menu-btn" (click)="toggleMenu(s.id)">⋮</button>
+                        @if (menuFor() === s.id) {
+                          <div class="menu-drop">
+                            <button class="menu-item" (click)="openOwnerEdit(s); closeMenu()">👤 Owner contact</button>
+                            <button class="menu-item" (click)="resetPassword(s); closeMenu()">🔑 Reset password</button>
+                            <button class="menu-item" [class.danger]="s.isActive" (click)="toggleStatus(s); closeMenu()">
+                              {{ s.isActive ? '⏸ Suspend' : '▶️ Activate' }}
+                            </button>
+                          </div>
+                        }
+                      </div>
+                    </td>
+                  </tr>
+                } @empty {
+                  <tr><td colspan="8" style="color:var(--muted);text-align:center;padding:1.5rem;">No shops yet — create one.</td></tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <aside class="rail">
+          <div class="rail-card">
+            <h3>Platform Overview</h3>
+            <div class="ov-grid">
+              <div class="ov-cell"><span class="ov-val">{{ overview()?.stats?.activeShops ?? '—' }}</span><span class="ov-lbl">Active shops</span></div>
+              <div class="ov-cell"><span class="ov-val">{{ overview()?.stats?.suspendedShops ?? '—' }}</span><span class="ov-lbl">Suspended</span></div>
+              <div class="ov-cell"><span class="ov-val">{{ overview()?.stats?.ordersToday ?? '—' }}</span><span class="ov-lbl">Orders today</span></div>
+              <div class="ov-cell"><span class="ov-val">{{ overview()?.stats?.notificationsSent30d ?? '—' }}</span><span class="ov-lbl">Notifications 30d</span></div>
+              <div class="ov-cell"><span class="ov-val">{{ overview()?.stats?.passwordResets30d ?? '—' }}</span><span class="ov-lbl">Password resets</span></div>
+              <div class="ov-cell"><span class="ov-val" [class.warn]="(overview()?.stats?.pushFailures30d ?? 0) > 0">{{ overview()?.stats?.pushFailures30d ?? '—' }}</span><span class="ov-lbl">Push failures</span></div>
+            </div>
+          </div>
+
+          <div class="rail-card">
+            <h3>Live Activity</h3>
+            <div class="feed">
+              @for (ev of overview()?.events ?? []; track ev.id) {
+                <div class="feed-item">
+                  <span class="feed-ic">{{ eventIcon(ev.type) }}</span>
+                  <div class="feed-body">
+                    <span class="feed-text">{{ ev.detail }}</span>
+                    <span class="feed-time">{{ ev.createdAtUtc | date:'short' }}</span>
+                  </div>
+                </div>
+              } @empty {
+                <p class="rail-empty">No activity yet.</p>
+              }
+            </div>
+          </div>
+
+          <div class="rail-card">
+            <h3>Quick Actions</h3>
+            <div class="qa">
+              <button class="qa-btn" (click)="openForm()">＋ New shop</button>
+              <button class="qa-btn" (click)="focusComposer()">📣 Broadcast message</button>
+            </div>
+          </div>
+        </aside>
       </div>
     </div>
   

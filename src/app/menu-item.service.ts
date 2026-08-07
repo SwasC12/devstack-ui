@@ -189,6 +189,11 @@ export class MenuItemService {
     return this.http.get<any[]>(`${API}/shops`);
   }
 
+  // Superadmin: platform dashboard counters + recent activity feed.
+  getPlatformOverview(): Observable<any> {
+    return this.http.get(`${API}/platform/overview`);
+  }
+
   createShop(data: { name: string; code: string; adminUsername: string; adminPassword: string; adminDisplayName: string }): Observable<any> {
     return this.http.post(`${API}/shops`, data);
   }
