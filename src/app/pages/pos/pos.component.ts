@@ -143,7 +143,7 @@ export class PosComponent implements OnInit {
   minSizePrice(item: MenuItem): number { return Math.min(...(item.sizes ?? []).map(s => s.price)); }
   sizeNames(item: MenuItem): string { return (item.sizes ?? []).map(s => s.name).join(' · '); }
 
-  ngOnInit() { this.restoreCart(); this.load(); this.checkShift(); this.loadShop(); this.loadDiscounts(); void this.checkForUpdate(); void this.listenForUpdateTriggers(); }
+  ngOnInit() { this.restoreCart(); this.load(); this.checkShift(); this.loadShop(); this.loadDiscounts(); void this.loadAppVersion(); void this.checkForUpdate(); void this.listenForUpdateTriggers(); }
 
   private load() {
     this.loading.set(true);
@@ -166,6 +166,19 @@ export class PosComponent implements OnInit {
   }
   private checkShift() { this.service.getActiveShift().subscribe({ next: s => this.shiftActive.set(s.active), error: () => this.dialog.toast('Could not check shift status', 'error') }); }
   private loadShop() { this.service.getShopInfo().subscribe(s => this.shopInfo.set(s)); }
+
+  // Native build version shown in the top bar / clock-in screen so cashiers
+  // and the owner can always tell which build is running.
+  readonly appVersion = signal('');
+
+  private async loadAppVersion() {
+    try {
+      const { App } = await import('@capacitor/app');
+      const info = await App.getInfo();
+      const v = (info.version ?? '').trim();
+      if (v) this.appVersion.set('v' + v);
+    } catch { /* web build or no native info - label stays hidden */ }
+  }
 
   // Re-check for updates when the app returns to the foreground (covers
   // opening the app from a release notification while it was backgrounded -

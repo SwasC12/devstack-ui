@@ -46,6 +46,7 @@
           <!-- Optional updates are never forced: this link always lets the
                cashier re-check (even after dismissing the banner). -->
           <button class="upd-check" (click)="forceCheckForUpdate()">Check for updates</button>
+          @if (appVersion()) { <span class="app-ver">CoffeeShop Pro {{ appVersion() }}</span> }
         </div>
       </div>
     } @else {
@@ -94,6 +95,7 @@
           <input [(ngModel)]="search" (ngModelChange)="onSearch()" placeholder="Search drinks…" />
         </div>
         <div class="pos-bar-right">
+          @if (appVersion()) { <span class="app-ver">{{ appVersion() }}</span> }
           <app-clock />
           <button class="pos-reprint upd-btn" [class.has-update]="!!updateInfo()" (click)="forceCheckForUpdate()" title="Check for updates">📦</button>
           <button class="pos-reprint" (click)="reprintLast()" [disabled]="!lastReceipt()" title="Reprint last receipt">🖨</button>

@@ -61,6 +61,8 @@
     .upd-btn.has-update::after { content: ''; position: absolute; top: 5px; right: 5px; width: 9px; height: 9px; border-radius: 50%; background: var(--green); border: 2px solid var(--surface); }
     .upd-check { margin-top: 0.85rem; border: 0; background: transparent; color: var(--muted); font-family: inherit; font-size: 0.75rem; text-decoration: underline; cursor: pointer; padding: 0.2rem 0.4rem; }
     .upd-check:hover { color: var(--accent-2); }
+    /* Native build version - subtle, visible for support/updates. */
+    .app-ver { font-size: 0.6875rem; color: var(--muted); font-weight: 600; letter-spacing: 0.02em; }
 
     .pos-search { flex: 1; max-width: 460px; margin: 0 auto; position: relative; }
     .pos-search input { width: 100%; padding: 0.55rem 0.9rem 0.55rem 2.35rem; border-radius: var(--radius-pill); background: var(--surface-2); border: 1px solid var(--border-hover); color: var(--text); font-size: 0.875rem; font-family: inherit; outline: none; transition: border-color 0.15s; }
