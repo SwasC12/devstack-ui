@@ -9,7 +9,6 @@ import { AuthService } from '../../auth.service';
 import { BtnComponent } from '../../btn.component';
 import { DialogService } from '../../dialog.service';
 import { ReceiptViewComponent } from '../../receipt-view.component';
-import { ClockComponent } from '../../clock.component';
 import { AppLogoComponent } from '../../app-logo.component';
 import { PrintService } from '../../print.service';
 import { SoundService } from '../../sound.service';
@@ -32,7 +31,7 @@ function compareVersions(a: string, b: string): number {
 @Component({
   selector: 'app-pos',
   standalone: true,
-  imports: [CommonModule, FormsModule, BtnComponent, ReceiptViewComponent, AppLogoComponent, ClockComponent],
+  imports: [CommonModule, FormsModule, BtnComponent, ReceiptViewComponent, AppLogoComponent],
   templateUrl: './pos.component.html',
   styleUrl: './pos.component.scss',
 })

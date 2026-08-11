@@ -96,7 +96,6 @@
         </div>
         <div class="pos-bar-right">
           @if (appVersion()) { <span class="app-ver">{{ appVersion() }}</span> }
-          <app-clock />
           <button class="pos-reprint upd-btn" [class.has-update]="!!updateInfo()" (click)="forceCheckForUpdate()" title="Check for updates">📦</button>
           <button class="pos-reprint" (click)="reprintLast()" [disabled]="!lastReceipt()" title="Reprint last receipt">🖨</button>
           <app-btn size="sm" (onClick)="endShift()">End shift</app-btn>
