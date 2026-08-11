@@ -11,8 +11,12 @@ import com.getcapacitor.BridgeActivity;
 public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
+        // CRITICAL: register the custom plugin BEFORE the bridge is built.
+        // BridgeActivity.onCreate() creates the bridge (freezing the plugin
+        // list) inside super.onCreate(), so a registerPlugin() call after it
+        // is silently dropped and Capacitor.Plugins never sees the plugin.
         registerPlugin(InstallApkPlugin.class);
+        super.onCreate(savedInstanceState);
         // Fullscreen kiosk-style: hide the Android status bar (clock/battery)
         // and navigation bar. Swiping from an edge reveals them briefly, then
         // they hide again - the in-app clock takes over for the cashier.
