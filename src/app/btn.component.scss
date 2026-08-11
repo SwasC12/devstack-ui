@@ -68,6 +68,13 @@
       font-size: 0.75rem;
     }
 
+    /* Large — primary action / fast thumb taps (tablet POS) */
+    .app-btn.lg {
+      min-height: 52px;
+      padding: 0.6em 1.2em;
+      font-size: 1rem;
+    }
+
     /* Block / full width */
     .app-btn.block {
       width: 100%;

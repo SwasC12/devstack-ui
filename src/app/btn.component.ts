@@ -8,7 +8,7 @@ import { Component, Input, Output, EventEmitter } from '@angular/core';
 })
 export class BtnComponent {
   @Input() variant: 'default' | 'primary' | 'danger' = 'default';
-  @Input() size: 'default' | 'sm' = 'default';
+  @Input() size: 'default' | 'sm' | 'lg' = 'default';
   @Input() block = false;
   @Input() loading = false;
   @Input() disabled = false;
