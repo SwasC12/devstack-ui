@@ -59,6 +59,9 @@ export class AdminComponent implements OnInit {
   acUsername = ''; acDisplay = ''; acCurrent = ''; acNew = '';
   readonly acMsg = signal(''); readonly acErr = signal(false); readonly acBusy = signal(false);
   brName = ''; brLogoUrl = ''; brQrUrl = ''; brKitchenUrl = '';
+  readonly kitchenScanning = signal(false);
+  readonly kitchenFound = signal<string | null>(null);
+  readonly kitchenMsg = signal('');
   readonly brMsg = signal(''); readonly brErr = signal(false); readonly brBusy = signal(false);
   pendingLogo: File | null = null;
   pendingLogoUrl: string | null = null;
@@ -386,6 +389,71 @@ export class AdminComponent implements OnInit {
         },
         error: (e) => this.dialog.toast(e.error?.error || 'Refund failed', 'error')
       });
+    });
+  }
+
+  // One-tap kitchen discovery: probe port 8123 across the local /24 subnet.
+  // Only responses carrying our marker are accepted; manual entry still works
+  // if the network blocks discovery (client isolation) or it's a different
+  // subnet. Runs on an explicit tap - never in the background.
+  findKitchen() {
+    this.kitchenScanning.set(true);
+    this.kitchenFound.set(null);
+    this.kitchenMsg.set('');
+    void this.getLocalIp().then(ip => {
+      if (!ip) {
+        this.kitchenScanning.set(false);
+        this.kitchenMsg.set('Could not determine this device\'s IP — enter the kitchen address manually.');
+        return;
+      }
+      const parts = ip.split('.');
+      const base = `${parts[0]}.${parts[1]}.${parts[2]}.`;
+      const hosts = Array.from({ length: 254 }, (_, i) => `${base}${i + 1}`);
+      void this.probeHosts(hosts).then(found => {
+        this.kitchenScanning.set(false);
+        if (found) {
+          this.brKitchenUrl = found;
+          this.kitchenFound.set(`Found kitchen tablet at ${found} — save to use it`);
+        } else {
+          this.kitchenMsg.set('No kitchen tablet found — check both tablets are on the same WiFi, or type the address.');
+        }
+      });
+    });
+  }
+
+  private async probeHosts(hosts: string[]): Promise<string | null> {
+    const { CapacitorHttp } = await import('@capacitor/core');
+    for (let i = 0; i < hosts.length; i += 32) {
+      const batch = hosts.slice(i, i + 32);
+      const results = await Promise.all(batch.map(async h => {
+        try {
+          const r = await CapacitorHttp.get({ url: `http://${h}:8123/ping`, connectTimeout: 700, readTimeout: 700 });
+          if (r.status === 200 && typeof r.data === 'string' && r.data.includes('coffeeshoppro-kitchen')) return h;
+          return null;
+        } catch { return null; }
+      }));
+      const hit = results.find(Boolean);
+      if (hit) return hit;
+    }
+    return null;
+  }
+
+  // Local IP via WebRTC ICE (works in the Chromium WebView, no native code).
+  private getLocalIp(): Promise<string | null> {
+    return new Promise(resolve => {
+      try {
+        const pc = new RTCPeerConnection({ iceServers: [] });
+        let done = false;
+        const finish = (ip: string | null) => { if (!done) { done = true; pc.close(); resolve(ip); } };
+        pc.onicecandidate = (e: any) => {
+          if (!e.candidate) { finish(null); return; }
+          const m = /([0-9]{1,3}(\.[0-9]{1,3}){3})/.exec(e.candidate.candidate);
+          if (m) { const ip = m[1]; if (!ip.startsWith('127.') && !ip.startsWith('169.254.')) finish(ip); }
+        };
+        pc.createDataChannel('x');
+        void pc.createOffer().then(o => pc.setLocalDescription(o)).catch(() => finish(null));
+        setTimeout(() => finish(null), 3000);
+      } catch { resolve(null); }
     });
   }
 

@@ -26,6 +26,10 @@ public class KitchenServerPlugin extends Plugin {
             server = new NanoHTTPD(PORT) {
                 @Override
                 public Response serve(IHTTPSession session) {
+                    // Discovery: the POS probes /ping and only accepts this marker.
+                    if ("/ping".equals(session.getUri()) && Method.GET.equals(session.getMethod())) {
+                        return newFixedLengthResponse(Response.Status.OK, "text/plain", "coffeeshoppro-kitchen");
+                    }
                     if ("/order".equals(session.getUri()) && Method.GET.equals(session.getMethod())) {
                         String id = session.getParms().get("id");
                         try {
