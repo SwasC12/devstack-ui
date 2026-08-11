@@ -57,19 +57,24 @@ export class UpdaterService {
     }
   }
 
-  // Launch Android's package installer for the downloaded APK.
-  // 'ok' = installer opened, 'blocked' = user must allow unknown-source
-  // installs first (see openInstallSettings), 'failed' = anything else.
-  async installDownloaded(): Promise<'ok' | 'blocked' | 'failed'> {
+  // Launch Android's package installer for the downloaded APK. The plugin
+  // gets both the resolved URI and the native hints (name + directory) so it
+  // can find the file even if the URI format changes between Capacitor
+  // versions. Returns the real failure message so the UI can show it.
+  async installDownloaded(): Promise<{ ok: boolean; blocked: boolean; message: string }> {
     try {
-      if (!Capacitor.isNativePlatform()) return 'failed';
+      if (!Capacitor.isNativePlatform()) return { ok: false, blocked: false, message: 'Not running on a device' };
       const plugin = this.installer();
-      if (!plugin) return 'failed';
+      if (!plugin) return { ok: false, blocked: false, message: 'Installer plugin is missing' };
       const uri = await Filesystem.getUri({ path: this.fileName, directory: Directory.Cache });
-      await plugin.install({ filePath: uri.uri });
-      return 'ok';
+      await plugin.install({ filePath: uri.uri, fileName: this.fileName, directory: 'cache' });
+      return { ok: true, blocked: false, message: '' };
     } catch (e: any) {
-      return e?.code === 'INSTALL_BLOCKED' ? 'blocked' : 'failed';
+      return {
+        ok: false,
+        blocked: e?.code === 'INSTALL_BLOCKED',
+        message: typeof e?.message === 'string' && e.message ? e.message : 'Unknown install error',
+      };
     }
   }
 

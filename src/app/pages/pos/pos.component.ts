@@ -77,6 +77,7 @@ export class PosComponent implements OnInit {
   readonly updateInfo = signal<{ version: string; releaseNotes: string; isRequired: boolean } | null>(null);
   readonly updateState = signal<'idle' | 'downloading' | 'ready' | 'failed'>('idle');
   readonly updateBlocked = signal(false);
+  readonly updateError = signal('');
   readonly updateProgress = signal(0);
   private updater = inject(UpdaterService);
 
@@ -235,10 +236,12 @@ export class PosComponent implements OnInit {
   async downloadUpdate() {
     if (this.updateState() === 'downloading') return;
     this.updateBlocked.set(false);
+    this.updateError.set('');
     this.updateState.set('downloading');
     this.updateProgress.set(0);
     const result = await this.updater.download(p => this.updateProgress.set(p));
     this.updateState.set(result === 'ready' ? 'ready' : 'failed');
+    if (result !== 'ready') this.updateError.set('Download failed — check your connection and try again.');
   }
 
   async installUpdate() {
@@ -247,8 +250,9 @@ export class PosComponent implements OnInit {
       return;
     }
     const result = await this.updater.installDownloaded();
-    if (result === 'ok') return;
-    if (result === 'blocked') {
+    if (result.ok) return;
+    this.updateError.set(result.message || 'Install failed');
+    if (result.blocked) {
       // System-level gate: user must allow unknown-source installs first.
       this.updateState.set('ready');
       this.updateBlocked.set(true);
@@ -268,6 +272,7 @@ export class PosComponent implements OnInit {
     this.updateInfo.set(null);
     this.updateState.set('idle');
     this.updateBlocked.set(false);
+    this.updateError.set('');
   }
 
   startShift() {
