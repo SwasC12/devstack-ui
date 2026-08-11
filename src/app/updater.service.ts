@@ -43,6 +43,9 @@ export class UpdaterService {
         received += value.length;
         if (total > 0) onProgress(received / total);
       }
+      // A short read means the connection dropped mid-file: a truncated APK
+      // would "download fine" but fail to parse in the installer.
+      if (total > 0 && received !== total) return 'failed';
       onProgress(1);
 
       const blob = new Blob(chunks, { type: 'application/vnd.android.package-archive' });
@@ -54,19 +57,28 @@ export class UpdaterService {
     }
   }
 
-  // Launch Android's package installer for the downloaded APK. False on web
-  // or when the native plugin/file is missing.
-  async installDownloaded(): Promise<boolean> {
+  // Launch Android's package installer for the downloaded APK.
+  // 'ok' = installer opened, 'blocked' = user must allow unknown-source
+  // installs first (see openInstallSettings), 'failed' = anything else.
+  async installDownloaded(): Promise<'ok' | 'blocked' | 'failed'> {
     try {
-      if (!Capacitor.isNativePlatform()) return false;
+      if (!Capacitor.isNativePlatform()) return 'failed';
       const plugin = this.installer();
-      if (!plugin) return false;
+      if (!plugin) return 'failed';
       const uri = await Filesystem.getUri({ path: this.fileName, directory: Directory.Cache });
       await plugin.install({ filePath: uri.uri });
-      return true;
-    } catch {
-      return false;
+      return 'ok';
+    } catch (e: any) {
+      return e?.code === 'INSTALL_BLOCKED' ? 'blocked' : 'failed';
     }
+  }
+
+  // Open the system "Install unknown apps" screen for this app (Android 8+).
+  async openInstallSettings(): Promise<void> {
+    try {
+      const plugin = this.installer();
+      if (plugin?.openInstallSettings) await plugin.openInstallSettings();
+    } catch { /* best effort */ }
   }
 }
 

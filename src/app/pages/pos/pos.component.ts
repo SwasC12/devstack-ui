@@ -76,6 +76,7 @@ export class PosComponent implements OnInit {
   // In-app updater: published release info when our version is behind
   readonly updateInfo = signal<{ version: string; releaseNotes: string; isRequired: boolean } | null>(null);
   readonly updateState = signal<'idle' | 'downloading' | 'ready' | 'failed'>('idle');
+  readonly updateBlocked = signal(false);
   readonly updateProgress = signal(0);
   private updater = inject(UpdaterService);
 
@@ -217,6 +218,7 @@ export class PosComponent implements OnInit {
   // Download the update (with progress) or install the already-downloaded one.
   async downloadUpdate() {
     if (this.updateState() === 'downloading') return;
+    this.updateBlocked.set(false);
     this.updateState.set('downloading');
     this.updateProgress.set(0);
     const result = await this.updater.download(p => this.updateProgress.set(p));
@@ -224,12 +226,24 @@ export class PosComponent implements OnInit {
   }
 
   async installUpdate() {
-    if (this.updateState() === 'ready') {
-      const ok = await this.updater.installDownloaded();
-      if (!ok) this.updateState.set('failed');
+    if (this.updateState() !== 'ready') {
+      await this.downloadUpdate();
       return;
     }
-    await this.downloadUpdate();
+    const result = await this.updater.installDownloaded();
+    if (result === 'ok') return;
+    if (result === 'blocked') {
+      // System-level gate: user must allow unknown-source installs first.
+      this.updateState.set('ready');
+      this.updateBlocked.set(true);
+      return;
+    }
+    this.updateState.set('failed');
+  }
+
+  // Open the system "Install unknown apps" screen for this app.
+  openInstallSettings() {
+    void this.updater.openInstallSettings().then(() => { /* user returns and taps Install */ });
   }
 
   dismissUpdate() {
@@ -237,6 +251,7 @@ export class PosComponent implements OnInit {
     if (v) localStorage.setItem('update_dismissed', v);
     this.updateInfo.set(null);
     this.updateState.set('idle');
+    this.updateBlocked.set(false);
   }
 
   startShift() {

@@ -11,11 +11,15 @@
               @if (updateState() === 'downloading') {
                 <div class="upd-progress"><div class="upd-bar" [style.width.%]="updateProgress() * 100"></div></div>
                 <span class="upd-pct">Downloading… {{ (updateProgress() * 100) | number:'1.0-0' }}%</span>
+              } @else if (updateState() === 'ready' && updateBlocked()) {
+                <span class="upd-err">Install blocked — allow unknown-source installs for CoffeeShop Pro.</span>
+                <app-btn size="sm" (onClick)="openInstallSettings()">Open settings</app-btn>
+                <app-btn variant="primary" size="sm" (onClick)="installUpdate()">Try again</app-btn>
               } @else if (updateState() === 'ready') {
                 <app-btn variant="primary" size="sm" (onClick)="installUpdate()">Install now</app-btn>
               } @else if (updateState() === 'failed') {
-                <span class="upd-err">Download failed — check your connection.</span>
-                <app-btn size="sm" (onClick)="downloadUpdate()">Retry download</app-btn>
+                <span class="upd-err">Download or install failed — check your connection and try again.</span>
+                <app-btn size="sm" (onClick)="downloadUpdate()">Retry</app-btn>
               } @else {
                 <app-btn size="sm" (onClick)="downloadUpdate()">Download update</app-btn>
               }
@@ -55,10 +59,14 @@
             @if (updateState() === 'downloading') {
               <div class="upd-progress"><div class="upd-bar" [style.width.%]="updateProgress() * 100"></div></div>
               <span class="upd-pct">Downloading… {{ (updateProgress() * 100) | number:'1.0-0' }}%</span>
+            } @else if (updateState() === 'ready' && updateBlocked()) {
+              <span class="upd-err">Install blocked — allow unknown-source installs.</span>
+              <app-btn size="sm" (onClick)="openInstallSettings()">Open settings</app-btn>
+              <app-btn variant="primary" size="sm" (onClick)="installUpdate()">Try again</app-btn>
             } @else if (updateState() === 'ready') {
               <app-btn variant="primary" size="sm" (onClick)="installUpdate()">Install now</app-btn>
             } @else if (updateState() === 'failed') {
-              <span class="upd-err">Download failed</span>
+              <span class="upd-err">Download or install failed</span>
               <app-btn size="sm" (onClick)="downloadUpdate()">Retry</app-btn>
             } @else {
               <app-btn size="sm" (onClick)="downloadUpdate()">Download update</app-btn>
