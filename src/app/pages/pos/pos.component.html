@@ -42,6 +42,31 @@
         </div>
       </div>
     } @else {
+      <!-- Update available while on shift: slim non-blocking banner so the
+           prompt is never invisible just because the till is open. -->
+      @if (updateInfo(); as u) {
+        <div class="upd-till" [class.required]="u.isRequired" [class.ready]="updateState() === 'ready'">
+          <div class="upd-till-text">
+            <strong>📦 CoffeeShop Pro {{ u.version }} available</strong>
+            @if (u.releaseNotes) { <span class="upd-till-notes">{{ u.releaseNotes }}</span> }
+            @if (u.isRequired) { <span class="upd-till-req">Required — install to keep using the app.</span> }
+          </div>
+          <div class="upd-till-acts">
+            @if (updateState() === 'downloading') {
+              <div class="upd-progress"><div class="upd-bar" [style.width.%]="updateProgress() * 100"></div></div>
+              <span class="upd-pct">Downloading… {{ (updateProgress() * 100) | number:'1.0-0' }}%</span>
+            } @else if (updateState() === 'ready') {
+              <app-btn variant="primary" size="sm" (onClick)="installUpdate()">Install now</app-btn>
+            } @else if (updateState() === 'failed') {
+              <span class="upd-err">Download failed</span>
+              <app-btn size="sm" (onClick)="downloadUpdate()">Retry</app-btn>
+            } @else {
+              <app-btn size="sm" (onClick)="downloadUpdate()">Download update</app-btn>
+            }
+            @if (!u.isRequired) { <app-btn size="sm" (onClick)="dismissUpdate()">Later</app-btn> }
+          </div>
+        </div>
+      }
       <!-- Top bar: logo · search · end shift -->
       <div class="pos-bar">
         <div class="pos-bar-left">

@@ -141,7 +141,7 @@ export class PosComponent implements OnInit {
   minSizePrice(item: MenuItem): number { return Math.min(...(item.sizes ?? []).map(s => s.price)); }
   sizeNames(item: MenuItem): string { return (item.sizes ?? []).map(s => s.name).join(' · '); }
 
-  ngOnInit() { this.restoreCart(); this.load(); this.checkShift(); this.loadShop(); this.loadDiscounts(); void this.checkForUpdate(); }
+  ngOnInit() { this.restoreCart(); this.load(); this.checkShift(); this.loadShop(); this.loadDiscounts(); void this.checkForUpdate(); void this.listenForUpdateTriggers(); }
 
   private load() {
     this.loading.set(true);
@@ -165,6 +165,26 @@ export class PosComponent implements OnInit {
   private checkShift() { this.service.getActiveShift().subscribe({ next: s => this.shiftActive.set(s.active), error: () => this.dialog.toast('Could not check shift status', 'error') }); }
   private loadShop() { this.service.getShopInfo().subscribe(s => this.shopInfo.set(s)); }
 
+  // Re-check for updates when the app returns to the foreground (covers
+  // opening the app from a release notification while it was backgrounded -
+  // ngOnInit only runs on a cold start) and when an "update" notification is
+  // tapped directly. Safe to re-run: the dismissed-version guard and the
+  // version comparison keep it idempotent.
+  private async listenForUpdateTriggers() {
+    try {
+      if (!Capacitor.isNativePlatform()) return;
+      const { App } = await import('@capacitor/app');
+      await App.addListener('appStateChange', ({ isActive }) => {
+        if (isActive) void this.checkForUpdate();
+      });
+      const { PushNotifications } = await import('@capacitor/push-notifications');
+      await PushNotifications.addListener('pushNotificationActionPerformed', (n) => {
+        const data = (n.notification as any)?.data as Record<string, string> | undefined;
+        if (data?.['type'] === 'update') void this.checkForUpdate();
+      });
+    } catch { /* push/updater unavailable - never block the app */ }
+  }
+
   // In-app updater: compare our native version against the published release
   // and check in. The banner shows only on the clock-in screen (idle), so a
   // sale is never interrupted. Required updates reappear on every start.
@@ -183,8 +203,9 @@ export class PosComponent implements OnInit {
             if (dismissed !== res.version || res.isRequired) {
               this.updateInfo.set({ version: res.version, releaseNotes: res.releaseNotes ?? '', isRequired: res.isRequired });
               // Background pre-download (native): by the time the cashier
-              // decides, it's usually already "Ready to install".
-              if (Capacitor.isNativePlatform()) void this.downloadUpdate();
+              // decides, it's usually already "Ready to install". Skip when a
+              // download is already sitting ready.
+              if (Capacitor.isNativePlatform() && this.updateState() !== 'ready') void this.downloadUpdate();
             }
           }
         },
