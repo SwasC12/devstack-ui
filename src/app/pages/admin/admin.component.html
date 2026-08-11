@@ -527,6 +527,18 @@
         </div>
 
         <div class="form-sheet">
+          <div class="form-head"><h3>Kitchen display</h3></div>
+          <p class="hint">The kitchen tablet's webhook address so orders arrive instantly over your WiFi (no server polling, no push quota). E.g. http://192.168.1.50:8123 - the kitchen tablet shows it once it opens the Kitchen screen. Leave empty if you don't use a kitchen display.</p>
+          <div class="form-grid">
+            <div class="field wide"><label>Kitchen display address</label><input [(ngModel)]="brKitchenUrl" placeholder="http://192.168.1.50:8123" /></div>
+          </div>
+          @if (brMsg()) { <p class="form-msg" [class.err]="brErr()">{{ brMsg() }}</p> }
+          <div class="form-acts">
+            <app-btn variant="primary" size="sm" (onClick)="saveBranding()" [loading]="brBusy()">Save kitchen address</app-btn>
+          </div>
+        </div>
+
+        <div class="form-sheet">
           <div class="form-head"><h3>Shop branding</h3></div>
           <p class="hint">Your logo appears in the POS.</p>
           <div class="form-grid">

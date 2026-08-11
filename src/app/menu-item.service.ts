@@ -258,14 +258,14 @@ export class MenuItemService {
     return this.http.post<void>(`${API}/orders/${id}/complete`, {});
   }
 
-  // Current shop (any logged-in shop user): branding shown in the POS.
-  getShopInfo(): Observable<{ id: number; name: string; code: string; logoUrl?: string | null; receiptQrUrl?: string | null }> {
-    return this.http.get<{ id: number; name: string; code: string; logoUrl?: string | null; receiptQrUrl?: string | null }>(`${API}/shops/me`);
+  // Current shop (any logged-in shop user): branding + kitchen webhook shown in the POS.
+  getShopInfo(): Observable<{ id: number; name: string; code: string; logoUrl?: string | null; receiptQrUrl?: string | null; kitchenUrl?: string | null }> {
+    return this.http.get<{ id: number; name: string; code: string; logoUrl?: string | null; receiptQrUrl?: string | null; kitchenUrl?: string | null }>(`${API}/shops/me`);
   }
 
-  // Owner (admin): update the current shop's branding.
-  updateShopInfo(data: { name: string; logoUrl?: string | null; receiptQrUrl?: string | null }): Observable<{ id: number; name: string; code: string; logoUrl?: string | null; receiptQrUrl?: string | null }> {
-    return this.http.put<{ id: number; name: string; code: string; logoUrl?: string | null; receiptQrUrl?: string | null }>(`${API}/shops/me`, data);
+  // Owner (admin): update the current shop's branding + kitchen webhook.
+  updateShopInfo(data: { name: string; logoUrl?: string | null; receiptQrUrl?: string | null; kitchenUrl?: string | null }): Observable<{ id: number; name: string; code: string; logoUrl?: string | null; receiptQrUrl?: string | null; kitchenUrl?: string | null }> {
+    return this.http.put<{ id: number; name: string; code: string; logoUrl?: string | null; receiptQrUrl?: string | null; kitchenUrl?: string | null }>(`${API}/shops/me`, data);
   }
 
   // Superadmin: set a shop's owner contact details (for future owner emails).

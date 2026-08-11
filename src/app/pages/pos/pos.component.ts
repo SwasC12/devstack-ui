@@ -476,6 +476,7 @@ export class PosComponent implements OnInit {
         this.lastOrder.set(order);
         this.lastReceipt.set(order);
         this.sound.orderComplete();
+        this.pingKitchen(order.id);
       },
       error: (e) => {
         this.busy.set(false);
@@ -483,6 +484,21 @@ export class PosComponent implements OnInit {
         this.load();
       }
     });
+  }
+
+  // Kitchen display webhook: ping the kitchen tablet's local server over the
+  // shop WiFi (instant + free + zero FCM). Fail-soft - if the kitchen is
+  // unreachable it picks the order up on its 5-minute fallback poll.
+  private pingKitchen(orderId: number) {
+    const url = this.shopInfo()?.kitchenUrl;
+    if (!url) return;
+    void import('@capacitor/core').then(({ CapacitorHttp }) =>
+      CapacitorHttp.get({
+        url: `${url.replace(/\/+$/, '')}/order?id=${orderId}`,
+        connectTimeout: 2000,
+        readTimeout: 2000
+      }).catch(() => { /* kitchen offline - fallback poll covers it */ })
+    );
   }
 
   closeReceipt() { this.lastOrder.set(null); this.showComplete(); }

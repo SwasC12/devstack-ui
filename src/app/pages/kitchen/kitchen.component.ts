@@ -1,12 +1,14 @@
 import { Component, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Capacitor } from '@capacitor/core';
 import { MenuItemService } from '../../menu-item.service';
 import { SoundService } from '../../sound.service';
 
 // Kitchen display: a second tablet (same app, Kitchen tab) shows the live
-// order queue - polls every 5s, no ticket printing needed. "Done" removes an
-// order from the queue (it stays in revenue). A chime plays when a new order
-// lands and the card flashes so the bar never misses one.
+// order queue. Instant updates arrive via the LAN webhook (the POS pings this
+// tablet's local server after checkout - zero server traffic, zero FCM quota);
+// a slow 5-minute poll is only the safety net for a missed ping. "Done"
+// removes an order from the queue (it stays in revenue).
 @Component({
   selector: 'app-kitchen',
   standalone: true,
@@ -24,14 +26,31 @@ export class KitchenComponent implements OnInit, OnDestroy {
 
   private timer: ReturnType<typeof setInterval> | null = null;
   private seen = new Set<number>();
+  private serverHandle: any = null;
 
   ngOnInit() {
     void this.refresh(true);
-    this.timer = setInterval(() => void this.refresh(), 5000);
+    // Safety-net poll only (5 min). Real-time comes from the LAN webhook.
+    this.timer = setInterval(() => void this.refresh(), 300000);
+    void this.listenForWebhook();
   }
 
   ngOnDestroy() {
     if (this.timer) clearInterval(this.timer);
+    try { this.serverHandle?.remove(); } catch { /* ignore */ }
+    try { (Capacitor as any).Plugins?.KitchenServer?.stop(); } catch { /* ignore */ }
+  }
+
+  // The POS pings this tablet's local server (KitchenServerPlugin, port 8123)
+  // after every checkout - refresh instantly when that lands.
+  private async listenForWebhook() {
+    if (!Capacitor.isNativePlatform()) return;
+    try {
+      const plugin = (Capacitor as any).Plugins?.KitchenServer;
+      if (!plugin) return;
+      await plugin.start();
+      this.serverHandle = await plugin.addListener('order', () => void this.refresh());
+    } catch { /* webhook unavailable - poll still covers it */ }
   }
 
   private refresh(first = false) {

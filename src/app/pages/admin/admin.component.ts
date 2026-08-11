@@ -58,7 +58,7 @@ export class AdminComponent implements OnInit {
   // Settings — account + branding
   acUsername = ''; acDisplay = ''; acCurrent = ''; acNew = '';
   readonly acMsg = signal(''); readonly acErr = signal(false); readonly acBusy = signal(false);
-  brName = ''; brLogoUrl = ''; brQrUrl = '';
+  brName = ''; brLogoUrl = ''; brQrUrl = ''; brKitchenUrl = '';
   readonly brMsg = signal(''); readonly brErr = signal(false); readonly brBusy = signal(false);
   pendingLogo: File | null = null;
   pendingLogoUrl: string | null = null;
@@ -449,6 +449,7 @@ export class AdminComponent implements OnInit {
       this.brName = shop.name;
       this.brLogoUrl = shop.logoUrl ?? '';
       this.brQrUrl = shop.receiptQrUrl ?? '';
+      this.brKitchenUrl = shop.kitchenUrl ?? '';
     });
   }
 
@@ -494,7 +495,7 @@ export class AdminComponent implements OnInit {
       }
       this.logoUploading.set(false);
     }
-    this.service.updateShopInfo({ name: this.brName, logoUrl, receiptQrUrl: this.brQrUrl.trim() || null }).subscribe({
+    this.service.updateShopInfo({ name: this.brName, logoUrl, receiptQrUrl: this.brQrUrl.trim() || null, kitchenUrl: this.brKitchenUrl.trim() || null }).subscribe({
       next: () => { this.brMsg.set('Branding saved.'); this.brBusy.set(false); },
       error: (e) => { this.brMsg.set(e.error?.error || 'Failed'); this.brErr.set(true); this.brBusy.set(false); }
     });
