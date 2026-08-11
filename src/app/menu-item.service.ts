@@ -249,6 +249,15 @@ export class MenuItemService {
     return this.http.post<void>(`${API}/orders/${id}/refund`, { amount, reason });
   }
 
+  // Kitchen display: live queue + "done" action.
+  getKitchenOrders(minutes = 120): Observable<any[]> {
+    return this.http.get<any[]>(`${API}/orders/kitchen?minutes=${minutes}`);
+  }
+
+  completeOrder(id: number): Observable<void> {
+    return this.http.post<void>(`${API}/orders/${id}/complete`, {});
+  }
+
   // Current shop (any logged-in shop user): branding shown in the POS.
   getShopInfo(): Observable<{ id: number; name: string; code: string; logoUrl?: string | null; receiptQrUrl?: string | null }> {
     return this.http.get<{ id: number; name: string; code: string; logoUrl?: string | null; receiptQrUrl?: string | null }>(`${API}/shops/me`);

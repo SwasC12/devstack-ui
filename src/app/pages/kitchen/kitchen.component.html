@@ -1,0 +1,38 @@
+<div class="kitchen">
+  <div class="k-head">
+    <h1>👨‍🍳 Kitchen</h1>
+    <span class="k-count" [class.k-busy]="orders().length > 0">{{ orders().length }} pending</span>
+    <span class="k-updated">Updated {{ lastRefresh() ? (lastRefresh() | date:'HH:mm:ss') : '…' }}</span>
+  </div>
+
+  @if (orders().length === 0) {
+    <div class="k-empty">
+      <div class="k-empty-ic">☕</div>
+      <p>No orders in the queue — all caught up.</p>
+    </div>
+  }
+
+  <div class="k-grid">
+    @for (o of orders(); track o.id) {
+      <div class="k-card" [class.k-new]="o.id === newOrderId()">
+        <div class="k-card-head">
+          <strong>Order #{{ o.id }}</strong>
+          <span>{{ o.createdAt | date:'HH:mm' }}</span>
+        </div>
+        @if (o.customerName) { <div class="k-cust">👤 {{ o.customerName }}</div> }
+        <div class="k-items">
+          @for (i of o.items; track $index) {
+            <div class="k-item">
+              <span class="k-qty">{{ i.quantity }}×</span>
+              <span class="k-name">{{ i.name }}{{ i.sizeName ? ' (' + i.sizeName + ')' : '' }}</span>
+              @for (m of i.modifiers; track $index) { <div class="k-mod">+ {{ m }}</div> }
+              @if (i.note) { <div class="k-note">“{{ i.note }}”</div> }
+            </div>
+          }
+        </div>
+        @if (o.notes) { <div class="k-order-note">📝 {{ o.notes }}</div> }
+        <button class="k-done" (click)="complete(o)">✓ Done</button>
+      </div>
+    }
+  </div>
+</div>

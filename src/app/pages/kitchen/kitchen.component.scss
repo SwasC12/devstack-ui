@@ -1,0 +1,143 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
+.kitchen {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  height: 100%;
+  min-height: 0;
+}
+
+.k-head {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-shrink: 0;
+}
+
+.k-head h1 { margin: 0; font-size: 1.375rem; color: var(--text); }
+
+.k-count {
+  font-weight: 800;
+  font-size: 1.0625rem;
+  padding: 0.25rem 0.9rem;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  color: var(--text-2);
+}
+
+.k-count.k-busy { background: var(--accent); color: #fff; }
+
+.k-updated { margin-left: auto; font-size: 0.8125rem; color: var(--muted); }
+
+.k-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: var(--muted);
+}
+
+.k-empty-ic { font-size: 3rem; line-height: 1; }
+
+.k-empty p { margin: 0; font-weight: 600; color: var(--text-2); }
+
+.k-grid {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.875rem;
+  align-content: start;
+  padding: 0.25rem 0 1rem;
+}
+
+.k-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+/* New order: flash accent so the bar notices it immediately. */
+.k-card.k-new {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(200, 135, 56, 0.25), var(--shadow-md);
+  animation: k-flash 1s ease-in-out 2;
+}
+
+@keyframes k-flash {
+  0%, 100% { background: var(--surface); }
+  50% { background: var(--accent-light); }
+}
+
+.k-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-bottom: 1px dashed var(--border);
+  padding-bottom: 0.4rem;
+}
+
+.k-card-head strong { font-size: 1.125rem; color: var(--text); }
+
+.k-card-head span { font-size: 0.875rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.k-cust { font-size: 0.8125rem; color: var(--accent-2); font-weight: 700; }
+
+.k-items { display: flex; flex-direction: column; gap: 0.45rem; flex: 1; }
+
+.k-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0 0.5rem;
+  align-items: baseline;
+}
+
+.k-qty { font-weight: 800; color: var(--accent-hover); font-size: 1.0625rem; }
+
+.k-name { font-weight: 700; color: var(--text); font-size: 1.0625rem; }
+
+.k-mod, .k-note {
+  grid-column: 2;
+  font-size: 0.9375rem;
+  color: var(--text-2);
+}
+
+.k-note { font-style: italic; color: var(--accent-2); }
+
+.k-order-note {
+  font-size: 0.8125rem;
+  color: var(--text-2);
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  padding: 0.4rem 0.6rem;
+}
+
+.k-done {
+  margin-top: 0.25rem;
+  padding: 0.75rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--green);
+  color: #fff;
+  font-family: inherit;
+  font-size: 1.0625rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.15s ease-out;
+}
+
+.k-done:hover { background: var(--green); filter: brightness(1.1); transform: translateY(-1px); }
+.k-done:active { transform: scale(0.97); }
