@@ -175,7 +175,7 @@
                   </td>
                   <td><span class="pill">{{ item.category }}</span></td>
                   <td class="num">R{{ item.price | number:'1.2-2' }}</td>
-                  <td><span class="stock" [class.low]="item.stockQuantity < 10" [class.out]="item.stockQuantity < 1">{{ item.stockQuantity }}</span></td>
+                  <td><span class="stock" [class.low]="item.stockQuantity < (item.lowStockThreshold ?? 5)" [class.out]="item.stockQuantity < 1">{{ item.stockQuantity }}</span></td>
                   <td><span class="dot" [class.on]="item.isAvailable"></span></td>
                   <td class="cell-acts">
                     <app-btn size="sm" (onClick)="edit(item)">Edit</app-btn>

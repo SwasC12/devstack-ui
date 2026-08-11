@@ -149,7 +149,7 @@ export class AdminComponent implements OnInit {
     const f = this.invFilter();
     return this.items().filter(i => {
       if (q && !(i.name.toLowerCase().includes(q) || i.category.toLowerCase().includes(q))) return false;
-      if (f === 'low' && i.stockQuantity >= this.LOW_STOCK) return false;
+      if (f === 'low' && i.stockQuantity >= (i.lowStockThreshold ?? 5)) return false;
       if (f === 'out' && i.stockQuantity >= 1) return false;
       return true;
     });
