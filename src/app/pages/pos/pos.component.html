@@ -43,6 +43,9 @@
           </button>
           <!-- Handover: the next cashier taps here → straight to PIN sign-in -->
           <button class="btn-switch" (click)="switchUser()">Switch user</button>
+          <!-- Optional updates are never forced: this link always lets the
+               cashier re-check (even after dismissing the banner). -->
+          <button class="upd-check" (click)="forceCheckForUpdate()">Check for updates</button>
         </div>
       </div>
     } @else {
@@ -92,6 +95,7 @@
         </div>
         <div class="pos-bar-right">
           <app-clock />
+          <button class="pos-reprint upd-btn" [class.has-update]="!!updateInfo()" (click)="forceCheckForUpdate()" title="Check for updates">📦</button>
           <button class="pos-reprint" (click)="reprintLast()" [disabled]="!lastReceipt()" title="Reprint last receipt">🖨</button>
           <app-btn size="sm" (onClick)="endShift()">End shift</app-btn>
         </div>

@@ -187,32 +187,48 @@ export class PosComponent implements OnInit {
   }
 
   // In-app updater: compare our native version against the published release
-  // and check in. The banner shows only on the clock-in screen (idle), so a
-  // sale is never interrupted. Required updates reappear on every start.
-  async checkForUpdate() {
+  // and check in. The banner shows on the clock-in screen and as a slim bar
+  // on the till, so a sale is never blocked. Required updates reappear on
+  // every start; optional ones respect a per-version dismissal.
+  // Returns true when a newer release exists (whether the banner was set).
+  async checkForUpdate(): Promise<boolean> {
     try {
       const { App } = await import('@capacitor/app');
       const info = await App.getInfo();
       const current = (info.version ?? '').trim();
-      if (!current) return;
-      this.service.getAppVersion().subscribe({
-        next: (res) => {
-          if (!res?.available) return;
-          void this.service.checkinApp(current).subscribe({ error: () => {} });
-          if (compareVersions(res.version, current) > 0) {
-            const dismissed = localStorage.getItem('update_dismissed');
-            if (dismissed !== res.version || res.isRequired) {
-              this.updateInfo.set({ version: res.version, releaseNotes: res.releaseNotes ?? '', isRequired: res.isRequired });
-              // Background pre-download (native): by the time the cashier
-              // decides, it's usually already "Ready to install". Skip when a
-              // download is already sitting ready.
-              if (Capacitor.isNativePlatform() && this.updateState() !== 'ready') void this.downloadUpdate();
+      if (!current) return false;
+      return await new Promise<boolean>((resolve) => {
+        this.service.getAppVersion().subscribe({
+          next: (res) => {
+            if (!res?.available) { resolve(false); return; }
+            void this.service.checkinApp(current).subscribe({ error: () => {} });
+            if (compareVersions(res.version, current) > 0) {
+              const dismissed = localStorage.getItem('update_dismissed');
+              if (dismissed !== res.version || res.isRequired) {
+                this.updateInfo.set({ version: res.version, releaseNotes: res.releaseNotes ?? '', isRequired: res.isRequired });
+                // Background pre-download (native): by the time the cashier
+                // decides, it's usually already "Ready to install". Skip when a
+                // download is already sitting ready.
+                if (Capacitor.isNativePlatform() && this.updateState() !== 'ready') void this.downloadUpdate();
+              }
+              resolve(true);
+            } else {
+              resolve(false);
             }
-          }
-        },
-        error: () => { /* offline or API down - no banner */ }
+          },
+          error: () => resolve(false) // offline or API down - no banner
+        });
       });
-    } catch { /* web build or no native app info - skip */ }
+    } catch { /* web build or no native app info - skip */ return false; }
+  }
+
+  // Manual "Check for updates" (top-bar 📦 / clock-in link): ignores a
+  // previous dismissal so an optional update is always findable again.
+  async forceCheckForUpdate() {
+    localStorage.removeItem('update_dismissed');
+    this.updateBlocked.set(false);
+    const found = await this.checkForUpdate();
+    if (!found) this.dialog.toast('No update available — you are on the latest version', 'info');
   }
 
   // Download the update (with progress) or install the already-downloaded one.
