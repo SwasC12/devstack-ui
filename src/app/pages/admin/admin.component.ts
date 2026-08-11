@@ -340,6 +340,55 @@ export class AdminComponent implements OnInit {
     });
   }
 
+  // Refunds: manager PIN first, then amount (bounded by what's still
+  // refundable), then a reason for the audit trail. Stock is NOT returned -
+  // the items were already sold (void is the restock path).
+  async refundOrder(o: any) {
+    const remaining = Math.max(0, (o.total ?? 0) - (o.refundedAmount ?? 0));
+    if (remaining <= 0) { this.dialog.toast('Nothing left to refund on this order', 'info'); return; }
+    const pin = await this.dialog.prompt('Manager PIN required', `Enter the manager PIN to refund order #${o.id}. Refundable: R${remaining.toFixed(2)}.`);
+    if (!pin) return;
+    this.service.verifyPin(pin).subscribe({
+      next: (res) => {
+        if (!res.valid) { this.dialog.toast('Invalid PIN - refund cancelled', 'error'); return; }
+        this.askRefundAmount(o, remaining);
+      },
+      error: (e) => this.dialog.toast(e.error?.error || 'Could not verify PIN', 'error')
+    });
+  }
+
+  private askRefundAmount(o: any, remaining: number) {
+    this.dialog.prompt('Refund order', `Order #${o.id} - enter the amount to refund (max R${remaining.toFixed(2)}). Stock is NOT returned - the items were already sold.`, {
+      inputType: 'text',
+      placeholder: '0.00'
+    }).then(amt => {
+      const amount = parseFloat((amt ?? '').replace(',', '.'));
+      if (!Number.isFinite(amount) || amount <= 0 || amount > remaining + 0.001) {
+        this.dialog.toast('Invalid refund amount', 'error');
+        return;
+      }
+      this.askRefundReason(o, Math.round(amount * 100) / 100);
+    });
+  }
+
+  private askRefundReason(o: any, amount: number) {
+    this.dialog.prompt('Refund reason', `Refund R${amount.toFixed(2)} on order #${o.id} - a reason is required for the audit trail.`, {
+      inputType: 'text',
+      placeholder: 'Reason (e.g. customer returned drink)'
+    }).then(reason => {
+      const r = reason?.trim();
+      if (!r) return;
+      this.service.refundOrder(o.id, amount, r).subscribe({
+        next: () => {
+          this.dialog.toast(`R${amount.toFixed(2)} refunded on order #${o.id}`, 'success');
+          this.loadOrders();
+          this.loadSum();
+        },
+        error: (e) => this.dialog.toast(e.error?.error || 'Refund failed', 'error')
+      });
+    });
+  }
+
   private askVoidReason(o: any) {
     this.dialog.prompt('Void order', `Void order #${o.id} (R${o.total.toFixed(2)})? Stock is returned to inventory.`, {
       inputType: 'text',

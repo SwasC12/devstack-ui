@@ -229,7 +229,8 @@
           </div>
           <div class="receipt-acts">
             <app-btn size="lg" [block]="true" (onClick)="printReceipt()">🖨 Print</app-btn>
-            <app-btn variant="primary" size="lg" [block]="true" (onClick)="closeReceipt()">New order</app-btn>
+            <app-btn size="lg" [block]="true" (onClick)="printTicket()">👨‍🍳 Ticket</app-btn>
+            <app-btn variant="primary" size="lg" [block]="true" class="receipt-new" (onClick)="closeReceipt()">New order</app-btn>
           </div>
         </div>
       </div>

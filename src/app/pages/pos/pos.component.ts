@@ -504,6 +504,35 @@ export class PosComponent implements OnInit {
     });
   }
 
+  // Kitchen ticket: items + modifiers + notes ONLY (no prices/customer/VAT),
+  // big monospace type so the bar can read it across the counter.
+  printTicket() {
+    const o = this.lastOrder();
+    if (!o) return;
+    const rows = (o.items ?? []).map((i: any) => {
+      const size = i.sizeName ? ` (${i.sizeName})` : '';
+      const mods = (i.modifiers ?? []).map((m: any) => m.name).filter((n: string) => !!n).join(', ');
+      const note = i.note ? ` — ${i.note}` : '';
+      return `<div style="margin-bottom:6px"><span style="font-weight:bold">${i.quantity}×</span> <strong>${this.esc(i.name)}${this.esc(size)}</strong>`
+        + (mods ? `<div style="margin-left:1.2em;color:#333">+ ${this.esc(mods)}</div>` : '')
+        + (note ? `<div style="margin-left:1.2em;color:#333">${this.esc(note)}</div>` : '') + '</div>';
+    }).join('');
+    const html = `<div style="font-family:monospace;font-size:18px;max-width:300px;color:#000">
+      <div style="text-align:center;font-weight:bold;font-size:22px;border-bottom:2px dashed #000;padding-bottom:6px;margin-bottom:8px">KITCHEN TICKET</div>
+      <div>Order #${o.id} &nbsp; ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+      <div style="border-bottom:1px dashed #000;margin:6px 0 8px"></div>
+      ${rows}
+      <div style="border-top:2px dashed #000;margin-top:10px;padding-top:6px;text-align:center">***</div>
+    </div>`;
+    void this.printer.printReceiptHtml(html).then(ok => {
+      if (!ok) { this.dialog.toast('No printer available - opening system print', 'error'); window.print(); }
+    });
+  }
+
+  private esc(s: any): string {
+    return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
   // Brief success moment, then straight back to a clean POS.
   private showComplete() {
     this.complete.set(true);

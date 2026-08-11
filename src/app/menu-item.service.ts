@@ -245,6 +245,10 @@ export class MenuItemService {
     return this.http.post<void>(`${API}/orders/${id}/void`, { reason });
   }
 
+  refundOrder(id: number, amount: number, reason: string): Observable<void> {
+    return this.http.post<void>(`${API}/orders/${id}/refund`, { amount, reason });
+  }
+
   // Current shop (any logged-in shop user): branding shown in the POS.
   getShopInfo(): Observable<{ id: number; name: string; code: string; logoUrl?: string | null; receiptQrUrl?: string | null }> {
     return this.http.get<{ id: number; name: string; code: string; logoUrl?: string | null; receiptQrUrl?: string | null }>(`${API}/shops/me`);
