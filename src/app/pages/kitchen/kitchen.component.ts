@@ -28,9 +28,13 @@ export class KitchenComponent implements OnInit, OnDestroy {
   readonly newOrderId = signal<number | null>(null);
   readonly firstLoad = signal(true);
   readonly offline = signal(false);
+  // Orders pinged over the LAN while the cloud was unreachable (offline POS
+  // queue) - shown as "pending sync" cards until they appear in the queue.
+  readonly pendingSync = signal<{ id: string; summary: string; at: number }[]>([]);
 
   private static readonly POLL_MS = 300000; // healthy safety net: 5 min
   private static readonly RETRY_MS = 30000;  // offline: fast retry so catch-up is quick
+  private static readonly PENDING_TTL = 15 * 60 * 1000; // strip cards expire after 15 min
   private pollMs = KitchenComponent.POLL_MS;
   private timer: ReturnType<typeof setInterval> | null = null;
   private seen = new Set<number>();
@@ -61,15 +65,26 @@ export class KitchenComponent implements OnInit, OnDestroy {
   }
 
   // The POS pings this tablet's local server (KitchenServerPlugin, port 8123)
-  // after every checkout - refresh instantly when that lands.
+  // after every checkout - refresh instantly when that lands. The ping carries
+  // an item summary too: while the cloud is unreachable, that summary becomes
+  // a "pending sync" card so the kitchen still sees what the POS is taking.
   private async listenForWebhook() {
     if (!Capacitor.isNativePlatform()) return;
     try {
       const plugin = (Capacitor as any).Plugins?.KitchenServer;
       if (!plugin) return;
       await plugin.start();
-      this.serverHandle = await plugin.addListener('order', () => void this.refresh());
+      this.serverHandle = await plugin.addListener('order', (e: any) => {
+        if (e?.summary) this.addPending(String(e.id ?? ''), String(e.summary));
+        void this.refresh();
+      });
     } catch { /* webhook unavailable - poll still covers it */ }
+  }
+
+  private addPending(id: string, summary: string) {
+    if (!summary || !this.offline()) return; // online: the normal refresh shows it
+    this.pendingSync.update(list => [...list.filter(p => p.id !== id && p.summary !== summary), { id, summary, at: Date.now() }]);
+    this.sound.notification();
   }
 
   // Screen off / another app in front -> stop polling (wall display, nobody
@@ -114,12 +129,20 @@ export class KitchenComponent implements OnInit, OnDestroy {
           }
           if (this.newOrderId()) setTimeout(() => this.newOrderId.set(null), 5000);
         }
+        // Pending cards clear once the synced order shows up in the queue
+        // (matched by item summary) or when they simply expire.
+        const joined = (o: any) => (o.items ?? []).map((i: any) => `${i.quantity}×${i.name}`).join(', ');
+        this.pendingSync.update(list2 => list2.filter(p =>
+          Date.now() - p.at < KitchenComponent.PENDING_TTL && !list.some(o => joined(o) === p.summary)
+        ));
         this.seen = new Set(list.map((o: any) => o.id));
         this.orders.set(list);
       },
       error: () => {
         this.firstLoad.set(false);
         this.offline.set(true);
+        // Expire stale pending cards so the strip can't accumulate forever.
+        this.pendingSync.update(l => l.filter(p => Date.now() - p.at < KitchenComponent.PENDING_TTL));
         // Tablet offline: retry fast so the moment the connection returns the
         // queue catches up (and chimes) within seconds, not minutes.
         if (this.pollMs !== KitchenComponent.RETRY_MS) {

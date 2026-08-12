@@ -32,8 +32,11 @@ public class KitchenServerPlugin extends Plugin {
                     }
                     if ("/order".equals(session.getUri()) && Method.GET.equals(session.getMethod())) {
                         String id = session.getParms().get("id");
+                        String summary = session.getParms().get("s");
                         try {
-                            notifyListeners("order", new JSObject().put("id", id == null ? "" : id), false);
+                            notifyListeners("order", new JSObject()
+                                    .put("id", id == null ? "" : id)
+                                    .put("summary", summary == null ? "" : summary), false);
                         } catch (Exception ignored) { }
                         return newFixedLengthResponse(Response.Status.OK, "text/plain", "ok");
                     }

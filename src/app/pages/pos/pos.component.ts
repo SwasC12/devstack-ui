@@ -147,7 +147,7 @@ export class PosComponent implements OnInit {
   ngOnInit() { this.restoreCart(); this.load(); this.checkShift(); this.loadShop(); this.loadDiscounts(); void this.loadAppVersion(); void this.checkForUpdate(); void this.listenForUpdateTriggers();
     // Offline orders replay when the internet returns - ping the kitchen for
     // each one so the display updates instantly instead of waiting for its poll.
-    this.offline.orderSynced.subscribe(id => this.pingKitchen(id));
+    this.offline.orderSynced.subscribe(order => this.pingKitchen(order?.id, order?.items));
   }
 
   private load() {
@@ -482,7 +482,7 @@ export class PosComponent implements OnInit {
         this.lastOrder.set(order);
         this.lastReceipt.set(order);
         this.sound.orderComplete();
-        this.pingKitchen(order.id);
+        this.pingKitchen(order.id, order.items);
       },
       error: (e) => {
         this.busy.set(false);
@@ -493,14 +493,20 @@ export class PosComponent implements OnInit {
   }
 
   // Kitchen display webhook: ping the kitchen tablet's local server over the
-  // shop WiFi (instant + free + zero FCM). Fail-soft - if the kitchen is
-  // unreachable it picks the order up on its 5-minute fallback poll.
-  private pingKitchen(orderId: number) {
+  // shop WiFi (instant + free + zero FCM). Carries a short item summary so the
+  // kitchen can show "pending sync" cards when the cloud is unreachable.
+  // Fail-soft - if the kitchen is unreachable it picks the order up on its
+  // fallback poll.
+  private pingKitchen(orderId: number | string, items?: any[]) {
     const url = this.shopInfo()?.kitchenUrl;
     if (!url) return;
+    const summary = (items ?? [])
+      .map((i: any) => `${i.quantity}×${i.name}`)
+      .join(', ')
+      .slice(0, 200);
     void import('@capacitor/core').then(({ CapacitorHttp }) =>
       CapacitorHttp.get({
-        url: `${url.replace(/\/+$/, '')}/order?id=${orderId}`,
+        url: `${url.replace(/\/+$/, '')}/order?id=${encodeURIComponent(orderId)}&s=${encodeURIComponent(summary)}`,
         connectTimeout: 2000,
         readTimeout: 2000
       }).catch(() => { /* kitchen offline - fallback poll covers it */ })

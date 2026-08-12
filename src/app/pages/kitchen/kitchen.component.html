@@ -6,6 +6,14 @@
     @if (offline()) { <span class="k-offline">⚠ offline — retrying</span> }
   </div>
 
+  @if (pendingSync().length > 0) {
+    <div class="k-pending">
+      @for (p of pendingSync(); track p.id) {
+        <div class="k-pending-card">⏳ <strong>Offline order</strong> — {{ p.summary }} <em>pending sync</em></div>
+      }
+    </div>
+  }
+
   @if (orders().length === 0) {
     <div class="k-empty">
       <div class="k-empty-ic">☕</div>
