@@ -33,6 +33,15 @@
 
 .k-updated { margin-left: auto; font-size: 0.8125rem; color: var(--muted); }
 
+.k-offline {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.15);
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--radius-pill);
+}
+
 .k-empty {
   flex: 1;
   display: flex;

@@ -1,7 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Preferences } from '@capacitor/preferences';
-import { firstValueFrom } from 'rxjs';
+import { Subject, firstValueFrom } from 'rxjs';
 
 // Offline support: watches connectivity, caches menu data, and queues orders
 // placed while the internet is down. Queued orders replay in order as soon as
@@ -13,6 +13,10 @@ export class OfflineService {
 
   isOffline = signal(false);
   pendingOrders = signal(0);
+  // Fires with the real server order id every time a queued (offline) order
+  // successfully syncs - lets the POS ping the kitchen so orders taken during
+  // an outage still reach the kitchen display the moment the internet returns.
+  readonly orderSynced = new Subject<number>();
   private flushing = false;
 
   constructor() {
@@ -63,10 +67,12 @@ export class OfflineService {
       for (let i = 0; i < list.length; i++) {
         const item = list[i];
         try {
-          await firstValueFrom(this.http.post(item.url, item.body));
+          const res: any = await firstValueFrom(this.http.post(item.url, item.body));
           list.splice(i, 1);
           i--;
           await Preferences.set({ key: 'queue:orders', value: JSON.stringify(list) });
+          const syncedId = res?.id;
+          if (typeof syncedId === 'number') this.orderSynced.next(syncedId);
         } catch (e: any) {
           const status = e?.status;
           if (!status) break; // still offline - stop and retry later

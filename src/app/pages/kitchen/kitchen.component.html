@@ -3,6 +3,7 @@
     <h1>👨‍🍳 Kitchen</h1>
     <span class="k-count" [class.k-busy]="orders().length > 0">{{ orders().length }} pending</span>
     <span class="k-updated">{{ firstLoad() ? 'Syncing…' : (lastRefresh() ? 'Updated ' + (lastRefresh() | date:'HH:mm:ss') : '…') }}</span>
+    @if (offline()) { <span class="k-offline">⚠ offline — retrying</span> }
   </div>
 
   @if (orders().length === 0) {

@@ -12,6 +12,7 @@ import { ReceiptViewComponent } from '../../receipt-view.component';
 import { AppLogoComponent } from '../../app-logo.component';
 import { PrintService } from '../../print.service';
 import { SoundService } from '../../sound.service';
+import { OfflineService } from '../../offline.service';
 import { UpdaterService } from '../../updater.service';
 import { Capacitor } from '@capacitor/core';
 
@@ -39,6 +40,7 @@ export class PosComponent implements OnInit {
   private service = inject(MenuItemService);
   private dialog = inject(DialogService);
   private router = inject(Router);
+  private offline = inject(OfflineService);
   auth = inject(AuthService);
 
   // Items & cart
@@ -142,7 +144,11 @@ export class PosComponent implements OnInit {
   minSizePrice(item: MenuItem): number { return Math.min(...(item.sizes ?? []).map(s => s.price)); }
   sizeNames(item: MenuItem): string { return (item.sizes ?? []).map(s => s.name).join(' · '); }
 
-  ngOnInit() { this.restoreCart(); this.load(); this.checkShift(); this.loadShop(); this.loadDiscounts(); void this.loadAppVersion(); void this.checkForUpdate(); void this.listenForUpdateTriggers(); }
+  ngOnInit() { this.restoreCart(); this.load(); this.checkShift(); this.loadShop(); this.loadDiscounts(); void this.loadAppVersion(); void this.checkForUpdate(); void this.listenForUpdateTriggers();
+    // Offline orders replay when the internet returns - ping the kitchen for
+    // each one so the display updates instantly instead of waiting for its poll.
+    this.offline.orderSynced.subscribe(id => this.pingKitchen(id));
+  }
 
   private load() {
     this.loading.set(true);

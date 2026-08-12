@@ -27,7 +27,11 @@ export class KitchenComponent implements OnInit, OnDestroy {
   readonly lastRefresh = signal<Date | null>(null);
   readonly newOrderId = signal<number | null>(null);
   readonly firstLoad = signal(true);
+  readonly offline = signal(false);
 
+  private static readonly POLL_MS = 300000; // healthy safety net: 5 min
+  private static readonly RETRY_MS = 30000;  // offline: fast retry so catch-up is quick
+  private pollMs = KitchenComponent.POLL_MS;
   private timer: ReturnType<typeof setInterval> | null = null;
   private seen = new Set<number>();
   private etag: string | null = null;
@@ -39,10 +43,14 @@ export class KitchenComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     void this.refresh();
-    // Safety-net poll only (5 min). Real-time comes from the LAN webhook.
-    this.timer = setInterval(() => void this.refresh(), 300000);
+    this.schedule();
     void this.listenForWebhook();
     this.watchAppState();
+  }
+
+  private schedule() {
+    if (this.timer) clearInterval(this.timer);
+    this.timer = setInterval(() => void this.refresh(), this.pollMs);
   }
 
   ngOnDestroy() {
@@ -85,6 +93,12 @@ export class KitchenComponent implements OnInit, OnDestroy {
       next: ({ list, etag }) => {
         if (etag) this.etag = etag;
         this.lastRefresh.set(new Date());
+        this.offline.set(false);
+        // Back to the slow safety net once we're healthy again.
+        if (this.pollMs !== KitchenComponent.POLL_MS) {
+          this.pollMs = KitchenComponent.POLL_MS;
+          this.schedule();
+        }
         if (list === null) return; // 304: queue unchanged - nothing to do
         const isFirst = this.firstLoad();
         this.firstLoad.set(false);
@@ -92,11 +106,11 @@ export class KitchenComponent implements OnInit, OnDestroy {
         if (!isFirst && sig === this.lastSig) return; // same queue - no re-render, no chime
         this.lastSig = sig;
         if (!isFirst) {
-          for (const o of list) {
-            if (!this.seen.has(o.id)) {
-              this.newOrderId.set(o.id);
-              this.sound.notification();
-            }
+          // Chime once per batch (a backlog after an outage is one alert, not a beep storm).
+          const fresh = list.filter(o => !this.seen.has(o.id));
+          if (fresh.length > 0) {
+            this.newOrderId.set(fresh[0].id);
+            this.sound.notification();
           }
           if (this.newOrderId()) setTimeout(() => this.newOrderId.set(null), 5000);
         }
@@ -105,7 +119,13 @@ export class KitchenComponent implements OnInit, OnDestroy {
       },
       error: () => {
         this.firstLoad.set(false);
-        // tablet offline - keep showing the last known queue
+        this.offline.set(true);
+        // Tablet offline: retry fast so the moment the connection returns the
+        // queue catches up (and chimes) within seconds, not minutes.
+        if (this.pollMs !== KitchenComponent.RETRY_MS) {
+          this.pollMs = KitchenComponent.RETRY_MS;
+          this.schedule();
+        }
       },
       complete: () => { this.inFlight = false; },
     });
