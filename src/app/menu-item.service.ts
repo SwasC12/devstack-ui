@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, from, of, throwError } from 'rxjs';
 import { map, switchMap, tap, catchError } from 'rxjs/operators';
@@ -249,9 +249,16 @@ export class MenuItemService {
     return this.http.post<void>(`${API}/orders/${id}/refund`, { amount, reason });
   }
 
-  // Kitchen display: live queue + "done" action.
-  getKitchenOrders(minutes = 120): Observable<any[]> {
-    return this.http.get<any[]>(`${API}/orders/kitchen?minutes=${minutes}`);
+  // Kitchen display: live queue + "done" action. Marked X-Background so the
+  // global loader never flashes on polls; sends If-None-Match so an unchanged
+  // queue comes back as a cheap 304 (list = null -> caller just updates its
+  // clock, no re-render, no chime).
+  getKitchenOrders(minutes = 120, etag?: string | null): Observable<{ list: any[] | null; etag: string | null }> {
+    let headers = new HttpHeaders({ 'X-Background': '1' });
+    if (etag) headers = headers.set('If-None-Match', etag);
+    return this.http.get<any[]>(`${API}/orders/kitchen?minutes=${minutes}`, { headers, observe: 'response' }).pipe(
+      map(res => ({ list: res.status === 304 ? null : (res.body ?? []), etag: res.headers.get('ETag') ?? null }))
+    );
   }
 
   completeOrder(id: number): Observable<void> {

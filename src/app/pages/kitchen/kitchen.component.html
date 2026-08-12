@@ -2,7 +2,7 @@
   <div class="k-head">
     <h1>👨‍🍳 Kitchen</h1>
     <span class="k-count" [class.k-busy]="orders().length > 0">{{ orders().length }} pending</span>
-    <span class="k-updated">Updated {{ lastRefresh() ? (lastRefresh() | date:'HH:mm:ss') : '…' }}</span>
+    <span class="k-updated">{{ firstLoad() ? 'Syncing…' : (lastRefresh() ? 'Updated ' + (lastRefresh() | date:'HH:mm:ss') : '…') }}</span>
   </div>
 
   @if (orders().length === 0) {

@@ -12,6 +12,8 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const loading = inject(LoadingService);
   const isApi = req.url.includes('/api/');
   const isRefresh = req.url.includes('/auth/refresh');
+  // Background calls (kitchen polls, etc.) never show the full-screen loader.
+  const isBackground = req.headers.has('X-Background');
 
   // Every API call carries the refresh cookie; authenticated calls add the
   // in-memory access token as a Bearer header.
@@ -25,10 +27,11 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   }
 
   // Global loader: counter-based, so concurrent calls stay visible together.
-  if (isApi) loading.show();
+  // Background requests (e.g. the kitchen tablet's safety-net poll) stay silent.
+  if (isApi && !isBackground) loading.show();
 
   return next(clone).pipe(
-    finalize(() => { if (isApi) loading.hide(); }),
+    finalize(() => { if (isApi && !isBackground) loading.hide(); }),
     catchError(err => {
       // Access token expired → try one refresh, then replay the request.
       if (err.status === 401 && isApi && !isRefresh && auth.token) {
