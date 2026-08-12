@@ -34,6 +34,7 @@ export class AuthService {
   private push = inject(PushService);
   private _token: string | null = null;
   private ready: Promise<void> | null = null;
+  private refreshInFlight: Observable<LoginResponse> | null = null;
   private isNative = Capacitor.isNativePlatform();
 
   get isLoggedIn(): boolean { return !!this._token; }
@@ -92,14 +93,21 @@ export class AuthService {
   }
 
   refresh(): Observable<LoginResponse> {
-    // Native: the refresh token comes from device storage (cookie may be gone
-    // after an app kill). Web keeps the HttpOnly-cookie flow unchanged.
-    return from(this.getStoredRefresh()).pipe(
-      switchMap(refreshToken =>
-        this.http.post<LoginResponse>(`${environment.apiBase}/auth/refresh`, { refreshToken })
-          .pipe(tap(res => this.storeSession(res)))
-      )
-    );
+    // Single-flight: the server rotates the refresh token on every use and
+    // burns the whole chain if an old token is ever replayed. If two requests
+    // 401 at the same instant (parallel calls right after the 15-min access
+    // token expires), they must share ONE refresh - otherwise the second one
+    // presents the already-rotated token and the session dies.
+    if (!this.refreshInFlight) {
+      this.refreshInFlight = from(this.getStoredRefresh()).pipe(
+        switchMap(refreshToken =>
+          this.http.post<LoginResponse>(`${environment.apiBase}/auth/refresh`, { refreshToken })
+            .pipe(tap(res => this.storeSession(res)))
+        ),
+        finalize(() => { this.refreshInFlight = null; })
+      );
+    }
+    return this.refreshInFlight;
   }
 
   logout(): Observable<void> {
