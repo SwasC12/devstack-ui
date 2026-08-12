@@ -60,6 +60,9 @@ export class AuthService {
         this.refresh().subscribe({
           next: () => resolve(),
           error: () => {
+            // Transient failure (API cold start, flaky network): don't cache a
+            // dead 'ready' - let the next guard/initializer call retry.
+            this.ready = null;
             // No internet but a session was active before: enter offline mode
             // so the cashier can keep selling from the cached menu + queued
             // orders. The real session restores via refresh when back online.
