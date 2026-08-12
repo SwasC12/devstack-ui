@@ -4,6 +4,7 @@
       <app-logo [size]="28" class="logo-img" />
       <span>CoffeeShop Pro</span>
     </a>
+    @if (!kioskLocked()) {
     <nav class="nav-links">
       @if (auth.isLoggedIn) {
         @if (shop) { <span class="shop-badge">{{ shop.name }}</span> }
@@ -20,8 +21,16 @@
         <a class="nav-link" routerLink="/login" routerLinkActive="active">Sign in</a>
       }
     </nav>
+    }
     <div class="top-right"><app-clock /></div>
   </header>
+  @if (offline.failedOrders() > 0) {
+    <div class="offline-banner" style="background: rgba(185, 28, 28, 0.92);">
+      <span>⚠️ {{ offline.failedOrders() }} order{{ offline.failedOrders() === 1 ? '' : 's' }} couldn't sync — check stock or items</span>
+      <button class="bn-btn" (click)="offline.retryFailed()">Retry</button>
+      <button class="bn-btn" (click)="offline.dismissFailed()">Dismiss</button>
+    </div>
+  }
   @if (offline.isOffline() || offline.pendingOrders() > 0) {
     <div class="offline-banner">
       @if (offline.isOffline()) { ⚠ No internet — selling continues, orders queue locally }

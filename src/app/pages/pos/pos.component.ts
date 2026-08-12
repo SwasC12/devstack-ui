@@ -43,6 +43,10 @@ export class PosComponent implements OnInit {
   private offline = inject(OfflineService);
   auth = inject(AuthService);
 
+  // Service mode on the payment sheet: dine-in (with table) vs takeaway.
+  readonly dineMode = signal<'takeaway' | 'dinein'>('takeaway');
+  readonly tableNumber = signal('');
+
   // Items & cart
   items: MenuItem[] = [];
   readonly cart = signal<CartItem[]>([]);
@@ -455,6 +459,8 @@ export class PosComponent implements OnInit {
     if (this.cart().length === 0) return;
     this.payMethod.set('cash');
     this.receivedText.set('');
+    this.dineMode.set('takeaway');
+    this.tableNumber.set('');
     this.paymentOpen.set(true);
   }
 
@@ -463,7 +469,9 @@ export class PosComponent implements OnInit {
     this.busy.set(true);
     this.service.placeOrder(this.cart(), {
       method: this.payMethod(),
-      amountReceived: this.payMethod() === 'cash' ? this.received() : null
+      amountReceived: this.payMethod() === 'cash' ? this.received() : null,
+      dineMode: this.dineMode(),
+      tableNumber: this.tableNumber().trim() || null
     }, this.selectedDiscount()?.id ?? null, {
       // Snapshot used to build the local receipt when the order is queued offline.
       id: `LOC-${Date.now()}`,

@@ -1,6 +1,7 @@
 import { Component, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Capacitor } from '@capacitor/core';
+import { Preferences } from '@capacitor/preferences';
 import { MenuItemService } from '../../menu-item.service';
 import { SoundService } from '../../sound.service';
 
@@ -28,6 +29,8 @@ export class KitchenComponent implements OnInit, OnDestroy {
   readonly newOrderId = signal<number | null>(null);
   readonly firstLoad = signal(true);
   readonly offline = signal(false);
+  // Kiosk lock: pins this tablet to the kitchen screen (hides the app nav).
+  readonly kiosk = signal(false);
   // Orders pinged over the LAN while the cloud was unreachable (offline POS
   // queue) - shown as "pending sync" cards until they appear in the queue.
   readonly pendingSync = signal<{ id: string; summary: string; at: number }[]>([]);
@@ -47,6 +50,7 @@ export class KitchenComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     void this.refresh();
+    void this.loadKiosk();
     this.schedule();
     void this.listenForWebhook();
     this.watchAppState();
@@ -85,6 +89,33 @@ export class KitchenComponent implements OnInit, OnDestroy {
     if (!summary || !this.offline()) return; // online: the normal refresh shows it
     this.pendingSync.update(list => [...list.filter(p => p.id !== id && p.summary !== summary), { id, summary, at: Date.now() }]);
     this.sound.notification();
+  }
+
+  // ── Kiosk lock: lock/unlock the wall tablet to this screen ────────────────
+
+  private async loadKiosk() {
+    const { value } = await Preferences.get({ key: 'kiosk' });
+    this.kiosk.set(value === '1');
+  }
+
+  toggleKiosk() {
+    if (!this.kiosk()) {
+      this.kiosk.set(true);
+      void Preferences.set({ key: 'kiosk', value: '1' });
+    }
+  }
+
+  private holdTimer: any = null;
+  startHold() {
+    if (!this.kiosk()) return;
+    this.holdTimer = setTimeout(() => {
+      this.kiosk.set(false);
+      void Preferences.remove({ key: 'kiosk' });
+    }, 1200);
+  }
+
+  cancelHold() {
+    if (this.holdTimer) { clearTimeout(this.holdTimer); this.holdTimer = null; }
   }
 
   // Screen off / another app in front -> stop polling (wall display, nobody

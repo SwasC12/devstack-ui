@@ -10,6 +10,11 @@
         <span>{{ order.createdAt | date:'medium' }}</span>
         <span>Cashier: {{ cashierName || '—' }}</span>
       </div>
+      @if (order.dineMode === 'dinein' || order.tableNumber) {
+        <div class="r-meta">
+          <span>{{ order.dineMode === 'dinein' ? '🍽️ Dine-in' : '🛍️ Takeaway' }}{{ order.tableNumber ? ' — Table ' + order.tableNumber : '' }}</span>
+        </div>
+      }
       <div class="r-items">
         @for (line of order.items; track line.id) {
           <div class="r-line">

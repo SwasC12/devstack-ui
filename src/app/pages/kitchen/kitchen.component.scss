@@ -31,6 +31,10 @@
 
 .k-count.k-busy { background: var(--accent); color: #fff; }
 
+.k-lock { margin-left: 0.25rem; padding: 0.3rem 0.6rem; border: 1px solid var(--border-hover); border-radius: 999px; background: var(--surface-2); color: var(--text-2); font-size: 0.875rem; cursor: pointer; }
+.k-lock:hover { border-color: var(--accent); color: var(--text); }
+.k-table { display: inline-flex; align-items: center; gap: 0.3rem; font-weight: 800; color: var(--accent); font-size: 0.9375rem; margin-top: 0.15rem; }
+
 .k-updated { margin-left: auto; font-size: 0.8125rem; color: var(--muted); }
 
 .k-offline {

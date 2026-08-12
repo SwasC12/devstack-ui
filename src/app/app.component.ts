@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
 import { NavigationStart, NavigationEnd, NavigationError, NavigationCancel } from '@angular/router';
 import { filter } from 'rxjs';
@@ -10,6 +10,7 @@ import { LoadingService } from './loading.service';
 import { AppLogoComponent } from './app-logo.component';
 import { ClockComponent } from './clock.component';
 import { OfflineService } from './offline.service';
+import { Preferences } from '@capacitor/preferences';
 
 @Component({
   selector: 'app-root',
@@ -32,6 +33,16 @@ export class AppComponent {
       if (e instanceof NavigationStart) loading.show();
       else loading.hide();
     });
+    this.router.events.pipe(filter(e => e instanceof NavigationEnd)).subscribe(() => void this.updateKioskLock());
+    void this.updateKioskLock();
+  }
+
+  // Kitchen kiosk: when the kitchen tablet is locked, hide the nav so the wall
+  // display stays on the kitchen screen.
+  kioskLocked = signal(false);
+  private async updateKioskLock(): Promise<void> {
+    const { value } = await Preferences.get({ key: 'kiosk' });
+    this.kioskLocked.set(value === '1' && this.router.url.startsWith('/kitchen'));
   }
 
   get isAdmin(): boolean {

@@ -218,6 +218,8 @@
     .pay-total-lbl { font-size: 0.6875rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; }
     .pay-total-val { font-size: 1.75rem; font-weight: 800; color: var(--text); }
     .pay-methods { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; width: 100%; margin: 0.5rem 0 0.35rem; }
+    .pay-table { display: flex; align-items: center; gap: 0.5rem; width: 100%; margin-bottom: 0.35rem; }
+    .tbl-input { flex: 1; padding: 0.55rem 0.65rem; border: 1px solid var(--border-hover); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); font-family: inherit; font-size: 1rem; font-weight: 700; }
     .pay-method { padding: 0.65rem; border: 1px solid var(--border-hover); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text-2); font-family: inherit; font-size: 0.875rem; font-weight: 700; cursor: pointer; transition: all 0.15s; }
     .pay-method.on { background: var(--accent); border-color: var(--accent); color: #fff; }
     .pay-received { display: flex; justify-content: space-between; align-items: baseline; width: 100%; padding: 0.2rem 0; }

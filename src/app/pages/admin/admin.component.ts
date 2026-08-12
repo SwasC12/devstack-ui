@@ -26,7 +26,7 @@ export class AdminComponent implements OnInit {
   private auth = inject(AuthService);
   private dialog = inject(DialogService);
   private sound = inject(SoundService);
-  readonly tab = signal<'inventory' | 'categories' | 'users' | 'orders' | 'analytics' | 'discounts' | 'settings'>('inventory');
+  readonly tab = signal<'inventory' | 'categories' | 'users' | 'orders' | 'analytics' | 'cashup' | 'discounts' | 'settings'>('inventory');
 
   // Inventory
   readonly items = signal<MenuItem[]>([]);
@@ -267,6 +267,24 @@ export class AdminComponent implements OnInit {
   loadAnalytics(days: number) {
     this.analyticsDays.set(days);
     this.service.getAnalytics(days).subscribe(a => this.analytics.set(a));
+  }
+
+  // Cash-up (end of day): totals per payment method + per cashier for a day.
+  readonly cashup = signal<any | null>(null);
+  readonly cashupDate = signal(new Date().toISOString().slice(0, 10));
+
+  setCashupDate(d: string) {
+    this.cashupDate.set(d);
+    this.loadCashup();
+  }
+
+  openCashup() {
+    this.tab.set('cashup');
+    if (!this.cashup()) this.loadCashup();
+  }
+
+  loadCashup() {
+    this.service.getCashup(this.cashupDate()).subscribe(c => this.cashup.set(c));
   }
 
   barPct(revenue: number, daily: any[]): number {

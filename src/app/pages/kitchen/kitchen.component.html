@@ -2,6 +2,7 @@
   <div class="k-head">
     <h1>👨‍🍳 Kitchen</h1>
     <span class="k-count" [class.k-busy]="orders().length > 0">{{ orders().length }} pending</span>
+    <button class="k-lock" (click)="toggleKiosk()" (pointerdown)="startHold()" (pointerup)="cancelHold()" (pointerleave)="cancelHold()" [title]="kiosk() ? 'Hold 1s to unlock' : 'Lock to kitchen screen'">{{ kiosk() ? '🔒' : '🔓' }}</button>
     <span class="k-updated">{{ firstLoad() ? 'Syncing…' : (lastRefresh() ? 'Updated ' + (lastRefresh() | date:'HH:mm:ss') : '…') }}</span>
     @if (offline()) { <span class="k-offline">⚠ offline — retrying</span> }
   </div>
@@ -28,6 +29,9 @@
           <strong>Order #{{ o.id }}</strong>
           <span>{{ o.createdAt | date:'HH:mm' }}</span>
         </div>
+        @if (o.dineMode === 'dinein' || o.tableNumber) {
+          <div class="k-table">🍽️ Table {{ o.tableNumber || '—' }}</div>
+        }
         @if (o.customerName) { <div class="k-cust">👤 {{ o.customerName }}</div> }
         <div class="k-items">
           @for (i of o.items; track $index) {

@@ -344,6 +344,18 @@
             <span class="pay-total-val">R{{ netTotal() | number:'1.2-2' }}</span>
           </div>
 
+          <!-- Dine-in / takeaway -->
+          <div class="pay-methods">
+            <button class="pay-method" [class.on]="dineMode() === 'takeaway'" (click)="dineMode.set('takeaway')">🛍️ Takeaway</button>
+            <button class="pay-method" [class.on]="dineMode() === 'dinein'" (click)="dineMode.set('dinein')">🍽️ Dine-in</button>
+          </div>
+          @if (dineMode() === 'dinein') {
+            <div class="pay-table">
+              <span class="pay-received-lbl">Table</span>
+              <input class="tbl-input" type="text" inputmode="numeric" placeholder="Table #" [ngModel]="tableNumber()" (ngModelChange)="tableNumber.set($event)" />
+            </div>
+          }
+
           <!-- Method toggle -->
           <div class="pay-methods">
             <button class="pay-method" [class.on]="payMethod() === 'cash'" (click)="payMethod.set('cash')">💵 Cash</button>

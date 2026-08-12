@@ -7,6 +7,7 @@
         <button class="tab" [class.active]="tab() === 'users'" (click)="tab.set('users')">Users</button>
         <button class="tab" [class.active]="tab() === 'orders'" (click)="tab.set('orders')">Orders</button>
         <button class="tab" [class.active]="tab() === 'analytics'" (click)="openAnalytics()">Analytics</button>
+        <button class="tab" [class.active]="tab() === 'cashup'" (click)="openCashup()">Cash-up</button>
         <button class="tab" [class.active]="tab() === 'discounts'" (click)="tab.set('discounts')">Discounts</button>
         <button class="tab" [class.active]="tab() === 'settings'" (click)="tab.set('settings')">Settings</button>
         <!-- Notification bell: low-stock alerts + owner announcements -->
@@ -368,6 +369,39 @@
       }
 
       <!-- ───── ANALYTICS ───── -->
+      @if (tab() === 'cashup') {
+        <div class="cashup">
+          <div class="cashup-head">
+            <h2 class="page-title">Cash-up</h2>
+            <input class="cashup-date" type="date" [ngModel]="cashupDate()" (ngModelChange)="setCashupDate($event)" />
+          </div>
+          @if (cashup(); as c) {
+            <div class="cashup-totals">
+              <div class="cu-stat"><span>Orders</span><strong>{{ c.totals.orders }}</strong></div>
+              <div class="cu-stat"><span>Gross</span><strong>R{{ c.totals.gross | number:'1.2-2' }}</strong></div>
+              <div class="cu-stat"><span>Discounts</span><strong>−R{{ c.totals.discounts | number:'1.2-2' }}</strong></div>
+              <div class="cu-stat"><span>Refunds</span><strong>−R{{ c.totals.refunds | number:'1.2-2' }}</strong></div>
+              <div class="cu-stat cu-net"><span>Net</span><strong>R{{ c.totals.net | number:'1.2-2' }}</strong></div>
+            </div>
+            <div class="cu-cols">
+              <div class="cu-col">
+                <h3>By payment method</h3>
+                @for (m of c.byMethod; track m.method) {
+                  <div class="cu-row"><span>{{ m.method === 'cash' ? 'Cash' : 'Card' }} ({{ m.orders }})</span><strong>R{{ m.net | number:'1.2-2' }}</strong></div>
+                }
+              </div>
+              <div class="cu-col">
+                <h3>Per cashier</h3>
+                @for (cs of c.cashiers; track cs.name) {
+                  <div class="cu-row"><span>{{ cs.name }} ({{ cs.orders }} orders)</span><strong>R{{ cs.net | number:'1.2-2' }}</strong></div>
+                }
+              </div>
+            </div>
+          } @else {
+            <p class="cu-none">Loading…</p>
+          }
+        </div>
+      }
       @if (tab() === 'analytics') {
         <div class="section-head">
           <h2 class="page-title">Analytics</h2>

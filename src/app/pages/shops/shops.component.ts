@@ -7,6 +7,8 @@ import { PasswordInputComponent } from '../../password-input.component';
 import { AuthService } from '../../auth.service';
 import { DialogService } from '../../dialog.service';
 import { SoundService } from '../../sound.service';
+import { Capacitor } from '@capacitor/core';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-shops',
@@ -37,6 +39,31 @@ export class ShopsComponent implements OnInit {
 
   // Platform dashboard (right rail): overview counters + live activity feed
   readonly overview = signal<any | null>(null);
+  readonly backupMsg = signal('');
+  // Superadmin: full JSON snapshot of the platform (shops, menu, orders...).
+  async downloadBackup(): Promise<void> {
+    const token = this.auth.token;
+    if (!token) { this.backupMsg.set('Not signed in'); return; }
+    try {
+      const res = await fetch(`${environment.apiBase}/admin/export`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) { this.backupMsg.set(`Backup failed (HTTP ${res.status})`); return; }
+      const text = await res.text();
+      const name = `backup-${new Date().toISOString().slice(0, 10)}.json`;
+      if (Capacitor.isNativePlatform()) {
+        const { Filesystem, Directory } = await import('@capacitor/filesystem');
+        await Filesystem.writeFile({ path: name, data: text, directory: Directory.Documents });
+        this.backupMsg.set(`Saved to Documents/${name}`);
+      } else {
+        const blob = new Blob([text], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = name;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        this.backupMsg.set('Backup downloaded');
+      }
+    } catch { this.backupMsg.set('Backup failed'); }
+  }
   // Platform health (API/DB/push/storage dots)
   readonly health = signal<any | null>(null);
   // Which shop row has its ⋮ menu open (null = none). The menu itself is a
