@@ -24,10 +24,11 @@
 
   <div class="k-grid">
     @for (o of orders(); track o.id) {
-      <div class="k-card" [class.k-new]="o.id === newOrderId()">
+      <div class="k-card" [class.k-new]="o.id === newOrderId()" [class.k-warn]="ageClass(o, tick()) === 'warn'" [class.k-crit]="ageClass(o, tick()) === 'crit'">
         <div class="k-card-head">
           <strong>Order #{{ o.id }}</strong>
           <span>{{ o.createdAt | date:'HH:mm' }}</span>
+          <span class="k-age" [class.crit]="ageClass(o, tick()) === 'crit'">{{ ageLabel(o) }}</span>
         </div>
         @if (o.dineMode === 'dinein' || o.tableNumber) {
           <div class="k-table">🍽️ Table {{ o.tableNumber || '—' }}</div>

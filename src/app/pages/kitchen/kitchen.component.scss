@@ -33,6 +33,12 @@
 
 .k-lock { margin-left: 0.25rem; padding: 0.3rem 0.6rem; border: 1px solid var(--border-hover); border-radius: 999px; background: var(--surface-2); color: var(--text-2); font-size: 0.875rem; cursor: pointer; }
 .k-lock:hover { border-color: var(--accent); color: var(--text); }
+
+.k-card.k-warn { border-color: #d97706; box-shadow: 0 0 0 1px #d97706; }
+.k-card.k-crit { border-color: #dc2626; box-shadow: 0 0 0 1px #dc2626; animation: kpulse 1.2s ease-in-out infinite; }
+@keyframes kpulse { 0%, 100% { box-shadow: 0 0 0 1px #dc2626; } 50% { box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.55); } }
+.k-age { margin-left: auto; font-size: 0.75rem; font-weight: 800; color: var(--text-2); background: var(--surface-2); border-radius: 999px; padding: 0.15rem 0.5rem; }
+.k-age.crit { color: #fff; background: #dc2626; }
 .k-table { display: inline-flex; align-items: center; gap: 0.3rem; font-weight: 800; color: var(--accent); font-size: 0.9375rem; margin-top: 0.15rem; }
 
 .k-updated { margin-left: auto; font-size: 0.8125rem; color: var(--muted); }

@@ -38,6 +38,12 @@ export class KitchenComponent implements OnInit, OnDestroy {
   private static readonly POLL_MS = 300000; // healthy safety net: 5 min
   private static readonly RETRY_MS = 30000;  // offline: fast retry so catch-up is quick
   private static readonly PENDING_TTL = 15 * 60 * 1000; // strip cards expire after 15 min
+  private static readonly WARN_MS = 4 * 60 * 1000;  // amber after 4 min in the queue
+  private static readonly CRIT_MS = 10 * 60 * 1000; // red after 10 min
+  // Age ticker: re-renders card aging every 30s so overdue highlighting moves
+  // without waiting for a poll.
+  readonly tick = signal(0);
+  private ageTimer: ReturnType<typeof setInterval> | null = null;
   private pollMs = KitchenComponent.POLL_MS;
   private timer: ReturnType<typeof setInterval> | null = null;
   private seen = new Set<number>();
@@ -52,6 +58,7 @@ export class KitchenComponent implements OnInit, OnDestroy {
     void this.refresh();
     void this.loadKiosk();
     this.schedule();
+    this.ageTimer = setInterval(() => this.tick.set(Date.now()), 30000);
     void this.listenForWebhook();
     this.watchAppState();
   }
@@ -63,6 +70,7 @@ export class KitchenComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     if (this.timer) clearInterval(this.timer);
+    if (this.ageTimer) clearInterval(this.ageTimer);
     try { this.serverHandle?.remove(); } catch { /* ignore */ }
     try { this.appHandle?.remove(); } catch { /* ignore */ }
     try { (Capacitor as any).Plugins?.KitchenServer?.stop(); } catch { /* ignore */ }
@@ -116,6 +124,24 @@ export class KitchenComponent implements OnInit, OnDestroy {
 
   cancelHold() {
     if (this.holdTimer) { clearTimeout(this.holdTimer); this.holdTimer = null; }
+  }
+
+  // ── Overdue highlighting: amber after 4 min, red after 10 min ─────────────
+
+  ageOf(o: any): number {
+    return Date.now() - new Date(o.createdAt).getTime();
+  }
+
+  ageClass(o: any, _tick: number): string {
+    const ms = this.ageOf(o);
+    if (ms >= KitchenComponent.CRIT_MS) return 'crit';
+    if (ms >= KitchenComponent.WARN_MS) return 'warn';
+    return '';
+  }
+
+  ageLabel(o: any): string {
+    const min = Math.floor(this.ageOf(o) / 60000);
+    return min >= 1 ? `${min} min` : 'now';
   }
 
   // Screen off / another app in front -> stop polling (wall display, nobody
