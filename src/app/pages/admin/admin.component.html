@@ -8,6 +8,7 @@
         <button class="tab" [class.active]="tab() === 'orders'" (click)="tab.set('orders')">Orders</button>
         <button class="tab" [class.active]="tab() === 'analytics'" (click)="openAnalytics()">Analytics</button>
         <button class="tab" [class.active]="tab() === 'cashup'" (click)="openCashup()">Cash-up</button>
+        <button class="tab" [class.active]="tab() === 'timesheet'" (click)="openTimesheet()">Timesheet</button>
         <button class="tab" [class.active]="tab() === 'discounts'" (click)="tab.set('discounts')">Discounts</button>
         <button class="tab" [class.active]="tab() === 'settings'" (click)="tab.set('settings')">Settings</button>
         <!-- Notification bell: low-stock alerts + owner announcements -->
@@ -257,25 +258,28 @@
               <div class="field"><label>Password</label><app-password [(ngModel)]="uPass" placeholder="Min 10 · upper + lower + digit" autocomplete="new-password" /></div>
               <div class="field"><label>Display name</label><input [(ngModel)]="uDisplay" placeholder="e.g. Jane" /></div>
               <div class="field"><label>Role</label><select [(ngModel)]="uRole" class="sel"><option value="cashier">Cashier</option><option value="admin">Admin</option></select></div>
+              <div class="field"><label>Wage (R/hour, optional)</label><input [(ngModel)]="uWage" inputmode="decimal" placeholder="e.g. 25" /></div>
               <div class="field"><label>PIN (optional)</label><app-password [pin]="true" [maxlength]="6" inputmode="numeric" [(ngModel)]="uPin" placeholder="4–6 digits" /></div>
             </div>
             <div class="form-acts">
               <app-btn size="sm" (onClick)="closeUserForm()">Cancel</app-btn>
-              <app-btn variant="primary" size="sm" (onClick)="saveUser()">Create user</app-btn>
+              <app-btn variant="primary" size="sm" (onClick)="saveUser()">{{ uEditId != null ? 'Save changes' : 'Create user' }}</app-btn>
             </div>
           </div>
         }
 
         <div class="table-card">
           <table>
-            <thead><tr><th>Username</th><th>Display name</th><th>Role</th><th></th></tr></thead>
+            <thead><tr><th>Username</th><th>Display name</th><th>Role</th><th>Wage</th><th></th></tr></thead>
             <tbody>
               @for (u of users(); track u.id) {
                 <tr>
                   <td><strong>{{ u.username }}</strong></td>
                   <td>{{ u.displayName }}</td>
                   <td><span class="pill">{{ u.role }}</span> @if (u.hasPin) { <span class="pill pin">PIN ✓</span> }</td>
+                  <td>{{ u.wageRate != null ? ('R' + u.wageRate + '/h') : '—' }}</td>
                   <td class="cell-acts">
+                    <app-btn size="sm" (onClick)="editUser(u)">Edit</app-btn>
                     <app-btn size="sm" (onClick)="setPin(u)">{{ u.hasPin ? 'Change PIN' : 'Set PIN' }}</app-btn>
                     <app-btn size="sm" variant="danger" (onClick)="removeUser(u.id)">Delete</app-btn>
                   </td>
@@ -284,6 +288,75 @@
             </tbody>
           </table>
         </div>
+      }
+
+      <!-- ───── TIMESHEET ───── -->
+      @if (tab() === 'timesheet') {
+        <div class="section-head">
+          <h2 class="page-title">Timesheet</h2>
+          <div class="range-row" style="display:flex; gap:0.75rem; align-items:end; flex-wrap:wrap;">
+            <div class="field"><label>From</label><input type="date" [(ngModel)]="tsFrom" /></div>
+            <div class="field"><label>To</label><input type="date" [(ngModel)]="tsTo" /></div>
+            <app-btn variant="primary" size="sm" (onClick)="loadTimesheet()" [loading]="tsBusy()">Load</app-btn>
+          </div>
+        </div>
+
+        @if (tsData(); as ts) {
+          <div class="table-card">
+            <table>
+              <thead><tr><th>Employee</th><th>Shifts</th><th>Hours</th><th>Wage</th><th>Cost</th></tr></thead>
+              <tbody>
+                @for (e of ts.employees; track e.id) {
+                  <tr [class.row-click]="tsExpanded() === e.id" (click)="toggleTsRow(e.id)">
+                    <td><strong>{{ e.displayName }}</strong> @if (e.role === 'admin') { <span class="pill">admin</span> }</td>
+                    <td>{{ e.shiftCount }}</td>
+                    <td>{{ fmtHours(e.totalHours) }}</td>
+                    <td>{{ e.wageRate != null ? ('R' + e.wageRate + '/h') : '—' }}</td>
+                    <td><strong>{{ e.wageCost > 0 ? ('R' + (e.wageCost | number:'1.2-2')) : '—' }}</strong></td>
+                  </tr>
+                  @if (tsExpanded() === e.id) {
+                    <tr class="ts-detail">
+                      <td colspan="5">
+                        @if (e.shifts.length === 0) {
+                          <p class="ts-empty">No shifts in this range.</p>
+                        } @else {
+                          <table class="ts-shifts">
+                            <thead><tr><th>Clock in</th><th>Clock out</th><th>Hours</th><th></th></tr></thead>
+                            <tbody>
+                              @for (sh of e.shifts; track sh.id) {
+                                <tr>
+                                  <td>{{ sh.startTime | date:'MMM d, HH:mm' }}</td>
+                                  <td>{{ sh.endTime ? (sh.endTime | date:'MMM d, HH:mm') : '—' }}</td>
+                                  <td>{{ fmtHours(sh.hours) }}</td>
+                                  <td>@if (sh.active) { <span class="pill">in progress</span> }</td>
+                                </tr>
+                              }
+                            </tbody>
+                          </table>
+                        }
+                      </td>
+                    </tr>
+                  }
+                } @empty {
+                  <tr><td colspan="5" class="ts-empty">No employees yet.</td></tr>
+                }
+              </tbody>
+              @if (ts.employees.length > 0) {
+                <tfoot>
+                  <tr>
+                    <td>Total</td>
+                    <td>{{ tsTotals().shifts }}</td>
+                    <td>{{ fmtHours(tsTotals().hours) }}</td>
+                    <td></td>
+                    <td><strong>R{{ tsTotals().cost | number:'1.2-2' }}</strong></td>
+                  </tr>
+                </tfoot>
+              }
+            </table>
+          </div>
+        } @else {
+          <p class="hint">Pick a date range and tap Load to see hours worked per employee (clocked in/out via the till shift).</p>
+        }
       }
 
       <!-- ───── ORDERS ───── -->

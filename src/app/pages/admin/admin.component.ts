@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
+import { Component, inject, signal, computed, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MenuItemService } from '../../menu-item.service';
@@ -28,7 +28,45 @@ export class AdminComponent implements OnInit {
   private auth = inject(AuthService);
   private dialog = inject(DialogService);
   private sound = inject(SoundService);
-  readonly tab = signal<'inventory' | 'categories' | 'users' | 'orders' | 'analytics' | 'cashup' | 'discounts' | 'settings'>('inventory');
+  readonly tab = signal<'inventory' | 'categories' | 'users' | 'orders' | 'analytics' | 'cashup' | 'discounts' | 'settings' | 'timesheet'>('inventory');
+
+  // Timesheet: hours worked + wage cost per employee over a date range.
+  readonly tsData = signal<any | null>(null);
+  readonly tsBusy = signal(false);
+  readonly tsExpanded = signal<number | null>(null);
+  readonly tsTotals = computed(() => {
+    const d = this.tsData();
+    const emps = d?.employees ?? [];
+    return {
+      shifts: emps.reduce((s: number, e: any) => s + e.shiftCount, 0),
+      hours: emps.reduce((s: number, e: any) => s + e.totalHours, 0),
+      cost: emps.reduce((s: number, e: any) => s + e.wageCost, 0)
+    };
+  });
+  tsFrom = ''; tsTo = '';
+  private initTimesheetRange() {
+    const now = new Date();
+    const first = new Date(now.getFullYear(), now.getMonth(), 1);
+    const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    if (!this.tsFrom) this.tsFrom = fmt(first);
+    if (!this.tsTo) this.tsTo = fmt(now);
+  }
+  openTimesheet() { this.initTimesheetRange(); this.tab.set('timesheet'); void this.loadTimesheet(); }
+  loadTimesheet() {
+    if (!this.tsFrom || !this.tsTo) { this.dialog.toast('Pick a date range first', 'error'); return; }
+    this.tsBusy.set(true);
+    this.service.getTimesheet(this.tsFrom, this.tsTo).subscribe({
+      next: (d) => { this.tsData.set(d); this.tsBusy.set(false); },
+      error: () => { this.tsBusy.set(false); this.dialog.toast('Failed to load timesheet', 'error'); }
+    });
+  }
+  toggleTsRow(id: number) { this.tsExpanded.set(this.tsExpanded() === id ? null : id); }
+  fmtHours(h: number): string {
+    const total = Math.round(h * 60);
+    const hrs = Math.floor(total / 60);
+    const mins = total % 60;
+    return mins > 0 ? `${hrs}h ${mins}m` : `${hrs}h`;
+  }
 
   // Owner backup: this shop's full data (menu, orders, users, shifts) as JSON.
   readonly backupMsg = signal('');
@@ -75,7 +113,8 @@ export class AdminComponent implements OnInit {
   // Users
   readonly users = signal<any[]>([]);
   readonly showUserForm = signal(false);
-  uName = ''; uPass = ''; uDisplay = ''; uRole: 'cashier' | 'admin' = 'cashier'; uPin = '';
+  uName = ''; uPass = ''; uDisplay = ''; uRole: 'cashier' | 'admin' = 'cashier'; uPin = ''; uWage = '';
+  uEditId: number | null = null; // null = creating a new user, else editing
 
   // Categories
   readonly categories = signal<Category[]>([]);
@@ -248,7 +287,26 @@ export class AdminComponent implements OnInit {
 
   openUserForm() { this.resetUser(); this.showUserForm.set(true); }
   closeUserForm() { this.showUserForm.set(false); }
-  saveUser() { this.service.createUser({ username: this.uName, password: this.uPass, displayName: this.uDisplay, role: this.uRole, pin: this.uPin || null }).subscribe({ next: () => { this.loadUsers(); this.closeUserForm(); }, error: (e) => this.dialog.toast(e.error?.error || 'Save failed', 'error') }); }
+  editUser(u: any) {
+    this.resetUser();
+    this.uEditId = u.id;
+    this.uDisplay = u.displayName ?? '';
+    this.uRole = u.role === 'admin' ? 'admin' : 'cashier';
+    this.uWage = u.wageRate != null ? String(u.wageRate) : '';
+    this.showUserForm.set(true);
+  }
+  saveUser() {
+    const wage = this.uWage.trim() === '' ? null : Number(this.uWage);
+    const wageRate = wage != null && isFinite(wage) && wage > 0 ? wage : null;
+    if (this.uEditId != null) {
+      this.service.updateUser(this.uEditId, { displayName: this.uDisplay.trim(), role: this.uRole, wageRate }).subscribe({
+        next: () => { this.loadUsers(); this.closeUserForm(); },
+        error: (e) => this.dialog.toast(e.error?.error || 'Save failed', 'error')
+      });
+      return;
+    }
+    this.service.createUser({ username: this.uName, password: this.uPass, displayName: this.uDisplay, role: this.uRole, pin: this.uPin || null, wageRate }).subscribe({ next: () => { this.loadUsers(); this.closeUserForm(); }, error: (e) => this.dialog.toast(e.error?.error || 'Save failed', 'error') });
+  }
   removeUser(id: number) {
     this.dialog.confirm('Delete user', 'Delete this user?').then(ok => {
       if (ok) this.service.deleteUser(id).subscribe({ next: () => this.loadUsers(), error: () => this.dialog.toast('Delete failed', 'error') });
@@ -264,7 +322,7 @@ export class AdminComponent implements OnInit {
       });
     });
   }
-  private resetUser() { this.uName = ''; this.uPass = ''; this.uDisplay = ''; this.uRole = 'cashier'; this.uPin = ''; }
+  private resetUser() { this.uName = ''; this.uPass = ''; this.uDisplay = ''; this.uRole = 'cashier'; this.uPin = ''; this.uWage = ''; this.uEditId = null; }
 
   // ── Orders ─────────────────────────────────────────────
 

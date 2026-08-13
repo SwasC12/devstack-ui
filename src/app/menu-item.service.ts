@@ -141,8 +141,12 @@ export class MenuItemService {
     return this.http.get<any[]>(`${API}/users`);
   }
 
-  createUser(data: { username: string; password: string; displayName: string; role: string; pin?: string | null }): Observable<any> {
+  createUser(data: { username: string; password: string; displayName: string; role: string; pin?: string | null; wageRate?: number | null }): Observable<any> {
     return this.http.post(`${API}/users`, data);
+  }
+
+  updateUser(id: number, data: { displayName: string; role: string; wageRate?: number | null }): Observable<any> {
+    return this.http.put(`${API}/users/${id}`, data);
   }
 
   setUserPin(id: number, pin: string): Observable<void> {
@@ -151,6 +155,11 @@ export class MenuItemService {
 
   deleteUser(id: number): Observable<void> {
     return this.http.delete<void>(`${API}/users/${id}`);
+  }
+
+  // Timesheet: hours worked per employee for a date range (admin only).
+  getTimesheet(from: string, to: string): Observable<any> {
+    return this.http.get(`${API}/shifts/timesheet?from=${from}&to=${to}`);
   }
 
   // ── Discounts / specials ───────────────────────────────
