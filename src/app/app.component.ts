@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, OnDestroy, signal } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
 import { NavigationStart, NavigationEnd, NavigationError, NavigationCancel } from '@angular/router';
 import { filter } from 'rxjs';
@@ -19,10 +19,11 @@ import { Preferences } from '@capacitor/preferences';
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss',
 })
-export class AppComponent {
+export class AppComponent implements OnDestroy {
   auth = inject(AuthService);
   router = inject(Router);
   offline = inject(OfflineService);
+  private kioskTimer: any = null;
 
   constructor() {
     const loading = inject(LoadingService);
@@ -35,14 +36,23 @@ export class AppComponent {
     });
     this.router.events.pipe(filter(e => e instanceof NavigationEnd)).subscribe(() => void this.updateKioskLock());
     void this.updateKioskLock();
+    // The kiosk pref lives in device storage and only the kitchen page changes
+    // it - poll so the nav hides/shows instantly instead of waiting for the
+    // next navigation (which the locked nav otherwise prevents).
+    this.kioskTimer = setInterval(() => void this.updateKioskLock(), 700);
+  }
+
+  ngOnDestroy() {
+    if (this.kioskTimer) clearInterval(this.kioskTimer);
   }
 
   // Kitchen kiosk: when the kitchen tablet is locked, hide the nav so the wall
   // display stays on the kitchen screen.
   kioskLocked = signal(false);
   private async updateKioskLock(): Promise<void> {
+    if (!this.router.url.startsWith('/kitchen')) { this.kioskLocked.set(false); return; }
     const { value } = await Preferences.get({ key: 'kiosk' });
-    this.kioskLocked.set(value === '1' && this.router.url.startsWith('/kitchen'));
+    this.kioskLocked.set(value === '1');
   }
 
   get isAdmin(): boolean {

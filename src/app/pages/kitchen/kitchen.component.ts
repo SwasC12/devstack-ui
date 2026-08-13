@@ -107,6 +107,9 @@ export class KitchenComponent implements OnInit, OnDestroy {
   }
 
   toggleKiosk() {
+    // A click always fires on finger release after a hold-unlock; swallow it
+    // or the button instantly re-locks (the unlock never "sticks").
+    if (this.swallowClick) { this.swallowClick = false; return; }
     if (!this.kiosk()) {
       this.kiosk.set(true);
       void Preferences.set({ key: 'kiosk', value: '1' });
@@ -114,11 +117,15 @@ export class KitchenComponent implements OnInit, OnDestroy {
   }
 
   private holdTimer: any = null;
+  private swallowClick = false;
   startHold() {
     if (!this.kiosk()) return;
     this.holdTimer = setTimeout(() => {
       this.kiosk.set(false);
       void Preferences.remove({ key: 'kiosk' });
+      this.swallowClick = true;
+      // Safety net: clear the flag even if no click follows (finger slid off).
+      setTimeout(() => { this.swallowClick = false; }, 2000);
     }, 1200);
   }
 
