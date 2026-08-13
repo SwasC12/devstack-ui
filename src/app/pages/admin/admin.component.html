@@ -609,6 +609,14 @@
             <app-btn variant="primary" size="sm" (onClick)="saveBranding()" [loading]="brBusy()">Save branding</app-btn>
           </div>
         </div>
+        <div class="form-sheet">
+          <div class="form-head"><h3>Backup</h3></div>
+          <p class="hint">Download this shop's full data (menu, sizes, modifiers, discounts, orders, users, shifts) as a JSON file. Keep it somewhere safe — it does not include APKs.</p>
+          @if (backupMsg()) { <p class="form-msg">{{ backupMsg() }}</p> }
+          <div class="form-acts">
+            <app-btn variant="primary" size="sm" (onClick)="downloadBackup()">Download shop backup</app-btn>
+          </div>
+        </div>
       }
     </div>
   

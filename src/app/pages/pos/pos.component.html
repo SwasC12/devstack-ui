@@ -1,5 +1,31 @@
 
     <!-- Not on shift: one big, obvious clock-in screen. No POS until you're in. -->
+    @if (updateInfo()?.isRequired) {
+      <!-- Force gate: a required release blocks the app entirely until it's
+           installed. No dismissal - the platform marked it required. -->
+      <div class="force-gate">
+        <div class="force-gate-card">
+          <h2>Update required</h2>
+          <p>CoffeeShop Pro {{ updateInfo()!.version }} must be installed to keep using this app.</p>
+          @if (updateInfo()!.releaseNotes) { <div class="upd-notes">{{ updateInfo()!.releaseNotes }}</div> }
+          @if (updateState() === 'downloading') {
+            <div class="upd-progress"><div class="upd-bar" [style.width.%]="updateProgress() * 100"></div></div>
+            <span class="upd-pct">Downloading… {{ (updateProgress() * 100) | number:'1.0-0' }}%</span>
+          } @else if (updateState() === 'ready' && updateBlocked()) {
+            <span class="upd-err">Install blocked — allow unknown-source installs for CoffeeShop Pro.</span>
+            <app-btn size="sm" (onClick)="openInstallSettings()">Open settings</app-btn>
+            <app-btn variant="primary" size="lg" (onClick)="installUpdate()">Try again</app-btn>
+          } @else if (updateState() === 'ready') {
+            <app-btn variant="primary" size="lg" (onClick)="installUpdate()">Install now</app-btn>
+          } @else if (updateState() === 'failed') {
+            <span class="upd-err">{{ updateError() || 'Download failed — check your connection and try again.' }}</span>
+            <app-btn variant="primary" size="lg" (onClick)="downloadUpdate()">Retry download</app-btn>
+          } @else {
+            <app-btn variant="primary" size="lg" (onClick)="downloadUpdate()">Download update</app-btn>
+          }
+        </div>
+      </div>
+    }
     @if (!shiftActive()) {
       <div class="clockin">
         <div class="clockin-card">
@@ -25,8 +51,6 @@
               }
               @if (!u.isRequired) {
                 <app-btn size="sm" (onClick)="dismissUpdate()">Later</app-btn>
-              } @else if (updateState() === 'idle' || updateState() === 'failed') {
-                <button class="upd-continue" (click)="dismissUpdate()">Continue anyway</button>
               }
             </div>
           }

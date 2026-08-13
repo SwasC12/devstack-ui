@@ -13,6 +13,8 @@ import { DialogService } from '../../dialog.service';
 import { SoundService } from '../../sound.service';
 import { firstValueFrom } from 'rxjs';
 import { ThemeService } from '../../theme.service';
+import { environment } from '../../../environments/environment';
+import { Capacitor } from '@capacitor/core';
 
 @Component({
   selector: 'app-admin',
@@ -27,6 +29,32 @@ export class AdminComponent implements OnInit {
   private dialog = inject(DialogService);
   private sound = inject(SoundService);
   readonly tab = signal<'inventory' | 'categories' | 'users' | 'orders' | 'analytics' | 'cashup' | 'discounts' | 'settings'>('inventory');
+
+  // Owner backup: this shop's full data (menu, orders, users, shifts) as JSON.
+  readonly backupMsg = signal('');
+  async downloadBackup(): Promise<void> {
+    const token = this.auth.token;
+    if (!token) { this.backupMsg.set('Not signed in'); return; }
+    try {
+      const res = await fetch(`${environment.apiBase}/admin/export/shop`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) { this.backupMsg.set(`Backup failed (HTTP ${res.status})`); return; }
+      const text = await res.text();
+      const name = `shop-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      if (Capacitor.isNativePlatform()) {
+        const { Filesystem, Directory } = await import('@capacitor/filesystem');
+        await Filesystem.writeFile({ path: name, data: text, directory: Directory.Documents });
+        this.backupMsg.set(`Saved to Documents/${name}`);
+      } else {
+        const blob = new Blob([text], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = name;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        this.backupMsg.set('Backup downloaded');
+      }
+    } catch { this.backupMsg.set('Backup failed'); }
+  }
 
   // Inventory
   readonly items = signal<MenuItem[]>([]);
