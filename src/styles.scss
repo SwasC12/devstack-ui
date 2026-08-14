@@ -91,3 +91,33 @@ body {
     border-radius: 0 !important;
   }
 }
+
+/* -- Native controls, dark-styled (selects, dates, number spinners) --
+   color-scheme makes the OS render dropdowns/calendars/scrollbars in the
+   app theme; selects get appearance:none + a custom chevron so they look
+   like designed components everywhere instead of raw OS widgets. */
+:root { color-scheme: dark; }
+:root[data-theme='light'] { color-scheme: light; }
+
+select,
+.sel {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%238e8e8e' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.7rem center;
+  padding-right: 2.1rem;
+  cursor: pointer;
+}
+select:focus,
+.sel:focus { outline: none; border-color: var(--accent); }
+select option,
+.sel option { background: var(--surface-2); color: var(--text); }
+
+/* Number spinners: hide the OS arrows (they render white on dark themes). */
+input[type='number'] { -moz-appearance: textfield; appearance: textfield; }
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+/* Date pickers: match the theme's calendar icon. */
+input[type='date']::-webkit-calendar-picker-indicator { filter: invert(0.65); cursor: pointer; }

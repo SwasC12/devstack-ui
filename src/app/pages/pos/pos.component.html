@@ -365,13 +365,8 @@
           </div>
           <div class="pay-total">
             <span class="pay-total-lbl">Total due</span>
-            <span class="pay-total-val">R{{ grandTotal() | number:'1.2-2' }}</span>
+            <span class="pay-total-val">R{{ netTotal() | number:'1.2-2' }}</span>
           </div>
-          @if (serviceCharge() > 0 || tip() > 0) {
-            <div class="pay-extras-line">
-              <span>Subtotal R{{ netTotal() | number:'1.2-2' }}<span *ngIf="serviceCharge() > 0"> · service {{ serviceCharge() | number:'1.2-2' }}</span><span *ngIf="tip() > 0"> · tip {{ tip() | number:'1.2-2' }}</span></span>
-            </div>
-          }
 
           <!-- Dine-in / takeaway -->
           <div class="pay-methods">
@@ -384,25 +379,6 @@
               <input class="tbl-input" type="text" inputmode="numeric" placeholder="Table #" [ngModel]="tableNumber()" (ngModelChange)="tableNumber.set($event)" />
             </div>
           }
-
-          <!-- Extras: service charge + tip -->
-          <div class="pay-extras">
-            <div class="pay-extras-row">
-              <span class="pay-received-lbl">Service charge</span>
-              <button class="qk" [class.on]="serviceChargePct() === 0" (click)="setServiceCharge(0)">None</button>
-              <button class="qk" [class.on]="serviceChargePct() === 10" (click)="setServiceCharge(10)">10%</button>
-              <button class="qk" [class.on]="serviceChargePct() === 12.5" (click)="setServiceCharge(12.5)">12.5%</button>
-              <button class="qk" [class.on]="serviceChargePct() === 15" (click)="setServiceCharge(15)">15%</button>
-            </div>
-            <div class="pay-extras-row">
-              <span class="pay-received-lbl">Tip</span>
-              <button class="qk" [class.on]="tip() === 0" (click)="setTip(0)">None</button>
-              <button class="qk" [class.on]="tip() === 5" (click)="setTip(5)">R5</button>
-              <button class="qk" [class.on]="tip() === 10" (click)="setTip(10)">R10</button>
-              <button class="qk" [class.on]="tip() === 15" (click)="setTip(15)">R15</button>
-              <button class="qk" [class.on]="tip() === 20" (click)="setTip(20)">R20</button>
-            </div>
-          </div>
 
           <!-- House account -->
           <div class="pay-methods">
@@ -429,7 +405,7 @@
                 }
               }
             </div>
-            <p class="pay-card-note">The full R{{ grandTotal() | number:'1.2-2' }} goes on the customer's tab. Settle it later from Admin → Customers.</p>
+            <p class="pay-card-note">The full R{{ netTotal() | number:'1.2-2' }} goes on the customer's tab. Settle it later from Admin → Customers.</p>
           }
 
           @if (splitMode()) {
@@ -445,7 +421,7 @@
                 </div>
               }
               <app-btn size="sm" (onClick)="addSplitRow()">+ Payment</app-btn>
-              <div class="split-total">Allocated: <strong>R{{ splitTotal() | number:'1.2-2' }}</strong> of R{{ grandTotal() | number:'1.2-2' }}</div>
+              <div class="split-total">Allocated: <strong>R{{ splitTotal() | number:'1.2-2' }}</strong> of R{{ netTotal() | number:'1.2-2' }}</div>
             </div>
           }
 
@@ -480,7 +456,7 @@
           }
 
           <button class="btn-checkout" [disabled]="busy() || !canConfirm()" (click)="confirmPayment()">
-            {{ busy() ? 'Placing order…' : accountMode() ? 'Charge R' + (grandTotal() | number:'1.2-2') + ' to account' : splitMode() ? 'Confirm split payment' : payMethod() === 'cash' ? 'Charge R' + (grandTotal() | number:'1.2-2') : 'Confirm card payment' }}
+            {{ busy() ? 'Placing order…' : accountMode() ? 'Charge R' + (netTotal() | number:'1.2-2') + ' to account' : splitMode() ? 'Confirm split payment' : payMethod() === 'cash' ? 'Charge R' + (netTotal() | number:'1.2-2') : 'Confirm card payment' }}
           </button>
         </div>
       </div>
