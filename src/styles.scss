@@ -161,3 +161,44 @@ input[type='radio'] {
   height: 1.15em;
   cursor: pointer;
 }
+
+/* -- Global base style for every text field (the ONE source of truth). --
+   Low specificity on purpose: component classes (.tbl-input, .inv-search,
+   .cashup-date, ...) override what they need, but ANY input that nothing
+   else styles gets a proper dark themed box instead of the raw browser
+   widget. (Checkboxes/radios are restored below.) */
+input,
+textarea,
+select {
+  background-color: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border-hover);
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 0.75rem;
+  font-family: inherit;
+  font-size: 0.875rem;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(200, 135, 56, 0.18);
+}
+
+/* Checkboxes & radios: no box chrome, themed accent (overrides the base). */
+input[type='checkbox'],
+input[type='radio'] {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  width: 1.15em;
+  height: 1.15em;
+  accent-color: var(--accent-2);
+  cursor: pointer;
+}
