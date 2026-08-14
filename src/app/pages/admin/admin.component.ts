@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
+import { Component, inject, signal, computed, effect, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MenuItemService } from '../../menu-item.service';
@@ -169,6 +169,18 @@ export class AdminComponent implements OnInit {
   dDay: number | null = null; dStart = ''; dEnd = ''; dActive = true;
 
   ngOnInit() { this.loadInv(); this.loadSum(); this.loadUsers(); this.loadCategories(); this.loadSettings(); this.loadOrders(); this.loadDiscounts(); this.loadNotifications(); this.startNotifPoll(); }
+
+  // Auto-scroll the tab bar so the active tab is always visible (14+ tabs,
+  // horizontal scroll). inline:nearest keeps already-visible tabs still.
+  constructor() {
+    effect(() => {
+      const t = this.tab();
+      if (t) {
+        const el = document.querySelector('.tabs-scroll .tab.active') as HTMLElement | null;
+        el?.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+      }
+    });
+  }
 
   // ── Notification bell ────────────────────────────────
 

@@ -2,21 +2,23 @@
     <div class="admin">
       <!-- Tabs -->
       <div class="tabs">
-        <button class="tab" [class.active]="tab() === 'inventory'" (click)="tab.set('inventory')">Inventory</button>
-        <button class="tab" [class.active]="tab() === 'categories'" (click)="tab.set('categories')">Categories</button>
-        <button class="tab" [class.active]="tab() === 'users'" (click)="tab.set('users')">Users</button>
-        <button class="tab" [class.active]="tab() === 'orders'" (click)="tab.set('orders')">Orders</button>
-        <button class="tab" [class.active]="tab() === 'analytics'" (click)="openAnalytics()">Analytics</button>
-        <button class="tab" [class.active]="tab() === 'cashup'" (click)="openCashup()">Cash-up</button>
-        <button class="tab" [class.active]="tab() === 'timesheet'" (click)="openTimesheet()">Timesheet</button>
-        <button class="tab" [class.active]="tab() === 'discounts'" (click)="tab.set('discounts')">Discounts</button>
-        <button class="tab" [class.active]="tab() === 'journal'" (click)="tab.set('journal'); loadJournal()">Journal</button>
-        <button class="tab" [class.active]="tab() === 'audit'" (click)="tab.set('audit'); loadAudit()">Audit</button>
-        <button class="tab" [class.active]="tab() === 'customers'" (click)="tab.set('customers'); loadCustomers()">Customers</button>
-        <button class="tab" [class.active]="tab() === 'purchasing'" (click)="tab.set('purchasing'); loadPurchasing()">Purchasing</button>
-        <button class="tab" [class.active]="tab() === 'expenses'" (click)="tab.set('expenses'); loadExpenses()">Expenses</button>
-        <button class="tab" [class.active]="tab() === 'settings'" (click)="tab.set('settings')">Settings</button>
-        <!-- Notification bell: low-stock alerts + owner announcements -->
+        <div class="tabs-scroll">
+          <button class="tab" [class.active]="tab() === 'inventory'" (click)="tab.set('inventory')">Inventory</button>
+          <button class="tab" [class.active]="tab() === 'categories'" (click)="tab.set('categories')">Categories</button>
+          <button class="tab" [class.active]="tab() === 'users'" (click)="tab.set('users')">Users</button>
+          <button class="tab" [class.active]="tab() === 'orders'" (click)="tab.set('orders')">Orders</button>
+          <button class="tab" [class.active]="tab() === 'analytics'" (click)="openAnalytics()">Analytics</button>
+          <button class="tab" [class.active]="tab() === 'cashup'" (click)="openCashup()">Cash-up</button>
+          <button class="tab" [class.active]="tab() === 'timesheet'" (click)="openTimesheet()">Timesheet</button>
+          <button class="tab" [class.active]="tab() === 'discounts'" (click)="tab.set('discounts')">Discounts</button>
+          <button class="tab" [class.active]="tab() === 'journal'" (click)="tab.set('journal'); loadJournal()">Journal</button>
+          <button class="tab" [class.active]="tab() === 'audit'" (click)="tab.set('audit'); loadAudit()">Audit</button>
+          <button class="tab" [class.active]="tab() === 'customers'" (click)="tab.set('customers'); loadCustomers()">Customers</button>
+          <button class="tab" [class.active]="tab() === 'purchasing'" (click)="tab.set('purchasing'); loadPurchasing()">Purchasing</button>
+          <button class="tab" [class.active]="tab() === 'expenses'" (click)="tab.set('expenses'); loadExpenses()">Expenses</button>
+          <button class="tab" [class.active]="tab() === 'settings'" (click)="tab.set('settings')">Settings</button>
+        </div>
+        <!-- Notification bell: pinned to the right of the tab bar, always visible -->
         <div class="bell-wrap">
           <button class="bell" (click)="toggleBell()" title="Notifications">
             🔔

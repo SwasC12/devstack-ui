@@ -2,13 +2,18 @@
     .admin { max-width: 960px; }
 
     /* ── Tabs ── */
-    .tabs { display: flex; gap: 0; margin-bottom: 1.5rem; border-bottom: 0.125em solid var(--border); }
-    .tab { padding: 0.65em 1.5em; border: 0; background: transparent; font-size: 0.8125rem; font-weight: 600; color: var(--muted); cursor: pointer; border-bottom: 0.125em solid transparent; margin-bottom: -0.125em; transition: all 300ms cubic-bezier(.23,1,0.32,1); font-family: inherit; }
+    /* The tab bar scrolls horizontally on its own (14+ tabs) instead of
+       dragging the whole page; it sticks to the top while the content below
+       scrolls. The bell sits OUTSIDE the scroll area so it's always visible. */
+    .tabs { display: flex; align-items: center; gap: 0; margin-bottom: 1.5rem; border-bottom: 0.125em solid var(--border); position: sticky; top: 0; z-index: 30; background: var(--surface); }
+    .tabs-scroll { display: flex; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; flex: 1; min-width: 0; }
+    .tabs-scroll::-webkit-scrollbar { display: none; }
+    .tab { padding: 0.65em 1.5em; border: 0; background: transparent; font-size: 0.8125rem; font-weight: 600; color: var(--muted); cursor: pointer; border-bottom: 0.125em solid transparent; margin-bottom: -0.125em; transition: all 300ms cubic-bezier(.23,1,0.32,1); font-family: inherit; white-space: nowrap; flex-shrink: 0; }
     .tab:hover { color: var(--accent-2); }
     .tab.active { color: var(--accent-2); border-color: var(--accent-2); }
 
-    /* Notification bell */
-    .bell-wrap { margin-left: auto; position: relative; display: flex; align-items: center; }
+    /* Notification bell: pinned right, always on screen */
+    .bell-wrap { margin-left: auto; position: relative; display: flex; align-items: center; padding-left: 0.75rem; background: var(--surface); }
     .bell { position: relative; width: 40px; height: 40px; border: 0; border-radius: var(--radius-sm); background: transparent; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.15s ease-out; }
     .bell:hover { background: var(--surface-2); }
     .bell-badge { position: absolute; top: 2px; right: 0; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px; background: var(--red); color: #fff; font-size: 0.625rem; font-weight: 800; display: flex; align-items: center; justify-content: center; }
