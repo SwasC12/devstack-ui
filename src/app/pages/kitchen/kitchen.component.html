@@ -5,6 +5,7 @@
     <button class="k-lock" (click)="toggleKiosk()" (pointerdown)="startHold()" (pointerup)="cancelHold()" (pointerleave)="cancelHold()" [title]="kiosk() ? 'Hold 1s to unlock' : 'Lock to kitchen screen'">{{ kiosk() ? '🔒' : '🔓' }}</button>
     <span class="k-updated">{{ firstLoad() ? 'Syncing…' : (lastRefresh() ? 'Updated ' + (lastRefresh() | date:'HH:mm:ss') : '…') }}</span>
     @if (offline()) { <span class="k-offline">⚠ offline — retrying</span> }
+    @if (pendingDone() > 0) { <span class="k-pending-done" title="Tapped Done while offline — will sync when back online">⏳ {{ pendingDone() }} done queued</span> }
   </div>
 
   @if (pendingSync().length > 0) {

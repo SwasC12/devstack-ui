@@ -238,7 +238,7 @@ export class MenuItemService {
     return this.http.delete<void>(`${API}/app/releases/${id}`);
   }
 
-  createShop(data: { name: string; code: string; adminUsername: string; adminPassword: string; adminDisplayName: string }): Observable<any> {
+  createShop(data: { name: string; code: string; adminUsername: string; adminPassword: string; adminDisplayName: string; ownerEmail?: string | null }): Observable<any> {
     return this.http.post(`${API}/shops`, data);
   }
 
@@ -305,11 +305,23 @@ export class MenuItemService {
     return this.http.put(`${API}/shops/${id}/owner`, { ownerEmail, ownerPhone });
   }
 
+  // Server-side email to one shop's owner (superadmin). Requires SMTP on the
+  // API; the UI falls back to a mailto draft on 503/400.
+  emailOwner(shopId: number, subject: string, body: string): Observable<{ sentTo: string }> {
+    return this.http.post<{ sentTo: string }>(`${API}/notifications/email-owner?shopId=${shopId}`, { subject, body });
+  }
+
+  // Server-side email to every shop that has an owner email on file.
+  emailBroadcast(subject: string, body: string): Observable<{ sent: number; failed: number }> {
+    return this.http.post<{ sent: number; failed: number }>(`${API}/notifications/email-broadcast`, { subject, body });
+  }
+
   // Superadmin: broadcast an announcement to all shop owners (or one shop).
   // Creates their in-app notification AND fires an FCM push to their devices.
   broadcastNotification(title: string, body: string, shopId?: number | null): Observable<{ delivered: number; pushed: number }> {
     return this.http.post<{ delivered: number; pushed: number }>(`${API}/notifications/broadcast`, { title, body, shopId });
   }
+
 
   // ── Notifications inbox (the admin bell) ──────────────
 

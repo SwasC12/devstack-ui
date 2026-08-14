@@ -1,5 +1,6 @@
 import { Component, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { firstValueFrom } from 'rxjs';
 import { Capacitor } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
 import { MenuItemService } from '../../menu-item.service';
@@ -34,6 +35,10 @@ export class KitchenComponent implements OnInit, OnDestroy {
   // Orders pinged over the LAN while the cloud was unreachable (offline POS
   // queue) - shown as "pending sync" cards until they appear in the queue.
   readonly pendingSync = signal<{ id: string; summary: string; at: number }[]>([]);
+  // "Done" taps queued while offline - they sync when connectivity returns
+  // instead of being lost (the card would otherwise just re-appear).
+  readonly pendingDone = signal(0);
+  private static readonly DONE_KEY = 'kitchen:completes';
 
   private static readonly POLL_MS = 300000; // healthy safety net: 5 min
   private static readonly RETRY_MS = 30000;  // offline: fast retry so catch-up is quick
@@ -57,7 +62,10 @@ export class KitchenComponent implements OnInit, OnDestroy {
   ngOnInit() {
     void this.refresh();
     void this.loadKiosk();
+    void this.loadPendingDone();
     this.schedule();
+    // Connectivity returned: flush any "Done" taps queued while offline.
+    window.addEventListener('online', () => void this.flushPendingDone());
     this.ageTimer = setInterval(() => this.tick.set(Date.now()), 30000);
     void this.listenForWebhook();
     this.watchAppState();
@@ -173,6 +181,8 @@ export class KitchenComponent implements OnInit, OnDestroy {
         if (etag) this.etag = etag;
         this.lastRefresh.set(new Date());
         this.offline.set(false);
+        // Connectivity came back - push any "Done" taps queued while offline.
+        if (this.pendingDone() > 0) void this.flushPendingDone();
         // Back to the slow safety net once we're healthy again.
         if (this.pollMs !== KitchenComponent.POLL_MS) {
           this.pollMs = KitchenComponent.POLL_MS;
@@ -218,13 +228,67 @@ export class KitchenComponent implements OnInit, OnDestroy {
     });
   }
 
+  // "Done" with offline support: the tap is never lost. Online it completes
+  // straight away; offline (or a failed request) it lands in a local queue,
+  // leaves the screen immediately, and syncs on the next connectivity.
   complete(o: any) {
     this.service.completeOrder(o.id).subscribe({
-      next: () => {
-        this.orders.update(list => list.filter(x => x.id !== o.id));
-        this.seen.delete(o.id);
-      },
-      error: () => { /* will retry on the next poll */ }
+      next: () => this.dropCard(o.id),
+      error: (e) => {
+        const status = e?.status;
+        if (!status) {
+          // No connectivity - queue it locally and clear the card.
+          void this.queuePendingDone(o.id);
+          this.dropCard(o.id);
+        } else if (status >= 400 && status < 500) {
+          // Already completed/voided/not found - nothing to sync, drop it.
+          this.dropCard(o.id);
+        }
+        // 5xx: keep the card, the next poll will retry.
+      }
     });
+  }
+
+  private dropCard(id: number) {
+    this.orders.update(list => list.filter(x => x.id !== id));
+    this.seen.delete(id);
+  }
+
+  // ── Offline "Done" queue ────────────────────────────────────────────────
+
+  private async queuePendingDone(id: number): Promise<void> {
+    const list = await this.pendingDoneList();
+    if (!list.some(x => x.id === id)) list.push({ id, at: Date.now() });
+    await Preferences.set({ key: KitchenComponent.DONE_KEY, value: JSON.stringify(list) });
+    this.pendingDone.set(list.length);
+  }
+
+  private async pendingDoneList(): Promise<{ id: number; at: number }[]> {
+    const { value } = await Preferences.get({ key: KitchenComponent.DONE_KEY });
+    return value ? JSON.parse(value) : [];
+  }
+
+  private async loadPendingDone(): Promise<void> {
+    this.pendingDone.set((await this.pendingDoneList()).length);
+  }
+
+  // Push every queued "Done" to the server. Success or a 4xx (already
+  // completed/voided/not found) clears the entry; a 5xx or no connectivity
+  // keeps it for the next flush.
+  async flushPendingDone(): Promise<void> {
+    const list = await this.pendingDoneList();
+    if (!list.length) return;
+    const remaining: { id: number; at: number }[] = [];
+    for (const entry of list) {
+      try {
+        await firstValueFrom(this.service.completeOrder(entry.id));
+      } catch (e: any) {
+        const status = e?.status;
+        if (!status || (status >= 500 && status < 600)) { remaining.push(entry); continue; }
+        // 4xx: already done elsewhere - treat as synced.
+      }
+    }
+    await Preferences.set({ key: KitchenComponent.DONE_KEY, value: JSON.stringify(remaining) });
+    this.pendingDone.set(remaining.length);
   }
 }

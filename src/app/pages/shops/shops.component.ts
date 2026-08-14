@@ -196,13 +196,13 @@ export class ShopsComponent implements OnInit {
   closeForm() { this.showForm.set(false); }
 
   save() {
-    this.service.createShop({ name: this.fName, code: this.fCode, adminUsername: this.fAdminUser, adminPassword: this.fAdminPass, adminDisplayName: this.fAdminDisplay }).subscribe({
+    this.service.createShop({ name: this.fName, code: this.fCode, adminUsername: this.fAdminUser, adminPassword: this.fAdminPass, adminDisplayName: this.fAdminDisplay, ownerEmail: this.fOwnerEmail.trim() || null }).subscribe({
       next: () => { this.load(); this.loadOverview(); this.closeForm(); this.reset(); },
       error: (e) => this.dialog.toast(e.error?.error || 'Save failed', 'error')
     });
   }
 
-  private reset() { this.fName = ''; this.fCode = ''; this.fAdminUser = ''; this.fAdminPass = ''; this.fAdminDisplay = ''; }
+  private reset() { this.fName = ''; this.fCode = ''; this.fAdminUser = ''; this.fAdminPass = ''; this.fAdminDisplay = ''; this.fOwnerEmail = ''; }
 
   // ── Owner contact ────────────────────────────────────
 
@@ -305,15 +305,48 @@ export class ShopsComponent implements OnInit {
   openEmailPicker(s: any) { this.emailPickerFor.set(s.id); }
   closeEmailPicker() { this.emailPickerFor.set(null); }
 
-  // Open the chosen template in the device mail app (Gmail) as a pre-filled draft.
+  // Send a template to one owner: try the server (real SMTP email) first;
+  // if SMTP isn't configured (503) or the shop has no owner email (400),
+  // fall back to opening a pre-filled mailto draft in the platform owner's
+  // own mail client.
   sendEmailTemplate(s: any, t: { subject: (s: any) => string; body: (s: any) => string }) {
-    const url = `mailto:${s.ownerEmail}?subject=${encodeURIComponent(t.subject(s))}&body=${encodeURIComponent(t.body(s))}`;
-    const a = document.createElement('a');
-    a.href = url;
-    a.target = '_system';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    if (!s.ownerEmail) { this.dialog.toast('No owner email on file', 'info'); return; }
+    this.service.emailOwner(s.id, t.subject(s), t.body(s)).subscribe({
+      next: (r) => this.dialog.toast(`Email sent to ${r.sentTo}`, 'success'),
+      error: (e) => {
+        if (e?.status === 503 || e?.status === 400) {
+          // SMTP not configured / no address: open the mailto draft instead.
+          const url = `mailto:${s.ownerEmail}?subject=${encodeURIComponent(t.subject(s))}&body=${encodeURIComponent(t.body(s))}`;
+          const a = document.createElement('a');
+          a.href = url;
+          a.target = '_system';
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          this.dialog.toast('Server email unavailable - opened a draft in your mail app', 'info');
+        } else {
+          this.dialog.toast(e.error?.error || 'Email failed', 'error');
+        }
+      }
+    });
+  }
+
+  // Same announcement to every shop with an owner email on file.
+  emailAllOwners() {
+    this.dialog.prompt('Email all owners', 'Subject').then(subject => {
+      if (!subject?.trim()) return;
+      this.dialog.prompt('Email all owners', 'Message body').then(body => {
+        if (!body?.trim()) return;
+        this.dialog.toast('Sending…', 'info');
+        this.service.emailBroadcast(subject.trim(), body.trim()).subscribe({
+          next: (r) => this.dialog.toast(`Sent to ${r.sent} owner${r.sent === 1 ? '' : 's'}${r.failed > 0 ? ` (${r.failed} failed)` : ''}`, r.failed > 0 ? 'error' : 'success'),
+          error: (e) => {
+            if (e?.status === 503) this.dialog.toast('Server email is not configured - add SMTP settings to the API', 'error');
+            else this.dialog.toast(e.error?.error || 'Broadcast failed', 'error');
+          }
+        });
+      });
+    });
   }
 
   // One-off email to a shop owner: opens YOUR mail client (e.g. Gmail,

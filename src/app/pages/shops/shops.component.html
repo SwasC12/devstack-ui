@@ -45,6 +45,7 @@
         </div>
         <div class="form-acts">
           <app-btn variant="primary" size="sm" (onClick)="broadcast()" [loading]="bcBusy()">Send notification</app-btn>
+          <app-btn size="sm" (onClick)="emailAllOwners()">✉ Email all owners</app-btn>
         </div>
       </div>
 
@@ -60,6 +61,7 @@
             <div class="field"><label>First admin username</label><input [(ngModel)]="fAdminUser" placeholder="e.g. owner" /></div>
             <div class="field"><label>First admin password</label><app-password [(ngModel)]="fAdminPass" placeholder="Min 10 · upper + lower + digit" autocomplete="new-password" /></div>
             <div class="field"><label>Admin display name</label><input [(ngModel)]="fAdminDisplay" placeholder="e.g. Jane" /></div>
+            <div class="field"><label>Owner email (optional)</label><input [(ngModel)]="fOwnerEmail" type="email" placeholder="Gets the welcome email if SMTP is set up" /></div>
           </div>
           <div class="form-acts">
             <app-btn size="sm" (onClick)="closeForm()">Cancel</app-btn>
