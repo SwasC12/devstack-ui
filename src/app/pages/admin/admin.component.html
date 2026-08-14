@@ -645,9 +645,9 @@
 
         <div class="form-sheet">
           <div class="form-head"><h3>Kitchen display</h3></div>
-          <p class="hint">The kitchen tablet's webhook address so orders arrive instantly over your WiFi (no server polling, no push quota). E.g. http://192.168.1.50:8123 - the kitchen tablet shows it once it opens the Kitchen screen. Leave empty if you don't use a kitchen display.</p>
+          <p class="hint">The kitchen tablet's webhook address so orders arrive instantly over your WiFi (no server polling, no push quota). E.g. http://192.168.1.50:8123 - the kitchen tablet shows it once it opens the Kitchen screen. Leave empty if you don't use a kitchen display. Running a kitchen AND a bar display? Add both, separated by a comma.</p>
           <div class="form-grid">
-            <div class="field wide"><label>Kitchen display address</label><input [(ngModel)]="brKitchenUrl" placeholder="http://192.168.1.50:8123" /></div>
+            <div class="field wide"><label>Kitchen display address(es)</label><input [(ngModel)]="brKitchenUrl" placeholder="http://192.168.1.50:8123, http://192.168.1.51:8123" /></div>
             <div class="field wide">
               <app-btn size="sm" (onClick)="findKitchen()" [loading]="kitchenScanning()">🔍 Find kitchen tablet</app-btn>
               @if (kitchenFound(); as f) { <p class="form-msg" style="color:var(--green)">{{ f }}</p> }

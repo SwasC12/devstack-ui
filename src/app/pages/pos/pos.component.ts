@@ -516,18 +516,25 @@ export class PosComponent implements OnInit {
   // Fail-soft - if the kitchen is unreachable it picks the order up on its
   // fallback poll.
   private pingKitchen(orderId: number | string, items?: any[]) {
-    const url = this.shopInfo()?.kitchenUrl;
-    if (!url) return;
+    // Multiple displays are supported: the setting can hold several kitchen
+    // URLs (comma-separated) - e.g. one for the kitchen, one for the bar.
+    const urls = (this.shopInfo()?.kitchenUrl ?? '')
+      .split(',')
+      .map((u: string) => u.trim())
+      .filter((u: string) => u.length > 0);
+    if (urls.length === 0) return;
     const summary = (items ?? [])
-      .map((i: any) => `${i.quantity}×${i.name}`)
+      .map((i: any) => `${i.quantity}A-${i.name}`)
       .join(', ')
       .slice(0, 200);
     void import('@capacitor/core').then(({ CapacitorHttp }) =>
-      CapacitorHttp.get({
-        url: `${url.replace(/\/+$/, '')}/order?id=${encodeURIComponent(orderId)}&s=${encodeURIComponent(summary)}`,
-        connectTimeout: 2000,
-        readTimeout: 2000
-      }).catch(() => { /* kitchen offline - fallback poll covers it */ })
+      Promise.allSettled(urls.map((url: string) =>
+        CapacitorHttp.get({
+          url: `${url.replace(/\/+$/, '')}/order?id=${encodeURIComponent(orderId)}&s=${encodeURIComponent(summary)}`,
+          connectTimeout: 2000,
+          readTimeout: 2000
+        }).catch(() => { /* kitchen offline - fallback poll covers it */ })
+      ))
     );
   }
 
