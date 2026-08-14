@@ -30,6 +30,12 @@ export class KitchenComponent implements OnInit, OnDestroy {
   readonly newOrderId = signal<number | null>(null);
   readonly firstLoad = signal(true);
   readonly offline = signal(false);
+  // KDS station routing: all | kitchen | bar. The shop sets each category's
+  // station; this display shows only orders with items for its station.
+  readonly station = signal<'all' | 'kitchen' | 'bar'>('all');
+  // Orders the kitchen held - they sit in a strip until "Send" returns them
+  // to the live queue.
+  readonly held = signal<any[]>([]);
   // Kiosk lock: pins this tablet to the kitchen screen (hides the app nav).
   readonly kiosk = signal(false);
   // Orders pinged over the LAN while the cloud was unreachable (offline POS
@@ -63,6 +69,7 @@ export class KitchenComponent implements OnInit, OnDestroy {
     void this.refresh();
     void this.loadKiosk();
     void this.loadPendingDone();
+    void this.refreshHeld();
     this.schedule();
     // Connectivity returned: flush any "Done" taps queued while offline.
     window.addEventListener('online', () => void this.flushPendingDone());
@@ -176,7 +183,7 @@ export class KitchenComponent implements OnInit, OnDestroy {
   private refresh() {
     if (this.inFlight || !this.active) return;
     this.inFlight = true;
-    this.service.getKitchenOrders(120, this.etag).subscribe({
+    this.service.getKitchenOrders(120, this.etag, this.station()).subscribe({
       next: ({ list, etag }) => {
         if (etag) this.etag = etag;
         this.lastRefresh.set(new Date());
@@ -246,6 +253,38 @@ export class KitchenComponent implements OnInit, OnDestroy {
         }
         // 5xx: keep the card, the next poll will retry.
       }
+    });
+  }
+
+  // Station filter + held strip
+  setStation(s: 'all' | 'kitchen' | 'bar') {
+    this.station.set(s);
+    this.etag = null;
+    this.lastSig = '';
+    this.seen.clear();
+    this.firstLoad.set(true);
+    void this.refresh();
+    void this.refreshHeld();
+  }
+
+  private async refreshHeld(): Promise<void> {
+    try {
+      const held = await firstValueFrom(this.service.getHeldOrders(this.station() === 'all' ? undefined : this.station()));
+      this.held.set(held);
+    } catch { /* next poll retries */ }
+  }
+
+  hold(o: any) {
+    this.service.holdOrder(o.id).subscribe({
+      next: () => { this.dropCard(o.id); void this.refreshHeld(); },
+      error: (e) => { if (e?.status) void this.refresh(); }
+    });
+  }
+
+  send(o: any) {
+    this.service.sendOrder(o.id).subscribe({
+      next: () => { this.held.update(list => list.filter(x => x.id !== o.id)); void this.refresh(); },
+      error: () => { /* stays in the held strip */ }
     });
   }
 

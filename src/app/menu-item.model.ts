@@ -18,6 +18,13 @@ export interface ModifierGroup {
   modifiers: Modifier[];
 }
 
+export interface RecipeLine {
+  id: number;
+  name: string;
+  costPerUnit: number;
+  quantity: number;
+}
+
 export interface MenuItem {
   id: number;
   name: string;
@@ -32,4 +39,6 @@ export interface MenuItem {
   createdAt: string;
   sizes?: MenuSize[];
   modifierGroups?: ModifierGroup[];
+  recipeLines?: RecipeLine[];
+  costBasis?: number;
 }

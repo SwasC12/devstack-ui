@@ -29,6 +29,10 @@ export class ReceiptViewComponent implements OnInit {
     return Math.round(Number(order.total) * 15 / 115 * 100) / 100;
   }
 
+  hasCashPayment(order: any): boolean {
+    return (order.payments ?? []).some((p: any) => p.method === 'cash');
+  }
+
   // QR is generated CLIENT-SIDE (qrcode lib, pure JS) — zero backend load.
   // The QR carries the shop's configured receipt link (WhatsApp / review /
   // feedback). No link configured = no QR: a QR that just repeats the printed

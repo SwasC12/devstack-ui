@@ -28,7 +28,7 @@ export class AdminComponent implements OnInit {
   private auth = inject(AuthService);
   private dialog = inject(DialogService);
   private sound = inject(SoundService);
-  readonly tab = signal<'inventory' | 'categories' | 'users' | 'orders' | 'analytics' | 'cashup' | 'discounts' | 'settings' | 'timesheet'>('inventory');
+  readonly tab = signal<'inventory' | 'categories' | 'users' | 'orders' | 'analytics' | 'cashup' | 'discounts' | 'settings' | 'timesheet' | 'journal' | 'audit' | 'customers' | 'purchasing' | 'expenses'>('inventory');
 
   // Timesheet: hours worked + wage cost per employee over a date range.
   readonly tsData = signal<any | null>(null);
@@ -109,6 +109,9 @@ export class AdminComponent implements OnInit {
   pendingImageUrl: string | null = null;
   fSizes: { id: number; name: string; price: number }[] = [];
   fGroups: { id: number; name: string; isMulti: boolean; modifiers: { id: number; name: string; priceDelta: number }[] }[] = [];
+  fCostBasis: number | null = null;
+  fRecipe: { id: number; name: string; costPerUnit: number; quantity: number }[] = [];
+  readonly recipeCost = computed(() => this.fRecipe.reduce((s, r) => s + (r.costPerUnit || 0) * (r.quantity || 0), 0));
 
   // Users
   readonly users = signal<any[]>([]);
@@ -121,6 +124,7 @@ export class AdminComponent implements OnInit {
   readonly showCatForm = signal(false);
   readonly editingCat = signal<Category | null>(null);
   catName = '';
+  catStation: 'kitchen' | 'bar' | 'both' = 'both';
 
   // Settings — account + branding
   acUsername = ''; acDisplay = ''; acCurrent = ''; acNew = '';
@@ -229,7 +233,7 @@ export class AdminComponent implements OnInit {
   }
 
   openNew() { this.resetInv(); this.showForm.set(true); }
-  edit(item: MenuItem) { this.clearPendingImage(); this.editing.set(item); this.fName = item.name; this.fCategory = item.category; this.fPrice = item.price; this.fStock = item.stockQuantity; this.fLowStock = item.lowStockThreshold ?? 5; this.fDesc = item.description ?? ''; this.fAvail = item.isAvailable; this.fImageUrl = item.imageUrl ?? ''; this.fImagePublicId = item.imagePublicId ?? ''; this.fSizes = (item.sizes ?? []).map(s => ({ id: s.id, name: s.name, price: s.price })); this.fGroups = (item.modifierGroups ?? []).map(g => ({ id: g.id, name: g.name, isMulti: g.isMulti, modifiers: g.modifiers.map(m => ({ id: m.id, name: m.name, priceDelta: m.priceDelta })) })); this.showForm.set(true); }
+  edit(item: MenuItem) { this.clearPendingImage(); this.editing.set(item); this.fName = item.name; this.fCategory = item.category; this.fPrice = item.price; this.fStock = item.stockQuantity; this.fLowStock = item.lowStockThreshold ?? 5; this.fDesc = item.description ?? ''; this.fAvail = item.isAvailable; this.fImageUrl = item.imageUrl ?? ''; this.fImagePublicId = item.imagePublicId ?? ''; this.fCostBasis = (item as any).costBasis ?? null; this.fSizes = (item.sizes ?? []).map(s => ({ id: s.id, name: s.name, price: s.price })); this.fGroups = (item.modifierGroups ?? []).map(g => ({ id: g.id, name: g.name, isMulti: g.isMulti, modifiers: g.modifiers.map(m => ({ id: m.id, name: m.name, priceDelta: m.priceDelta })) })); this.fRecipe = ((item as any).recipeLines ?? []).map((r: any) => ({ id: r.id, name: r.name, costPerUnit: r.costPerUnit, quantity: r.quantity })); this.showForm.set(true); }
   closeForm() { this.showForm.set(false); this.editing.set(null); this.clearPendingImage(); }
   addSizeRow() { this.fSizes = [...this.fSizes, { id: 0, name: '', price: 0 }]; }
   removeSizeRow(i: number) { this.fSizes = this.fSizes.filter((_, idx) => idx !== i); }
@@ -237,6 +241,8 @@ export class AdminComponent implements OnInit {
   removeGroup(i: number) { this.fGroups = this.fGroups.filter((_, idx) => idx !== i); }
   addMod(g: { modifiers: { id: number; name: string; priceDelta: number }[] }) { g.modifiers = [...g.modifiers, { id: 0, name: '', priceDelta: 0 }]; }
   removeMod(g: { modifiers: { id: number; name: string; priceDelta: number }[] }, i: number) { g.modifiers = g.modifiers.filter((_, idx) => idx !== i); }
+  addRecipeRow() { this.fRecipe = [...this.fRecipe, { id: 0, name: '', costPerUnit: 0, quantity: 1 }]; }
+  removeRecipeRow(i: number) { this.fRecipe = this.fRecipe.filter((_, idx) => idx !== i); }
   async save() {
     if (!this.fCategory.trim()) { this.dialog.toast('Choose a category', 'error'); return; }
     const sizes = this.fSizes.filter(s => s.name.trim()).map(s => ({ id: s.id, name: s.name.trim(), price: s.price ?? 0 }));
@@ -244,6 +250,7 @@ export class AdminComponent implements OnInit {
       id: g.id, name: g.name.trim(), isMulti: g.isMulti,
       modifiers: g.modifiers.filter(m => m.name.trim()).map(m => ({ id: m.id, name: m.name.trim(), priceDelta: m.priceDelta ?? 0 }))
     }));
+    const recipeLines = this.fRecipe.filter(r => r.name.trim()).map(r => ({ id: r.id, name: r.name.trim(), costPerUnit: r.costPerUnit ?? 0, quantity: r.quantity ?? 0 }));
     let imageUrl = this.fImageUrl || null;
     let imagePublicId = this.fImagePublicId || null;
     // Upload only when the user actually saves - picking then cancelling an
@@ -261,14 +268,14 @@ export class AdminComponent implements OnInit {
       }
       this.uploading.set(false);
     }
-    this.service.writeItem({ id: this.editing()?.id ?? 0, name: this.fName, category: this.fCategory, price: this.fPrice ?? 0, stockQuantity: this.fStock ?? 0, lowStockThreshold: this.fLowStock ?? 5, description: this.fDesc || null, imageUrl, imagePublicId, isAvailable: this.fAvail, sizes, modifierGroups }).subscribe({ next: () => { this.loadInv(); this.closeForm(); }, error: () => this.dialog.toast('Save failed', 'error') });
+    this.service.writeItem({ id: this.editing()?.id ?? 0, name: this.fName, category: this.fCategory, price: this.fPrice ?? 0, stockQuantity: this.fStock ?? 0, lowStockThreshold: this.fLowStock ?? 5, description: this.fDesc || null, imageUrl, imagePublicId, isAvailable: this.fAvail, sizes, modifierGroups, costBasis: this.fCostBasis ?? 0, recipeLines }).subscribe({ next: () => { this.loadInv(); this.closeForm(); }, error: () => this.dialog.toast('Save failed', 'error') });
   }
   remove(id: number) {
     this.dialog.confirm('Delete item', 'Delete this item?').then(ok => {
       if (ok) this.service.deleteItem(id).subscribe({ next: () => this.loadInv(), error: () => this.dialog.toast('Delete failed', 'error') });
     });
   }
-  private resetInv() { this.fName = ''; this.fCategory = ''; this.fPrice = null; this.fStock = null; this.fLowStock = 5; this.fDesc = ''; this.fAvail = true; this.fImageUrl = ''; this.fImagePublicId = ''; this.fSizes = []; this.fGroups = []; this.clearPendingImage(); }
+  private resetInv() { this.fName = ''; this.fCategory = ''; this.fPrice = null; this.fStock = null; this.fLowStock = 5; this.fDesc = ''; this.fAvail = true; this.fImageUrl = ''; this.fImagePublicId = ''; this.fSizes = []; this.fGroups = []; this.fCostBasis = null; this.fRecipe = []; this.clearPendingImage(); }
 
   onImageSelected(event: Event) {
     const input = event.target as HTMLInputElement;
@@ -393,6 +400,141 @@ export class AdminComponent implements OnInit {
   barPct(revenue: number, daily: any[]): number {
     const max = Math.max(...daily.map(d => d.revenue), 1);
     return Math.max(2, Math.round((revenue / max) * 100));
+  }
+
+  // ── Transaction journal ────────────────────────────────────────────────
+
+  readonly journal = signal<any | null>(null);
+  readonly journalBusy = signal(false);
+  journalFrom = ''; journalTo = '';
+  loadJournal() {
+    this.journalBusy.set(true);
+    this.service.getJournal(this.journalFrom || undefined, this.journalTo || undefined).subscribe({
+      next: (j) => { this.journal.set(j); this.journalBusy.set(false); },
+      error: () => { this.journalBusy.set(false); this.dialog.toast('Failed to load journal', 'error'); }
+    });
+  }
+
+  // ── Audit trail ────────────────────────────────────────────────────────
+
+  readonly audit = signal<any[]>([]);
+  readonly auditBusy = signal(false);
+  auditFrom = ''; auditTo = '';
+  loadAudit() {
+    this.auditBusy.set(true);
+    this.service.getAudit(this.auditFrom || undefined, this.auditTo || undefined).subscribe({
+      next: (a) => { this.audit.set(a); this.auditBusy.set(false); },
+      error: () => { this.auditBusy.set(false); this.dialog.toast('Failed to load audit log', 'error'); }
+    });
+  }
+
+  // ── Customers (directory + house accounts) ────────────────────────────
+
+  readonly customers = signal<any[]>([]);
+  custQuery = '';
+  readonly showCustForm = signal(false);
+  custEditId: number | null = null;
+  cfName = ''; cfPhone = ''; cfEmail = ''; cfLimit: number | null = null; cfNotes = '';
+  loadCustomers() {
+    this.service.getCustomers(this.custQuery.trim() || undefined).subscribe(c => this.customers.set(c));
+  }
+  openCustForm() { this.custEditId = null; this.cfName = ''; this.cfPhone = ''; this.cfEmail = ''; this.cfLimit = null; this.cfNotes = ''; this.showCustForm.set(true); }
+  closeCustForm() { this.showCustForm.set(false); }
+  editCustomer(c: any) { this.custEditId = c.id; this.cfName = c.name; this.cfPhone = c.phone ?? ''; this.cfEmail = c.email ?? ''; this.cfLimit = c.creditLimit; this.cfNotes = c.notes ?? ''; this.showCustForm.set(true); }
+  saveCustomer() {
+    const body = { name: this.cfName, phone: this.cfPhone.trim() || null, email: this.cfEmail.trim() || null, creditLimit: this.cfLimit ?? 0, notes: this.cfNotes.trim() || null };
+    const call = this.custEditId ? this.service.updateCustomer(this.custEditId, body) : this.service.createCustomer(body);
+    call.subscribe({ next: () => { this.loadCustomers(); this.closeCustForm(); }, error: (e) => this.dialog.toast(e.error?.error || 'Save failed', 'error') });
+  }
+  removeCustomer(c: any) {
+    this.dialog.confirm('Delete customer', `Delete "${c.name}"?`).then(ok => {
+      if (!ok) return;
+      this.service.deleteCustomer(c.id).subscribe({ next: () => this.loadCustomers(), error: (e) => this.dialog.toast(e.error?.error || 'Delete failed', 'error') });
+    });
+  }
+  settleCustomer(c: any) {
+    this.dialog.prompt('Settle account', `"${c.name}" owes R${c.balance.toFixed(2)}. How much is being paid?`).then(amt => {
+      const amount = parseFloat((amt ?? '').replace(',', '.'));
+      if (!Number.isFinite(amount) || amount <= 0) { this.dialog.toast('Invalid amount', 'error'); return; }
+      this.service.settleCustomer(c.id, amount, 'cash').subscribe({
+        next: () => { this.dialog.toast('Account settled', 'success'); this.loadCustomers(); },
+        error: (e) => this.dialog.toast(e.error?.error || 'Settle failed', 'error')
+      });
+    });
+  }
+
+  // ── Purchasing (suppliers + POs + receiving) ───────────────────────────
+
+  readonly suppliers = signal<any[]>([]);
+  readonly pos = signal<any[]>([]);
+  readonly showSupplierForm = signal(false);
+  readonly showPoForm = signal(false);
+  supEditId: number | null = null;
+  sfName = ''; sfPhone = ''; sfEmail = '';
+  poSupplierId: number | null = null; poFreight: number | null = null; poDuty: number | null = null; poNotes = '';
+  poLines: { menuItemId: number | null; quantity: number | null; unitCost: number | null }[] = [];
+  readonly poBusy = signal(false);
+  loadPurchasing() {
+    this.service.getSuppliers().subscribe(s => this.suppliers.set(s));
+    this.service.getPurchaseOrders().subscribe(p => this.pos.set(p));
+  }
+  openSupplierForm() { this.supEditId = null; this.sfName = ''; this.sfPhone = ''; this.sfEmail = ''; this.showSupplierForm.set(true); }
+  closeSupplierForm() { this.showSupplierForm.set(false); }
+  saveSupplier() {
+    const body = { name: this.sfName, phone: this.sfPhone.trim() || null, email: this.sfEmail.trim() || null };
+    const call = this.supEditId ? this.service.updateSupplier(this.supEditId, body) : this.service.createSupplier(body);
+    call.subscribe({ next: () => { this.loadPurchasing(); this.closeSupplierForm(); }, error: (e) => this.dialog.toast(e.error?.error || 'Save failed', 'error') });
+  }
+  openPoForm() { this.poSupplierId = null; this.poFreight = null; this.poDuty = null; this.poNotes = ''; this.poLines = [{ menuItemId: null, quantity: null, unitCost: null }]; this.showPoForm.set(true); }
+  closePoForm() { this.showPoForm.set(false); }
+  addPoLine() { this.poLines = [...this.poLines, { menuItemId: null, quantity: null, unitCost: null }]; }
+  removePoLine(i: number) { this.poLines = this.poLines.filter((_, idx) => idx !== i); }
+  createPo() {
+    const lines = this.poLines.filter(l => l.menuItemId && (l.quantity ?? 0) > 0).map(l => ({ menuItemId: l.menuItemId!, quantity: l.quantity!, unitCost: l.unitCost ?? 0 }));
+    if (!this.poSupplierId || !lines.length) { this.dialog.toast('Pick a supplier and at least one line', 'error'); return; }
+    this.poBusy.set(true);
+    this.service.createPurchaseOrder({ supplierId: this.poSupplierId, freightCost: this.poFreight ?? 0, dutyCost: this.poDuty ?? 0, notes: this.poNotes.trim() || null, lines }).subscribe({
+      next: () => { this.poBusy.set(false); this.closePoForm(); this.loadPurchasing(); this.dialog.toast('Purchase order created', 'success'); },
+      error: (e) => { this.poBusy.set(false); this.dialog.toast(e.error?.error || 'Create failed', 'error'); }
+    });
+  }
+  receivePo(po: any) {
+    const remaining = po.lines.filter((l: any) => l.quantity > l.receivedQuantity);
+    const msg = remaining.map((l: any) => `${l.itemName}: ${l.quantity - l.receivedQuantity} left`).join('; ');
+    this.dialog.prompt('Receive stock', `Receiving PO #${po.id}. How many units arrived? (lines: ${msg})`, { placeholder: 'e.g. 10' }).then(amt => {
+      const qty = parseInt(amt ?? '', 10);
+      if (!Number.isFinite(qty) || qty <= 0) { this.dialog.toast('Enter a quantity', 'error'); return; }
+      const lines = remaining.map((l: any) => ({ lineId: l.id, quantity: qty }));
+      this.service.receivePurchaseOrder(po.id, lines).subscribe({
+        next: (r) => { this.dialog.toast(`Received ${r.received?.length ?? 0} line(s) - stock added`, 'success'); this.loadPurchasing(); this.loadInv(); },
+        error: (e) => this.dialog.toast(e.error?.error || 'Receive failed', 'error')
+      });
+    });
+  }
+
+  // ── Expenses & petty cash ──────────────────────────────────────────────
+
+  readonly expenses = signal<any | null>(null);
+  readonly showExpForm = signal(false);
+  expFrom = ''; expTo = '';
+  efCategory = ''; efAmount: number | null = null; efNote = '';
+  loadExpenses() {
+    this.service.getExpenses(this.expFrom || undefined, this.expTo || undefined).subscribe(e => this.expenses.set(e));
+  }
+  openExpForm() { this.efCategory = ''; this.efAmount = null; this.efNote = ''; this.showExpForm.set(true); }
+  closeExpForm() { this.showExpForm.set(false); }
+  saveExpense() {
+    if (!this.efCategory.trim() || (this.efAmount ?? 0) <= 0) { this.dialog.toast('Category and a positive amount are required', 'error'); return; }
+    this.service.createExpense({ category: this.efCategory.trim(), amount: this.efAmount!, note: this.efNote.trim() || null }).subscribe({
+      next: () => { this.loadExpenses(); this.closeExpForm(); this.dialog.toast('Expense logged', 'success'); },
+      error: (e) => this.dialog.toast(e.error?.error || 'Failed', 'error')
+    });
+  }
+  removeExpense(e: any) {
+    this.dialog.confirm('Delete expense', `Delete "${e.category}" R${e.amount.toFixed(2)}?`).then(ok => {
+      if (!ok) return;
+      this.service.deleteExpense(e.id).subscribe({ next: () => this.loadExpenses(), error: () => this.dialog.toast('Delete failed', 'error') });
+    });
   }
 
   // ── Discounts / specials ─────────────────────────────────
@@ -607,12 +749,12 @@ export class AdminComponent implements OnInit {
     return this.fCategory && !names.includes(this.fCategory) ? [this.fCategory, ...names] : names;
   }
 
-  openCatForm() { this.editingCat.set(null); this.catName = ''; this.showCatForm.set(true); }
-  editCat(cat: Category) { this.editingCat.set(cat); this.catName = cat.name; this.showCatForm.set(true); }
+  openCatForm() { this.editingCat.set(null); this.catName = ''; this.catStation = 'both'; this.showCatForm.set(true); }
+  editCat(cat: Category) { this.editingCat.set(cat); this.catName = cat.name; this.catStation = (cat as any).station === 'kitchen' || (cat as any).station === 'bar' ? (cat as any).station : 'both'; this.showCatForm.set(true); }
   closeCatForm() { this.showCatForm.set(false); this.editingCat.set(null); }
 
   saveCat() {
-    this.service.writeCategory({ id: this.editingCat()?.id ?? 0, name: this.catName }).subscribe({
+    this.service.writeCategory({ id: this.editingCat()?.id ?? 0, name: this.catName, station: this.catStation }).subscribe({
       next: () => { this.loadCategories(); this.closeCatForm(); },
       error: (e) => this.dialog.toast(e.error?.error || 'Save failed', 'error')
     });

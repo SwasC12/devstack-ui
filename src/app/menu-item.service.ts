@@ -81,13 +81,17 @@ export class MenuItemService {
     );
   }
 
-  placeOrder(cart: { id: number; name: string; price: number; quantity: number; sizeId?: number; note?: string; modifierIds?: number[] }[], payment?: { method: 'cash' | 'card'; amountReceived?: number | null; dineMode?: string | null; tableNumber?: string | null }, discountId?: number | null, offlineSnapshot?: any): Observable<any> {
+  placeOrder(cart: { id: number; name: string; price: number; quantity: number; sizeId?: number; note?: string; modifierIds?: number[] }[], payment?: { method: 'cash' | 'card'; amountReceived?: number | null; dineMode?: string | null; tableNumber?: string | null; payments?: { method: string; amount: number }[]; tip?: number | null; serviceChargePct?: number | null; accountCustomerId?: number | null }, discountId?: number | null, offlineSnapshot?: any): Observable<any> {
     const body: any = {
       items: cart.map(i => ({ menuItemId: i.id, name: i.name, price: i.price, quantity: i.quantity, sizeId: i.sizeId ?? null, note: i.note ?? null, modifierIds: i.modifierIds?.length ? i.modifierIds : null }))
     };
     if (payment) {
       body.paymentMethod = payment.method;
       if (payment.method === 'cash') body.amountReceived = payment.amountReceived ?? null;
+      if (payment.payments?.length) body.payments = payment.payments;
+      if (payment.tip) body.tip = payment.tip;
+      if (payment.serviceChargePct) body.serviceChargePct = payment.serviceChargePct;
+      if (payment.accountCustomerId) body.accountCustomerId = payment.accountCustomerId;
     }
     if (discountId) body.discountId = discountId;
     if (payment?.dineMode) body.dineMode = payment.dineMode;
@@ -278,16 +282,115 @@ export class MenuItemService {
   // global loader never flashes on polls; sends If-None-Match so an unchanged
   // queue comes back as a cheap 304 (list = null -> caller just updates its
   // clock, no re-render, no chime).
-  getKitchenOrders(minutes = 120, etag?: string | null): Observable<{ list: any[] | null; etag: string | null }> {
+  getKitchenOrders(minutes = 120, etag?: string | null, station?: string): Observable<{ list: any[] | null; etag: string | null }> {
     let headers = new HttpHeaders({ 'X-Background': '1' });
     if (etag) headers = headers.set('If-None-Match', etag);
-    return this.http.get<any[]>(`${API}/orders/kitchen?minutes=${minutes}`, { headers, observe: 'response' }).pipe(
+    return this.http.get<any[]>(`${API}/orders/kitchen?minutes=${minutes}${station ? `&station=${station}` : ''}`, { headers, observe: 'response' }).pipe(
       map(res => ({ list: res.status === 304 ? null : (res.body ?? []), etag: res.headers.get('ETag') ?? null }))
     );
   }
 
   completeOrder(id: number): Observable<void> {
     return this.http.post<void>(`${API}/orders/${id}/complete`, {});
+  }
+
+  // KDS hold & send: pause an order (held strip) or put it back in the queue.
+  holdOrder(id: number): Observable<void> {
+    return this.http.post<void>(`${API}/orders/${id}/hold`, {});
+  }
+
+  sendOrder(id: number): Observable<void> {
+    return this.http.post<void>(`${API}/orders/${id}/send`, {});
+  }
+
+  getHeldOrders(station?: string): Observable<any[]> {
+    return this.http.get<any[]>(`${API}/orders/kitchen/held${station ? `?station=${station}` : ''}`);
+  }
+
+  // Transaction journal: every money event with running balance.
+  getJournal(from?: string, to?: string): Observable<{ openingBalance: number; closingBalance: number; events: any[] }> {
+    const q: string[] = [];
+    if (from) q.push(`from=${encodeURIComponent(from)}`);
+    if (to) q.push(`to=${encodeURIComponent(to)}`);
+    return this.http.get<{ openingBalance: number; closingBalance: number; events: any[] }>(`${API}/orders/journal${q.length ? `?${q.join('&')}` : ''}`);
+  }
+
+  // ── Customers (directory + house accounts) ──────────────────────────────
+
+  getCustomers(q?: string): Observable<any[]> {
+    return this.http.get<any[]>(`${API}/customers${q ? `?q=${encodeURIComponent(q)}` : ''}`);
+  }
+
+  createCustomer(data: { name: string; phone?: string | null; email?: string | null; creditLimit: number; notes?: string | null }): Observable<any> {
+    return this.http.post(`${API}/customers`, data);
+  }
+
+  updateCustomer(id: number, data: { name: string; phone?: string | null; email?: string | null; creditLimit: number; notes?: string | null }): Observable<any> {
+    return this.http.put(`${API}/customers/${id}`, data);
+  }
+
+  deleteCustomer(id: number): Observable<void> {
+    return this.http.delete<void>(`${API}/customers/${id}`);
+  }
+
+  settleCustomer(id: number, amount: number, method: string): Observable<any> {
+    return this.http.post(`${API}/customers/${id}/settle`, { amount, method });
+  }
+
+  // ── Suppliers & purchase orders ─────────────────────────────────────────
+
+  getSuppliers(): Observable<any[]> {
+    return this.http.get<any[]>(`${API}/suppliers`);
+  }
+
+  createSupplier(data: { name: string; phone?: string | null; email?: string | null }): Observable<any> {
+    return this.http.post(`${API}/suppliers`, data);
+  }
+
+  updateSupplier(id: number, data: { name: string; phone?: string | null; email?: string | null }): Observable<any> {
+    return this.http.put(`${API}/suppliers/${id}`, data);
+  }
+
+  deleteSupplier(id: number): Observable<void> {
+    return this.http.delete<void>(`${API}/suppliers/${id}`);
+  }
+
+  getPurchaseOrders(): Observable<any[]> {
+    return this.http.get<any[]>(`${API}/suppliers/orders`);
+  }
+
+  createPurchaseOrder(data: { supplierId: number; freightCost: number; dutyCost: number; notes?: string | null; lines: { menuItemId: number; quantity: number; unitCost: number }[] }): Observable<any> {
+    return this.http.post(`${API}/suppliers/orders`, data);
+  }
+
+  receivePurchaseOrder(id: number, lines: { lineId: number; quantity: number }[]): Observable<any> {
+    return this.http.post(`${API}/suppliers/orders/${id}/receive`, lines);
+  }
+
+  // ── Expenses & petty cash ───────────────────────────────────────────────
+
+  getExpenses(from?: string, to?: string): Observable<{ total: number; items: any[] }> {
+    const q: string[] = [];
+    if (from) q.push(`from=${encodeURIComponent(from)}`);
+    if (to) q.push(`to=${encodeURIComponent(to)}`);
+    return this.http.get<{ total: number; items: any[] }>(`${API}/expenses${q.length ? `?${q.join('&')}` : ''}`);
+  }
+
+  createExpense(data: { category: string; amount: number; note?: string | null }): Observable<any> {
+    return this.http.post(`${API}/expenses`, data);
+  }
+
+  deleteExpense(id: number): Observable<void> {
+    return this.http.delete<void>(`${API}/expenses/${id}`);
+  }
+
+  // ── Audit trail ─────────────────────────────────────────────────────────
+
+  getAudit(from?: string, to?: string, limit = 300): Observable<any[]> {
+    const q: string[] = [`limit=${limit}`];
+    if (from) q.push(`from=${encodeURIComponent(from)}`);
+    if (to) q.push(`to=${encodeURIComponent(to)}`);
+    return this.http.get<any[]>(`${API}/audit?${q.join('&')}`);
   }
 
   // Current shop (any logged-in shop user): branding + kitchen webhook shown in the POS.

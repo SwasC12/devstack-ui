@@ -365,8 +365,13 @@
           </div>
           <div class="pay-total">
             <span class="pay-total-lbl">Total due</span>
-            <span class="pay-total-val">R{{ netTotal() | number:'1.2-2' }}</span>
+            <span class="pay-total-val">R{{ grandTotal() | number:'1.2-2' }}</span>
           </div>
+          @if (serviceCharge() > 0 || tip() > 0) {
+            <div class="pay-extras-line">
+              <span>Subtotal R{{ netTotal() | number:'1.2-2' }}<span *ngIf="serviceCharge() > 0"> · service {{ serviceCharge() | number:'1.2-2' }}</span><span *ngIf="tip() > 0"> · tip {{ tip() | number:'1.2-2' }}</span></span>
+            </div>
+          }
 
           <!-- Dine-in / takeaway -->
           <div class="pay-methods">
@@ -380,13 +385,77 @@
             </div>
           }
 
+          <!-- Extras: service charge + tip -->
+          <div class="pay-extras">
+            <div class="pay-extras-row">
+              <span class="pay-received-lbl">Service charge</span>
+              <button class="qk" [class.on]="serviceChargePct() === 0" (click)="setServiceCharge(0)">None</button>
+              <button class="qk" [class.on]="serviceChargePct() === 10" (click)="setServiceCharge(10)">10%</button>
+              <button class="qk" [class.on]="serviceChargePct() === 12.5" (click)="setServiceCharge(12.5)">12.5%</button>
+              <button class="qk" [class.on]="serviceChargePct() === 15" (click)="setServiceCharge(15)">15%</button>
+            </div>
+            <div class="pay-extras-row">
+              <span class="pay-received-lbl">Tip</span>
+              <button class="qk" [class.on]="tip() === 0" (click)="setTip(0)">None</button>
+              <button class="qk" [class.on]="tip() === 5" (click)="setTip(5)">R5</button>
+              <button class="qk" [class.on]="tip() === 10" (click)="setTip(10)">R10</button>
+              <button class="qk" [class.on]="tip() === 15" (click)="setTip(15)">R15</button>
+              <button class="qk" [class.on]="tip() === 20" (click)="setTip(20)">R20</button>
+            </div>
+          </div>
+
+          <!-- House account -->
+          <div class="pay-methods">
+            <button class="pay-method" [class.on]="accountMode()" (click)="accountMode.set(!accountMode())">🏦 House account</button>
+            <button class="pay-method" [class.on]="splitMode()" (click)="splitMode.set(!splitMode())">➗ Split payment</button>
+          </div>
+
+          @if (accountMode()) {
+            <div class="pay-table">
+              @if (accountCustomerName()) {
+                <div class="acct-picked">Charging to <strong>{{ accountCustomerName() }}</strong> <app-btn size="sm" (onClick)="accountCustomerId.set(null); accountCustomerName.set('')">✕</app-btn></div>
+              } @else {
+                <span class="pay-received-lbl">Find customer</span>
+                <input class="tbl-input" type="text" placeholder="Type name or phone…" [ngModel]="custSearch()" (ngModelChange)="custSearch.set($event); searchCustomers()" />
+                @if (custResults().length) {
+                  <div class="acct-results">
+                    @for (c of custResults(); track c.id) {
+                      <button class="acct-result" (click)="pickAccountCustomer(c)">
+                        <strong>{{ c.name }}</strong>
+                        <span>Balance R{{ c.balance | number:'1.2-2' }}{{ c.creditLimit > 0 ? ' · limit R' + c.creditLimit : '' }}</span>
+                      </button>
+                    }
+                  </div>
+                }
+              }
+            </div>
+            <p class="pay-card-note">The full R{{ grandTotal() | number:'1.2-2' }} goes on the customer's tab. Settle it later from Admin → Customers.</p>
+          }
+
+          @if (splitMode()) {
+            <div class="split-rows">
+              @for (r of splitRows; track $index) {
+                <div class="split-row">
+                  <select class="sel" [ngModel]="r.method" (ngModelChange)="r.method = $event">
+                    <option value="cash">Cash</option>
+                    <option value="card">Card</option>
+                  </select>
+                  <input class="tbl-input" type="number" step="0.01" placeholder="R0.00" [ngModel]="r.amount" (ngModelChange)="r.amount = toNum($event)" />
+                  <app-btn size="sm" variant="danger" (onClick)="removeSplitRow($index)">✕</app-btn>
+                </div>
+              }
+              <app-btn size="sm" (onClick)="addSplitRow()">+ Payment</app-btn>
+              <div class="split-total">Allocated: <strong>R{{ splitTotal() | number:'1.2-2' }}</strong> of R{{ grandTotal() | number:'1.2-2' }}</div>
+            </div>
+          }
+
           <!-- Method toggle -->
           <div class="pay-methods">
             <button class="pay-method" [class.on]="payMethod() === 'cash'" (click)="payMethod.set('cash')">💵 Cash</button>
             <button class="pay-method" [class.on]="payMethod() === 'card'" (click)="payMethod.set('card')">💳 Card</button>
           </div>
 
-          @if (payMethod() === 'cash') {
+          @if (payMethod() === 'cash' && !accountMode() && !splitMode()) {
             <!-- Tendered amount + change -->
             <div class="pay-received">
               <span class="pay-received-lbl">Received</span>
@@ -406,12 +475,12 @@
             @if (change() > 0) {
               <div class="pay-change"><span>Change</span><strong>R{{ change() | number:'1.2-2' }}</strong></div>
             }
-          } @else {
+          } @else if (!accountMode() && !splitMode()) {
             <p class="pay-card-note">Take the card payment on the terminal, then confirm.</p>
           }
 
           <button class="btn-checkout" [disabled]="busy() || !canConfirm()" (click)="confirmPayment()">
-            {{ busy() ? 'Placing order…' : payMethod() === 'cash' ? 'Charge R' + (netTotal() | number:'1.2-2') : 'Confirm card payment' }}
+            {{ busy() ? 'Placing order…' : accountMode() ? 'Charge R' + (grandTotal() | number:'1.2-2') + ' to account' : splitMode() ? 'Confirm split payment' : payMethod() === 'cash' ? 'Charge R' + (grandTotal() | number:'1.2-2') : 'Confirm card payment' }}
           </button>
         </div>
       </div>

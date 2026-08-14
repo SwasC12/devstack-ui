@@ -10,6 +10,11 @@
         <button class="tab" [class.active]="tab() === 'cashup'" (click)="openCashup()">Cash-up</button>
         <button class="tab" [class.active]="tab() === 'timesheet'" (click)="openTimesheet()">Timesheet</button>
         <button class="tab" [class.active]="tab() === 'discounts'" (click)="tab.set('discounts')">Discounts</button>
+        <button class="tab" [class.active]="tab() === 'journal'" (click)="tab.set('journal'); loadJournal()">Journal</button>
+        <button class="tab" [class.active]="tab() === 'audit'" (click)="tab.set('audit'); loadAudit()">Audit</button>
+        <button class="tab" [class.active]="tab() === 'customers'" (click)="tab.set('customers'); loadCustomers()">Customers</button>
+        <button class="tab" [class.active]="tab() === 'purchasing'" (click)="tab.set('purchasing'); loadPurchasing()">Purchasing</button>
+        <button class="tab" [class.active]="tab() === 'expenses'" (click)="tab.set('expenses'); loadExpenses()">Expenses</button>
         <button class="tab" [class.active]="tab() === 'settings'" (click)="tab.set('settings')">Settings</button>
         <!-- Notification bell: low-stock alerts + owner announcements -->
         <div class="bell-wrap">
@@ -94,6 +99,7 @@
               <div class="field"><label>Price (ZAR)</label><input type="number" step="0.01" [(ngModel)]="fPrice" placeholder="0.00" /></div>
               <div class="field"><label>Stock</label><input type="number" [(ngModel)]="fStock" placeholder="0" /></div>
  <div class="field"><label>Low stock alert at</label><input type="number" [(ngModel)]="fLowStock" placeholder="5" /></div>
+              <div class="field"><label>Unit cost (ZAR)</label><input type="number" step="0.01" [(ngModel)]="fCostBasis" placeholder="0.00" /><span class="field-hint">Landed cost per unit - feeds gross profit when no recipe is set. Updated automatically by PO receiving.</span></div>
               <div class="field wide"><label>Description</label><input [(ngModel)]="fDesc" placeholder="Short description" /></div>
               <div class="field wide">
                 <label>Sizes (optional) — different sizes, different prices</label>
@@ -126,6 +132,19 @@
                   </div>
                 }
                 <app-btn size="sm" (onClick)="addGroup()">+ Modifier group</app-btn>
+              </div>
+              <div class="field wide">
+                <label>Recipe / plate costing (optional) — ingredient cost per serving</label>
+                @for (r of fRecipe; track $index) {
+                  <div class="mod-row">
+                    <input [(ngModel)]="r.name" placeholder="Ingredient e.g. Coffee beans" />
+                    <input class="mod-delta" type="number" step="0.01" [(ngModel)]="r.costPerUnit" placeholder="Cost/unit" />
+                    <input class="mod-delta" type="number" step="0.001" [(ngModel)]="r.quantity" placeholder="Qty/serve" />
+                    <app-btn size="sm" variant="danger" (onClick)="removeRecipeRow($index)">✕</app-btn>
+                  </div>
+                }
+                <app-btn size="sm" (onClick)="addRecipeRow()">+ Ingredient</app-btn>
+                @if (recipeCost() > 0) { <span class="field-hint">Recipe cost ≈ <strong>R{{ recipeCost() }}</strong> per serving (GP at R{{ fPrice ?? 0 }}: <strong>R{{ ((fPrice ?? 0) - recipeCost()) | number:'1.2-2' }}</strong>)</span> }
               </div>
               <div class="field wide">
                 <label>Photo</label>
@@ -208,6 +227,15 @@
             </div>
             <div class="form-grid">
               <div class="field"><label>Name</label><input [(ngModel)]="catName" placeholder="e.g. Hot Drinks" (keyup.enter)="saveCat()" /></div>
+              <div class="field">
+                <label>KDS station</label>
+                <select [(ngModel)]="catStation" class="sel">
+                  <option value="both">Both kitchen &amp; bar</option>
+                  <option value="kitchen">Kitchen only</option>
+                  <option value="bar">Bar only</option>
+                </select>
+                <span class="field-hint">Which display(s) make this category - drives split kitchen/bar routing.</span>
+              </div>
             </div>
             <div class="form-acts">
               <app-btn size="sm" (onClick)="closeCatForm()">Cancel</app-btn>
@@ -218,11 +246,12 @@
 
         <div class="table-card">
           <table class="cats">
-            <thead><tr><th>Name</th><th>Created</th><th></th></tr></thead>
+            <thead><tr><th>Name</th><th>Station</th><th>Created</th><th></th></tr></thead>
             <tbody>
               @for (cat of categories(); track cat.id) {
                 <tr>
                   <td><strong>{{ cat.name }}</strong></td>
+                  <td><span class="status-pill" [class.voided]="cat.station === 'bar'">{{ cat.station === 'kitchen' ? 'Kitchen' : (cat.station === 'bar' ? 'Bar' : 'Both') }}</span></td>
                   <td>{{ cat.createdAt | date:'mediumDate' }}</td>
                   <td class="cell-acts">
                     <app-btn size="sm" (onClick)="editCat(cat)">Rename</app-btn>
@@ -498,6 +527,7 @@
         @if (analytics(); as a) {
           <div class="metrics">
             <div class="metric"><div class="m-val">R{{ a.totals.revenue | number:'1.2-2' }}</div><div class="m-lbl">Revenue</div></div>
+            <div class="metric"><div class="m-val">R{{ a.totals.grossProfit | number:'1.2-2' }}</div><div class="m-lbl">Gross profit ({{ a.totals.grossMarginPct }}%)</div></div>
             <div class="metric"><div class="m-val">{{ a.totals.orders }}</div><div class="m-lbl">Orders</div></div>
             <div class="metric"><div class="m-val">{{ a.totals.items }}</div><div class="m-lbl">Items sold</div></div>
           </div>
@@ -535,12 +565,12 @@
             <div class="table-card">
               <h3 class="sub-h">By category</h3>
               <table class="simple">
-                <thead><tr><th>Category</th><th>Qty</th><th>Revenue</th></tr></thead>
+                <thead><tr><th>Category</th><th>Qty</th><th>Revenue</th><th>GP</th></tr></thead>
                 <tbody>
                   @for (c of a.categories; track c.name) {
-                    <tr><td><strong>{{ c.name }}</strong></td><td>{{ c.quantity }}</td><td class="num">R{{ c.revenue | number:'1.2-2' }}</td></tr>
+                    <tr><td><strong>{{ c.name }}</strong></td><td>{{ c.quantity }}</td><td class="num">R{{ c.revenue | number:'1.2-2' }}</td><td class="num">R{{ c.grossProfit | number:'1.2-2' }}</td></tr>
                   } @empty {
-                    <tr><td colspan="3" class="muted-td">No sales yet.</td></tr>
+                    <tr><td colspan="4" class="muted-td">No sales yet.</td></tr>
                   }
                 </tbody>
               </table>
@@ -698,6 +728,251 @@
           @if (backupMsg()) { <p class="form-msg">{{ backupMsg() }}</p> }
           <div class="form-acts">
             <app-btn variant="primary" size="sm" (onClick)="downloadBackup()">Download shop backup</app-btn>
+          </div>
+        </div>
+      }
+
+      <!-- JOURNAL -->
+      @if (tab() === 'journal') {
+        <div class="cashup">
+          <div class="cashup-head">
+            <h2 class="page-title">Transaction journal</h2>
+            <input class="cashup-date" type="date" [ngModel]="journalFrom" (ngModelChange)="journalFrom = $event; loadJournal()" title="From" />
+            <input class="cashup-date" type="date" [ngModel]="journalTo" (ngModelChange)="journalTo = $event; loadJournal()" title="To" />
+            <app-btn size="sm" (onClick)="loadJournal()" [loading]="journalBusy()">Refresh</app-btn>
+          </div>
+          @if (journal(); as j) {
+            <div class="cu-stat" style="max-width:260px">
+              <span>Closing balance</span><strong>R{{ j.closingBalance | number:'1.2-2' }}</strong>
+            </div>
+            <div class="table-card">
+              <table class="orders">
+                <thead><tr><th>Time</th><th>Type</th><th>Ref</th><th>Detail</th><th class="num">Amount</th><th class="num">Balance</th></tr></thead>
+                <tbody>
+                  @for (e of j.events; track $index) {
+                    <tr>
+                      <td>{{ e.at | date:'short' }}</td>
+                      <td><span class="status-pill" [class.voided]="e.delta < 0">{{ e.type }}</span></td>
+                      <td>{{ e.ref }}</td>
+                      <td>{{ e.detail }}</td>
+                      <td class="num">{{ e.delta > 0 ? '+' : '' }}{{ e.delta | number:'1.2-2' }}</td>
+                      <td class="num"><strong>R{{ e.balance | number:'1.2-2' }}</strong></td>
+                    </tr>
+                  } @empty {
+                    <tr><td colspan="6" style="color:var(--muted);text-align:center;padding:1.5rem;">No transactions in this range.</td></tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </div>
+      }
+
+      <!-- AUDIT -->
+      @if (tab() === 'audit') {
+        <div class="cashup">
+          <div class="cashup-head">
+            <h2 class="page-title">Audit trail</h2>
+            <input class="cashup-date" type="date" [ngModel]="auditFrom" (ngModelChange)="auditFrom = $event; loadAudit()" title="From" />
+            <input class="cashup-date" type="date" [ngModel]="auditTo" (ngModelChange)="auditTo = $event; loadAudit()" title="To" />
+            <app-btn size="sm" (onClick)="loadAudit()" [loading]="auditBusy()">Refresh</app-btn>
+          </div>
+          <div class="table-card">
+            <table class="orders">
+              <thead><tr><th>When</th><th>Action</th><th>By</th><th>Detail</th></tr></thead>
+              <tbody>
+                @for (a of audit(); track a.id) {
+                  <tr>
+                    <td>{{ a.createdAtUtc | date:'short' }}</td>
+                    <td><span class="status-pill">{{ a.action }}</span></td>
+                    <td>{{ a.by }}</td>
+                    <td>{{ a.detail }}</td>
+                  </tr>
+                } @empty {
+                  <tr><td colspan="4" style="color:var(--muted);text-align:center;padding:1.5rem;">Nothing logged yet.</td></tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      }
+
+      <!-- CUSTOMERS -->
+      @if (tab() === 'customers') {
+        <div class="cashup">
+          <div class="cashup-head">
+            <h2 class="page-title">Customers</h2>
+            <input class="cashup-date" style="min-width:180px" [(ngModel)]="custQuery" placeholder="Search name / phone" (keyup.enter)="loadCustomers()" />
+            <app-btn size="sm" (onClick)="loadCustomers()">Search</app-btn>
+            <app-btn variant="primary" size="sm" (onClick)="openCustForm()">+ Customer</app-btn>
+          </div>
+          @if (showCustForm()) {
+            <div class="form-sheet">
+              <div class="form-head"><h3>{{ custEditId ? 'Edit' : 'New' }} customer</h3><app-btn size="sm" (onClick)="closeCustForm()">✕</app-btn></div>
+              <div class="form-grid">
+                <div class="field"><label>Name</label><input [(ngModel)]="cfName" /></div>
+                <div class="field"><label>Phone</label><input [(ngModel)]="cfPhone" placeholder="+27..." /></div>
+                <div class="field"><label>Email</label><input [(ngModel)]="cfEmail" type="email" /></div>
+                <div class="field"><label>Credit limit (R, 0 = none)</label><input type="number" step="0.01" [(ngModel)]="cfLimit" /></div>
+                <div class="field wide"><label>Notes</label><input [(ngModel)]="cfNotes" /></div>
+              </div>
+              <div class="form-acts">
+                <app-btn size="sm" (onClick)="closeCustForm()">Cancel</app-btn>
+                <app-btn variant="primary" size="sm" (onClick)="saveCustomer()">Save customer</app-btn>
+              </div>
+            </div>
+          }
+          <div class="table-card">
+            <table class="orders">
+              <thead><tr><th>Name</th><th>Phone</th><th>Orders</th><th>Spent</th><th class="num">Balance</th><th></th></tr></thead>
+              <tbody>
+                @for (c of customers(); track c.id) {
+                  <tr>
+                    <td><strong>{{ c.name }}</strong></td>
+                    <td>{{ c.phone || '-' }}</td>
+                    <td>{{ c.orderCount }}</td>
+                    <td>R{{ c.orderTotal | number:'1.2-2' }}</td>
+                    <td class="num"><strong [class.row-voided]="c.balance > 0">R{{ c.balance | number:'1.2-2' }}</strong></td>
+                    <td class="cell-acts">
+                      @if (c.balance > 0) { <app-btn size="sm" (onClick)="settleCustomer(c)">Settle</app-btn> }
+                      <app-btn size="sm" (onClick)="editCustomer(c)">Edit</app-btn>
+                      <app-btn size="sm" variant="danger" (onClick)="removeCustomer(c)">Delete</app-btn>
+                    </td>
+                  </tr>
+                } @empty {
+                  <tr><td colspan="6" style="color:var(--muted);text-align:center;padding:1.5rem;">No customers yet. Add regulars here or charge an order to their account from the POS.</td></tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      }
+
+      <!-- PURCHASING -->
+      @if (tab() === 'purchasing') {
+        <div class="cashup">
+          <div class="cashup-head">
+            <h2 class="page-title">Suppliers &amp; purchase orders</h2>
+            <app-btn variant="primary" size="sm" (onClick)="openPoForm()">+ Purchase order</app-btn>
+          </div>
+          @if (showPoForm()) {
+            <div class="form-sheet">
+              <div class="form-head"><h3>New purchase order</h3><app-btn size="sm" (onClick)="closePoForm()">✕</app-btn></div>
+              <div class="form-grid">
+                <div class="field">
+                  <label>Supplier</label>
+                  <select [(ngModel)]="poSupplierId" class="sel">
+                    <option [ngValue]="null" disabled>Choose…</option>
+                    @for (s of suppliers(); track s.id) { <option [ngValue]="s.id">{{ s.name }}</option> }
+                  </select>
+                  <app-btn size="sm" (onClick)="openSupplierForm()">+ New supplier</app-btn>
+                </div>
+                <div class="field"><label>Freight cost (R)</label><input type="number" step="0.01" [(ngModel)]="poFreight" placeholder="0.00" /></div>
+                <div class="field"><label>Duty / other (R)</label><input type="number" step="0.01" [(ngModel)]="poDuty" placeholder="0.00" /></div>
+                <div class="field wide"><label>Notes</label><input [(ngModel)]="poNotes" /></div>
+                <div class="field wide">
+                  <label>Lines</label>
+                  @for (l of poLines; track $index) {
+                    <div class="mod-row">
+                      <select class="sel" [(ngModel)]="l.menuItemId" style="flex:2">
+                        <option [ngValue]="null" disabled>Item…</option>
+                        @for (it of items(); track it.id) { <option [ngValue]="it.id">{{ it.name }}</option> }
+                      </select>
+                      <input type="number" [(ngModel)]="l.quantity" placeholder="Qty" style="width:70px" />
+                      <input type="number" step="0.01" [(ngModel)]="l.unitCost" placeholder="Unit R" style="width:90px" />
+                      <app-btn size="sm" variant="danger" (onClick)="removePoLine($index)">✕</app-btn>
+                    </div>
+                  }
+                  <app-btn size="sm" (onClick)="addPoLine()">+ Line</app-btn>
+                </div>
+              </div>
+              <div class="form-acts">
+                <app-btn size="sm" (onClick)="closePoForm()">Cancel</app-btn>
+                <app-btn variant="primary" size="sm" (onClick)="createPo()" [loading]="poBusy()">Create PO</app-btn>
+              </div>
+            </div>
+          }
+          @if (showSupplierForm()) {
+            <div class="form-sheet">
+              <div class="form-head"><h3>{{ supEditId ? 'Edit' : 'New' }} supplier</h3><app-btn size="sm" (onClick)="closeSupplierForm()">✕</app-btn></div>
+              <div class="form-grid">
+                <div class="field"><label>Name</label><input [(ngModel)]="sfName" /></div>
+                <div class="field"><label>Phone</label><input [(ngModel)]="sfPhone" /></div>
+                <div class="field"><label>Email</label><input [(ngModel)]="sfEmail" type="email" /></div>
+              </div>
+              <div class="form-acts">
+                <app-btn size="sm" (onClick)="closeSupplierForm()">Cancel</app-btn>
+                <app-btn variant="primary" size="sm" (onClick)="saveSupplier()">Save supplier</app-btn>
+              </div>
+            </div>
+          }
+          <div class="table-card">
+            <table class="orders">
+              <thead><tr><th>Supplier</th><th>Items</th><th>Total</th><th>Status</th><th></th></tr></thead>
+              <tbody>
+                @for (po of pos(); track po.id) {
+                  <tr>
+                    <td><strong>{{ po.supplierName }}</strong></td>
+                    <td>{{ po.lines.length }}</td>
+                    <td>R{{ po.total | number:'1.2-2' }}</td>
+                    <td><span class="status-pill" [class.voided]="po.status === 'received'">{{ po.status }}</span></td>
+                    <td class="cell-acts">
+                      @if (po.status !== 'received') { <app-btn size="sm" (onClick)="receivePo(po)">Receive</app-btn> }
+                    </td>
+                  </tr>
+                } @empty {
+                  <tr><td colspan="5" style="color:var(--muted);text-align:center;padding:1.5rem;">No purchase orders yet.</td></tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      }
+
+      <!-- EXPENSES -->
+      @if (tab() === 'expenses') {
+        <div class="cashup">
+          <div class="cashup-head">
+            <h2 class="page-title">Expenses &amp; petty cash</h2>
+            <input class="cashup-date" type="date" [ngModel]="expFrom" (ngModelChange)="expFrom = $event; loadExpenses()" title="From" />
+            <input class="cashup-date" type="date" [ngModel]="expTo" (ngModelChange)="expTo = $event; loadExpenses()" title="To" />
+            <app-btn variant="primary" size="sm" (onClick)="openExpForm()">+ Expense</app-btn>
+          </div>
+          @if (showExpForm()) {
+            <div class="form-sheet">
+              <div class="form-head"><h3>Add expense</h3><app-btn size="sm" (onClick)="closeExpForm()">✕</app-btn></div>
+              <div class="form-grid">
+                <div class="field"><label>Category</label><input [(ngModel)]="efCategory" placeholder="e.g. Milk, Supplies" /></div>
+                <div class="field"><label>Amount (R)</label><input type="number" step="0.01" [(ngModel)]="efAmount" /></div>
+                <div class="field wide"><label>Note</label><input [(ngModel)]="efNote" /></div>
+              </div>
+              <div class="form-acts">
+                <app-btn size="sm" (onClick)="closeExpForm()">Cancel</app-btn>
+                <app-btn variant="primary" size="sm" (onClick)="saveExpense()">Add expense</app-btn>
+              </div>
+            </div>
+          }
+          @if (expenses(); as ex) {
+            <div class="cu-stat" style="max-width:260px"><span>Total this range</span><strong>R{{ ex.total | number:'1.2-2' }}</strong></div>
+          }
+          <div class="table-card">
+            <table class="orders">
+              <thead><tr><th>When</th><th>Category</th><th>Note</th><th>By</th><th class="num">Amount</th><th></th></tr></thead>
+              <tbody>
+                @for (e of expenses()?.items ?? []; track e.id) {
+                  <tr>
+                    <td>{{ e.createdAt | date:'short' }}</td>
+                    <td><strong>{{ e.category }}</strong></td>
+                    <td>{{ e.note || '-' }}</td>
+                    <td>{{ e.by || '-' }}</td>
+                    <td class="num">R{{ e.amount | number:'1.2-2' }}</td>
+                    <td class="cell-acts"><app-btn size="sm" variant="danger" (onClick)="removeExpense(e)">Delete</app-btn></td>
+                  </tr>
+                } @empty {
+                  <tr><td colspan="6" style="color:var(--muted);text-align:center;padding:1.5rem;">No expenses logged.</td></tr>
+                }
+              </tbody>
+            </table>
           </div>
         </div>
       }

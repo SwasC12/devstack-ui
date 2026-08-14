@@ -2,5 +2,6 @@
 export interface Category {
   id: number;
   name: string;
+  station: 'kitchen' | 'bar' | 'both';
   createdAt: string;
 }

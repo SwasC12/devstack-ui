@@ -89,6 +89,17 @@ export class PosComponent implements OnInit {
   // Till: payment sheet + receipt
   readonly paymentOpen = signal(false);
   readonly payMethod = signal<'cash' | 'card'>('cash');
+  // Checkout extras (optional): service charge %, tip, split payments, and
+  // house-account charging (order goes on the customer's tab).
+  readonly serviceChargePct = signal(0);
+  readonly tip = signal(0);
+  readonly splitMode = signal(false);
+  splitRows: { method: 'cash' | 'card'; amount: number }[] = [];
+  readonly accountMode = signal(false);
+  readonly accountCustomerId = signal<number | null>(null);
+  readonly accountCustomerName = signal('');
+  readonly custSearch = signal('');
+  readonly custResults = signal<any[]>([]);
   readonly receivedText = signal('');
   readonly lastOrder = signal<any | null>(null);
 
@@ -439,10 +450,17 @@ export class PosComponent implements OnInit {
   // ── Till / payment ──────────────────────────────────────
 
   readonly received = () => parseFloat(this.receivedText()) || 0;
-  readonly change = () => Math.max(0, this.received() - this.netTotal());
-  readonly canConfirm = () => this.payMethod() === 'card' || this.received() >= this.netTotal();
+  readonly change = () => Math.max(0, this.received() - this.grandTotal());
+  readonly serviceCharge = () => Math.round(this.netTotal() * this.serviceChargePct() / 100 * 100) / 100;
+  readonly grandTotal = () => this.netTotal() + this.serviceCharge() + this.tip();
+  readonly splitTotal = () => this.splitRows.reduce((s, r) => s + (r.amount || 0), 0);
+  readonly canConfirm = () => {
+    if (this.accountMode()) return this.accountCustomerId() != null;
+    if (this.splitMode()) return Math.abs(this.splitTotal() - this.grandTotal()) < 0.01;
+    return this.payMethod() === 'card' || this.received() >= this.grandTotal();
+  };
 
-  pressKey(k: string) {
+  toNum(v: any): number { return parseFloat(v) || 0; }  pressKey(k: string) {
     if (k === '⌫') this.receivedText.update(t => t.slice(0, -1));
     else if (k === '.') {
       if (!this.receivedText().includes('.')) this.receivedText.update(t => (t ? t + '.' : '0.'));
@@ -460,8 +478,28 @@ export class PosComponent implements OnInit {
   setQuick(which: string) {
     // 'Exact' must use the DISCOUNTED total - charging pre-discount would
     // overcharge the customer and confuse the cashier.
-    if (which === 'exact') this.receivedText.set(this.netTotal().toFixed(2));
+    if (which === 'exact') this.receivedText.set(this.grandTotal().toFixed(2));
     else this.receivedText.set(which);
+  }
+
+  // Extras
+  setServiceCharge(pct: number) { this.serviceChargePct.set(pct); }
+  setTip(amount: number) { this.tip.set(amount); }
+  addSplitRow() { this.splitRows = [...this.splitRows, { method: 'cash', amount: 0 }]; }
+  removeSplitRow(i: number) { this.splitRows = this.splitRows.filter((_, idx) => idx !== i); }
+
+  // House-account: search the customer directory while the sheet is open.
+  searchCustomers() {
+    const q = this.custSearch().trim();
+    if (q.length < 2) { this.custResults.set([]); return; }
+    this.service.getCustomers(q).subscribe(c => this.custResults.set(c.slice(0, 6)));
+  }
+
+  pickAccountCustomer(c: any) {
+    this.accountCustomerId.set(c.id);
+    this.accountCustomerName.set(c.name);
+    this.custResults.set([]);
+    this.custSearch.set('');
   }
 
   // Checkout button: open the payment sheet instead of charging blindly.
@@ -471,25 +509,49 @@ export class PosComponent implements OnInit {
     this.receivedText.set('');
     this.dineMode.set('takeaway');
     this.tableNumber.set('');
+    this.serviceChargePct.set(0);
+    this.tip.set(0);
+    this.splitMode.set(false);
+    this.splitRows = [];
+    this.accountMode.set(false);
+    this.accountCustomerId.set(null);
+    this.accountCustomerName.set('');
+    this.custSearch.set('');
+    this.custResults.set([]);
     this.paymentOpen.set(true);
   }
 
   confirmPayment() {
     if (!this.canConfirm() || this.busy()) return;
     this.busy.set(true);
+
+    // Build the tender list: account charge / split rows / single method.
+    const payments: { method: string; amount: number }[] = [];
+    if (this.accountMode()) {
+      payments.push({ method: 'account', amount: Math.round(this.grandTotal() * 100) / 100 });
+    } else if (this.splitMode()) {
+      this.splitRows.forEach(r => { if ((r.amount || 0) > 0) payments.push({ method: r.method, amount: Math.round(r.amount * 100) / 100 }); });
+    } else {
+      payments.push({ method: this.payMethod(), amount: Math.round(this.grandTotal() * 100) / 100 });
+    }
+
     this.service.placeOrder(this.cart(), {
-      method: this.payMethod(),
-      amountReceived: this.payMethod() === 'cash' ? this.received() : null,
+      method: this.accountMode() ? 'card' : this.payMethod(),
+      amountReceived: this.payMethod() === 'cash' && !this.accountMode() ? this.received() : null,
+      payments,
+      tip: this.tip() > 0 ? this.tip() : null,
+      serviceChargePct: this.serviceChargePct() > 0 ? this.serviceChargePct() : null,
+      accountCustomerId: this.accountMode() ? this.accountCustomerId() : null,
       dineMode: this.dineMode(),
       tableNumber: this.tableNumber().trim() || null
     }, this.selectedDiscount()?.id ?? null, {
       // Snapshot used to build the local receipt when the order is queued offline.
       id: `LOC-${Date.now()}`,
-      total: this.netTotal(),
+      total: this.grandTotal(),
       discountAmount: Math.max(0, this.total() - this.netTotal()),
       discountName: this.selectedDiscount()?.name ?? null,
       amountReceived: this.payMethod() === 'cash' ? this.received() : null,
-      changeGiven: this.payMethod() === 'cash' ? Math.max(0, this.received() - this.netTotal()) : null
+      changeGiven: this.payMethod() === 'cash' ? Math.max(0, this.received() - this.grandTotal()) : null
     }).subscribe({
       next: (order) => {
         this.busy.set(false);

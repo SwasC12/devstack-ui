@@ -2,6 +2,11 @@
   <div class="k-head">
     <h1>👨‍🍳 Kitchen</h1>
     <span class="k-count" [class.k-busy]="orders().length > 0">{{ orders().length }} pending</span>
+    <div class="k-stations">
+      <button class="k-station" [class.on]="station() === 'all'" (click)="setStation('all')">All</button>
+      <button class="k-station" [class.on]="station() === 'kitchen'" (click)="setStation('kitchen')">🍳 Kitchen</button>
+      <button class="k-station" [class.on]="station() === 'bar'" (click)="setStation('bar')">🍸 Bar</button>
+    </div>
     <button class="k-lock" (click)="toggleKiosk()" (pointerdown)="startHold()" (pointerup)="cancelHold()" (pointerleave)="cancelHold()" [title]="kiosk() ? 'Hold 1s to unlock' : 'Lock to kitchen screen'">{{ kiosk() ? '🔒' : '🔓' }}</button>
     <span class="k-updated">{{ firstLoad() ? 'Syncing…' : (lastRefresh() ? 'Updated ' + (lastRefresh() | date:'HH:mm:ss') : '…') }}</span>
     @if (offline()) { <span class="k-offline">⚠ offline — retrying</span> }
@@ -13,6 +18,31 @@
       @for (p of pendingSync(); track p.id) {
         <div class="k-pending-card">⏳ <strong>Offline order</strong> — {{ p.summary }} <em>pending sync</em></div>
       }
+    </div>
+  }
+
+  @if (held().length > 0) {
+    <div class="k-held">
+      <div class="k-held-title">⏸ Held ({{ held().length }})</div>
+      <div class="k-held-grid">
+        @for (o of held(); track o.id) {
+          <div class="k-card k-held-card">
+            <div class="k-card-head">
+              <strong>Order #{{ o.id }}</strong>
+              <span>{{ o.heldAt | date:'HH:mm' }}</span>
+            </div>
+            <div class="k-items">
+              @for (i of o.items; track $index) {
+                <div class="k-item">
+                  <span class="k-qty">{{ i.quantity }}×</span>
+                  <span class="k-name">{{ i.name }}{{ i.sizeName ? ' (' + i.sizeName + ')' : '' }}</span>
+                </div>
+              }
+            </div>
+            <button class="k-done" (click)="send(o)">▶ Send to queue</button>
+          </div>
+        }
+      </div>
     </div>
   }
 
@@ -46,7 +76,10 @@
           }
         </div>
         @if (o.notes) { <div class="k-order-note">📝 {{ o.notes }}</div> }
-        <button class="k-done" (click)="complete(o)">✓ Done</button>
+        <div class="k-acts">
+          <button class="k-hold" (click)="hold(o)">⏸ Hold</button>
+          <button class="k-done" (click)="complete(o)">✓ Done</button>
+        </div>
       </div>
     }
   </div>
