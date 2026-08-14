@@ -136,6 +136,11 @@ export class AdminComponent implements OnInit {
 
   // Orders
   readonly orders = signal<any[]>([]);
+  readonly ordersTotal = signal(0);
+  ordersFrom = '';
+  ordersTo = '';
+  private static readonly ORDERS_PAGE = 200;
+  private ordersOffset = 0;
 
   lineMods(line: any): string {
     return (line.modifiers ?? []).map((m: any) => m.priceDelta > 0 ? `${m.name} +R${m.priceDelta}` : m.name).join(', ');
@@ -159,7 +164,7 @@ export class AdminComponent implements OnInit {
   dName = ''; dType: 'percent' | 'fixed' = 'percent'; dValue: number | null = null;
   dDay: number | null = null; dStart = ''; dEnd = ''; dActive = true;
 
-  ngOnInit() { this.loadInv(); this.loadSum(); this.loadUsers(); this.loadCategories(); this.loadSettings(); this.loadOrders(); this.loadShopInfo(); this.loadDiscounts(); this.loadNotifications(); this.startNotifPoll(); }
+  ngOnInit() { this.loadInv(); this.loadSum(); this.loadUsers(); this.loadCategories(); this.loadSettings(); this.loadOrders(); this.loadDiscounts(); this.loadNotifications(); this.startNotifPoll(); }
 
   // ── Notification bell ────────────────────────────────
 
@@ -206,8 +211,6 @@ export class AdminComponent implements OnInit {
     this.notifUnread.set(0);
     this.service.markAllNotificationsRead().subscribe({ error: () => this.loadNotifications() });
   }
-
-  private loadShopInfo() { this.service.getShopInfo().subscribe(s => this.shopInfo = s); }
 
   private loadInv() { this.service.getItems().subscribe(items => this.items.set(items)); }
   private loadSum() { this.service.getSummary().subscribe(s => this.summary.set(s)); }
@@ -328,18 +331,32 @@ export class AdminComponent implements OnInit {
 
   loadOrders() {
     this.ordersBusy.set(true);
-    this.service.getOrders().subscribe({
-      next: (orders) => {
-        this.orders.set(orders);
+    this.ordersOffset = 0;
+    this.service.getOrders(this.ordersFrom || undefined, this.ordersTo || undefined, AdminComponent.ORDERS_PAGE, 0).subscribe({
+      next: ({ list, total }) => {
+        this.orders.set(list);
+        this.ordersTotal.set(total);
         // Keep the open detail in sync (e.g. after a void elsewhere).
         const sel = this.selectedOrder();
         if (sel) {
-          const fresh = orders.find(o => o.id === sel.id);
+          const fresh = list.find(o => o.id === sel.id);
           this.selectedOrder.set(fresh ?? null);
         }
         this.ordersBusy.set(false);
       },
       error: () => this.ordersBusy.set(false)
+    });
+  }
+
+  loadMoreOrders() {
+    this.ordersOffset += AdminComponent.ORDERS_PAGE;
+    this.ordersBusy.set(true);
+    this.service.getOrders(this.ordersFrom || undefined, this.ordersTo || undefined, AdminComponent.ORDERS_PAGE, this.ordersOffset).subscribe({
+      next: ({ list }) => {
+        this.orders.update(existing => [...existing, ...list]);
+        this.ordersBusy.set(false);
+      },
+      error: () => { this.ordersOffset -= AdminComponent.ORDERS_PAGE; this.ordersBusy.set(false); }
     });
   }
 
@@ -618,6 +635,7 @@ export class AdminComponent implements OnInit {
     this.acUsername = u?.username ?? '';
     this.acDisplay = u?.displayName ?? '';
     this.service.getShopInfo().subscribe(shop => {
+      this.shopInfo = shop; // also feeds the receipt reprint (deduped: this used to be fetched twice on load)
       this.brName = shop.name;
       this.brLogoUrl = shop.logoUrl ?? '';
       this.brQrUrl = shop.receiptQrUrl ?? '';

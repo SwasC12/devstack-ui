@@ -254,8 +254,16 @@ export class MenuItemService {
 
   // ── Orders (admin history) ────────────────────────────
 
-  getOrders(): Observable<any[]> {
-    return this.http.get<any[]>(`${API}/orders`);
+  // Orders (admin history) - paged. The API used to return every order ever
+  // on one call; now it's bounded (last 30 days / 200 rows by default) with
+  // X-Total-Count so the UI can page through history.
+  getOrders(from?: string, to?: string, limit = 200, offset = 0): Observable<{ list: any[]; total: number }> {
+    const q: string[] = [`limit=${limit}`, `offset=${offset}`];
+    if (from) q.push(`from=${encodeURIComponent(from)}`);
+    if (to) q.push(`to=${encodeURIComponent(to)}`);
+    return this.http.get<any[]>(`${API}/orders?${q.join('&')}`, { observe: 'response' }).pipe(
+      map(res => ({ list: res.body ?? [], total: Number(res.headers.get('X-Total-Count') ?? res.body?.length ?? 0) }))
+    );
   }
 
   voidOrder(id: number, reason: string): Observable<void> {

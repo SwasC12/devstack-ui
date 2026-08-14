@@ -136,6 +136,16 @@ export class PosComponent implements OnInit {
   readonly total = () => this.cart().reduce((s, i) => s + i.price * i.quantity, 0);
   skeletonCards(): number[] { return [0, 1, 2, 3, 4, 5, 6, 7]; }
 
+  // Pull a human-readable message out of an API error. Our endpoints return
+  // { error } but ASP.NET ProblemDetails (500s, gateway timeouts) carry
+  // title/detail instead - the generic "Checkout failed" hid those real
+  // causes (e.g. the empty-migration 500).
+  apiError(e: any): string | null {
+    const b = e?.error;
+    if (!b) return null;
+    return (typeof b === 'string' && b) || b.error || b.title || b.message || b.detail || null;
+  }
+
   // Stock guardrails — the cart can never exceed what we have. Stock is shared
   // across sizes, so the guard sums every line of the same item.
   stockOf(id: number): number { return this.items.find(i => i.id === id)?.stockQuantity ?? 0; }
@@ -494,7 +504,7 @@ export class PosComponent implements OnInit {
       },
       error: (e) => {
         this.busy.set(false);
-        this.dialog.toast(e.error?.error || 'Checkout failed', 'error');
+        this.dialog.toast(this.apiError(e) || 'Checkout failed', 'error');
         this.load();
       }
     });

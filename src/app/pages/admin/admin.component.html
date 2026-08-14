@@ -362,7 +362,11 @@
       <!-- ───── ORDERS ───── -->
       @if (tab() === 'orders') {        <div class="section-head">
           <h2 class="page-title">Orders</h2>
-          <app-btn size="sm" (onClick)="loadOrders()" [loading]="ordersBusy()">Refresh</app-btn>
+          <div class="orders-filters">
+            <input class="cashup-date" type="date" [ngModel]="ordersFrom" (ngModelChange)="ordersFrom = $event; loadOrders()" title="From" />
+            <input class="cashup-date" type="date" [ngModel]="ordersTo" (ngModelChange)="ordersTo = $event; loadOrders()" title="To" />
+            <app-btn size="sm" (onClick)="loadOrders()" [loading]="ordersBusy()">Refresh</app-btn>
+          </div>
         </div>
 
         @if (selectedOrder(); as o) {
@@ -422,6 +426,12 @@
               }
             </tbody>
           </table>
+          @if (orders().length < ordersTotal()) {
+            <div class="orders-more">
+              <span>Showing {{ orders().length }} of {{ ordersTotal() }}</span>
+              <app-btn size="sm" (onClick)="loadMoreOrders()" [loading]="ordersBusy()">Load more</app-btn>
+            </div>
+          }
         </div>
 
         <!-- Receipt reprint overlay -->
