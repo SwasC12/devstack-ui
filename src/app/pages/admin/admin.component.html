@@ -88,6 +88,7 @@
               <app-btn size="sm" (onClick)="closeForm()">✕</app-btn>
             </div>
             <div class="form-grid">
+              <div class="form-section">Basics</div>
               <div class="field"><label>Name</label><input [(ngModel)]="fName" placeholder="e.g. Cappuccino" /></div>
               <div class="field">
                 <label>Category</label>
@@ -98,11 +99,13 @@
                   }
                 </select>
               </div>
+              <div class="form-section">Price &amp; stock</div>
               <div class="field"><label>Price (ZAR)</label><input type="number" step="0.01" [(ngModel)]="fPrice" placeholder="0.00" /></div>
               <div class="field"><label>Stock</label><input type="number" [(ngModel)]="fStock" placeholder="0" /></div>
  <div class="field"><label>Low stock alert at</label><input type="number" [(ngModel)]="fLowStock" placeholder="5" /></div>
               <div class="field"><label>Unit cost (ZAR)</label><input type="number" step="0.01" [(ngModel)]="fCostBasis" placeholder="0.00" /><span class="field-hint">Landed cost per unit - feeds gross profit when no recipe is set. Updated automatically by PO receiving.</span></div>
               <div class="field wide"><label>Description</label><input [(ngModel)]="fDesc" placeholder="Short description" /></div>
+              <div class="form-section">Sizes</div>
               <div class="field wide">
                 <label>Sizes (optional) — different sizes, different prices</label>
                 @for (sz of fSizes; track $index) {
@@ -114,6 +117,7 @@
                 }
                 <app-btn size="sm" (onClick)="addSizeRow()">+ Add size</app-btn>
               </div>
+              <div class="form-section">Modifiers</div>
               <div class="field wide">
                 <label>Modifiers (optional) — e.g. Milk, Extras</label>
                 @for (g of fGroups; track $index) {
@@ -135,6 +139,7 @@
                 }
                 <app-btn size="sm" (onClick)="addGroup()">+ Modifier group</app-btn>
               </div>
+              <div class="form-section">Recipe / costing</div>
               <div class="field wide">
                 <label>Recipe / plate costing (optional) — ingredient cost per serving</label>
                 @for (r of fRecipe; track $index) {
@@ -148,6 +153,7 @@
                 <app-btn size="sm" (onClick)="addRecipeRow()">+ Ingredient</app-btn>
                 @if (recipeCost() > 0) { <span class="field-hint">Recipe cost ≈ <strong>R{{ recipeCost() }}</strong> per serving (GP at R{{ fPrice ?? 0 }}: <strong>R{{ ((fPrice ?? 0) - recipeCost()) | number:'1.2-2' }}</strong>)</span> }
               </div>
+              <div class="form-section">Photo</div>
               <div class="field wide">
                 <label>Photo</label>
                 <div class="img-upload">
@@ -826,15 +832,15 @@
           }
           <div class="table-card">
             <table class="orders">
-              <thead><tr><th>Name</th><th>Phone</th><th>Orders</th><th>Spent</th><th class="num">Balance</th><th></th></tr></thead>
+              <thead><tr><th>Customer</th><th class="num">Balance</th><th></th></tr></thead>
               <tbody>
                 @for (c of customers(); track c.id) {
                   <tr>
-                    <td><strong>{{ c.name }}</strong></td>
-                    <td>{{ c.phone || '-' }}</td>
-                    <td>{{ c.orderCount }}</td>
-                    <td>R{{ c.orderTotal | number:'1.2-2' }}</td>
-                    <td class="num"><strong [class.row-voided]="c.balance > 0">R{{ c.balance | number:'1.2-2' }}</strong></td>
+                    <td>
+                      <strong>{{ c.name }}</strong>
+                      <span class="cust-sub">{{ c.phone || 'no phone' }}{{ c.email ? ' · ' + c.email : '' }} · {{ c.orderCount }} order(s) · R{{ c.orderTotal | number:'1.2-2' }} spent</span>
+                    </td>
+                    <td class="num"><strong [class.bal-owes]="c.balance > 0" [class.bal-ok]="c.balance === 0">{{ c.balance > 0 ? 'R' + (c.balance | number:'1.2-2') + ' owing' : 'Settled' }}</strong></td>
                     <td class="cell-acts">
                       @if (c.balance > 0) { <app-btn size="sm" (onClick)="settleCustomer(c)">Settle</app-btn> }
                       <app-btn size="sm" (onClick)="editCustomer(c)">Edit</app-btn>
@@ -842,7 +848,7 @@
                     </td>
                   </tr>
                 } @empty {
-                  <tr><td colspan="6" style="color:var(--muted);text-align:center;padding:1.5rem;">No customers yet. Add regulars here or charge an order to their account from the POS.</td></tr>
+                  <tr><td colspan="3" style="color:var(--muted);text-align:center;padding:1.5rem;">No customers yet. Add regulars here or charge an order to their account from the POS.</td></tr>
                 }
               </tbody>
             </table>

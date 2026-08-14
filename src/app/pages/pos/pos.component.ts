@@ -526,13 +526,17 @@ export class PosComponent implements OnInit {
     this.busy.set(true);
 
     // Build the tender list: account charge / split rows / single method.
+    // Cash rows carry what was ACTUALLY tendered (may overpay - the server
+    // computes change); card/account rows are exact.
     const payments: { method: string; amount: number }[] = [];
     if (this.accountMode()) {
       payments.push({ method: 'account', amount: Math.round(this.grandTotal() * 100) / 100 });
     } else if (this.splitMode()) {
       this.splitRows.forEach(r => { if ((r.amount || 0) > 0) payments.push({ method: r.method, amount: Math.round(r.amount * 100) / 100 }); });
+    } else if (this.payMethod() === 'cash') {
+      payments.push({ method: 'cash', amount: this.received() > 0 ? Math.round(this.received() * 100) / 100 : Math.round(this.grandTotal() * 100) / 100 });
     } else {
-      payments.push({ method: this.payMethod(), amount: Math.round(this.grandTotal() * 100) / 100 });
+      payments.push({ method: 'card', amount: Math.round(this.grandTotal() * 100) / 100 });
     }
 
     this.service.placeOrder(this.cart(), {

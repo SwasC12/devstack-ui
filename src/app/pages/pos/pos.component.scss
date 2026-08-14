@@ -235,7 +235,27 @@
     .pay-change { display: flex; justify-content: space-between; align-items: baseline; width: 100%; padding: 0.35rem 0 0.2rem; border-top: 1px dashed var(--border); margin-top: 0.35rem; }
     .pay-change span { font-size: 0.8125rem; color: var(--muted); font-weight: 600; }
     .pay-change strong { font-size: 1.25rem; font-weight: 800; color: var(--green); }
-    .pay-card-note { color: var(--text-2); font-size: 0.875rem; margin: 0.5rem 0; }
+    .pay-card-note { color: var(--text-2); font-size: 0.875rem; margin: 0.5rem 0; text-align: center; }
+
+    /* Extras (service charge + tip), split payments, house account */
+    .pay-extras { display: flex; flex-direction: column; gap: 0.4rem; width: 100%; padding: 0.5rem 0; border-top: 1px dashed var(--border); margin-top: 0.25rem; }
+    .pay-extras-row { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
+    .pay-extras-row .pay-received-lbl { min-width: 92px; }
+    .pay-extras-row .qk { padding: 0.4rem 0.55rem; font-size: 0.75rem; border: 1px solid var(--border-hover); border-radius: 999px; background: var(--surface-2); color: var(--text-2); font-family: inherit; font-weight: 700; cursor: pointer; transition: all 0.15s; }
+    .pay-extras-row .qk.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .pay-extras-line { font-size: 0.7rem; color: var(--muted); width: 100%; text-align: center; margin-top: -0.2rem; }
+
+    .acct-picked { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; width: 100%; padding: 0.5rem 0.7rem; background: var(--accent-light); border: 1px solid var(--accent); border-radius: var(--radius-sm); font-size: 0.875rem; }
+    .acct-results { display: flex; flex-direction: column; gap: 0.3rem; width: 100%; margin-top: 0.4rem; }
+    .acct-result { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.55rem 0.7rem; border: 1px solid var(--border-hover); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); font-family: inherit; font-size: 0.875rem; cursor: pointer; transition: background 0.15s; }
+    .acct-result:hover { background: var(--accent-light); }
+    .acct-result span { font-size: 0.75rem; color: var(--muted); }
+
+    .split-rows { display: flex; flex-direction: column; gap: 0.4rem; width: 100%; padding: 0.5rem 0; border-top: 1px dashed var(--border); margin-top: 0.25rem; }
+    .split-row { display: flex; align-items: center; gap: 0.4rem; }
+    .split-row .sel { flex: 1; }
+    .split-row .tbl-input { flex: 1.4; }
+    .split-total { font-size: 0.8125rem; color: var(--muted); text-align: right; }
 
     @keyframes pop { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
   
