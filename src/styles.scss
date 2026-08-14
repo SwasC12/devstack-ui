@@ -121,3 +121,43 @@ input[type='number']::-webkit-inner-spin-button { -webkit-appearance: none; marg
 
 /* Date pickers: match the theme's calendar icon. */
 input[type='date']::-webkit-calendar-picker-indicator { filter: invert(0.65); cursor: pointer; }
+
+/* -- Inputs: modern dark theme (no stock 2010 widgets) -- */
+input,
+textarea,
+select { caret-color: var(--accent); }
+
+::placeholder { color: var(--muted); opacity: 1; }
+
+textarea { resize: vertical; min-height: 70px; }
+
+/* Dark autofill - Chrome paints a light blue/yellow box by default, which is
+   exactly the "old desktop app" look. Knock it out app-wide. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill {
+  -webkit-text-fill-color: var(--text);
+  -webkit-box-shadow: 0 0 0 1000px var(--surface-2) inset;
+  box-shadow: 0 0 0 1000px var(--surface-2) inset;
+  border-color: var(--accent);
+  transition: background-color 9999s ease-in-out 0s;
+}
+
+/* Soft focus glow on every editable field (borders stay per-component). */
+input:focus,
+textarea:focus,
+select:focus,
+.sel:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(200, 135, 56, 0.18);
+}
+
+/* Checkboxes & radios: themed everywhere. */
+input[type='checkbox'],
+input[type='radio'] {
+  accent-color: var(--accent-2);
+  width: 1.15em;
+  height: 1.15em;
+  cursor: pointer;
+}
