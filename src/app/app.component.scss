@@ -169,6 +169,26 @@
   box-sizing: border-box;
 }
 
+/* ── Responsive: the app also runs in a browser on laptops/PCs ──
+   Wide screens get a little more air; narrow windows (small browsers,
+   split-screen) stop the nav from overflowing and keep touch targets sane. */
+@media (min-width: 1400px) {
+  .main { padding: 1.75rem 2.5rem; }
+}
+
+@media (max-width: 860px) {
+  .main { padding: 1rem; }
+  .top-bar { padding: 0 0.85rem; }
+  .brand span { display: none; }
+  .shop-badge { display: none; }
+  .nav-links a, .nav-btn { padding: 0.35rem 0.6rem; font-size: 0.78rem; }
+}
+
+@media (max-width: 560px) {
+  .top-bar { height: 52px; }
+  .nav-links a, .nav-btn { padding: 0.3rem 0.5rem; }
+}
+
 /* ── Shared components ────────────────────────────────────── */
 .page-title {
   font-size: 1.375rem; /* 22px */

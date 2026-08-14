@@ -304,7 +304,10 @@ export class MenuItemService {
   }
 
   getHeldOrders(station?: string): Observable<any[]> {
-    return this.http.get<any[]>(`${API}/orders/kitchen/held${station ? `?station=${station}` : ''}`);
+    // Background request: never flash the global loader (it refreshes
+    // alongside the queue poll and on hold/send taps).
+    const headers = new HttpHeaders({ 'X-Background': '1' });
+    return this.http.get<any[]>(`${API}/orders/kitchen/held${station ? `?station=${station}` : ''}`, { headers });
   }
 
   // Transaction journal: every money event with running balance.
@@ -429,15 +432,18 @@ export class MenuItemService {
   // ── Notifications inbox (the admin bell) ──────────────
 
   getNotifications(): Observable<{ unread: number; items: any[] }> {
-    return this.http.get<{ unread: number; items: any[] }>(`${API}/notifications`);
+    // Background request: the bell polls every 45s - it must never flash the
+    // full-screen loader while the admin is working.
+    const headers = new HttpHeaders({ 'X-Background': '1' });
+    return this.http.get<{ unread: number; items: any[] }>(`${API}/notifications`, { headers });
   }
 
   markNotificationRead(id: number): Observable<void> {
-    return this.http.post<void>(`${API}/notifications/${id}/read`, {});
+    return this.http.post<void>(`${API}/notifications/${id}/read`, {}, { headers: new HttpHeaders({ 'X-Background': '1' }) });
   }
 
   markAllNotificationsRead(): Observable<void> {
-    return this.http.post<void>(`${API}/notifications/read-all`, {});
+    return this.http.post<void>(`${API}/notifications/read-all`, {}, { headers: new HttpHeaders({ 'X-Background': '1' }) });
   }
 
   // Manager approval: is this PIN one of the shop's admins?

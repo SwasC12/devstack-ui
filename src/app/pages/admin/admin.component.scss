@@ -96,7 +96,9 @@
     .form-msg.err { color: var(--red); }
 
     /* ── Table card ── */
-    .table-card { background: var(--surface); border: 1px solid var(--border); border-radius: 1.25em; overflow: hidden; }
+    /* overflow-x: auto (not hidden) - on narrow browser windows the tables
+       scroll horizontally instead of clipping content out of view. */
+    .table-card { background: var(--surface); border: 1px solid var(--border); border-radius: 1.25em; overflow-x: auto; }
     table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 0.8125rem; }
     th { padding: 0.75em 1em; text-align: left; font-size: 0.68rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; background: var(--surface-2); border-bottom: 1px solid var(--border); }
     th:first-child { width: 35%; }
@@ -182,4 +184,21 @@
 .cu-row { display: flex; justify-content: space-between; align-items: baseline; }
 .cu-row span { color: var(--text-2); font-size: 0.875rem; }
 .cu-row strong { font-weight: 800; color: var(--text); }
+
+/* ── Responsive: browser windows (laptop/PC admin use) ── */
+@media (max-width: 900px) {
+  .metrics { grid-template-columns: repeat(2, 1fr); }
+  .cashup-totals { grid-template-columns: repeat(3, 1fr); }
+  .form-grid { grid-template-columns: 1fr; }
+  .cu-cols { grid-template-columns: 1fr; }
+  .split { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 620px) {
+  .metrics { grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+  .cashup-totals { grid-template-columns: repeat(2, 1fr); }
+  .orders-filters { flex-wrap: wrap; }
+  .cashup-head { flex-wrap: wrap; }
+  .section-head { flex-wrap: wrap; gap: 0.5rem; }
+}
 .cu-none { color: var(--muted); }

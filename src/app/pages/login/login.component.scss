@@ -1,6 +1,6 @@
 
     .login { display: flex; justify-content: center; padding-top: 4rem; background: radial-gradient(1100px 520px at 50% -12%, rgba(200,135,56,0.14), transparent 62%); min-height: calc(100vh - 56px); }
-    .login-card { padding: 2rem; width: 340px; display: flex; flex-direction: column; gap: 0.875rem; box-shadow: var(--shadow-lg); border: 1px solid var(--border); }
+    .login-card { padding: 2rem; width: 340px; max-width: calc(100vw - 2rem); display: flex; flex-direction: column; gap: 0.875rem; box-shadow: var(--shadow-lg); border: 1px solid var(--border); }
     .login-header { text-align: center; margin-bottom: 0.25rem; }
     .login-logo { width: 64px; height: 64px; border-radius: 16px; background: linear-gradient(135deg, var(--accent), var(--accent-hover)); color: #fff; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.5rem; box-shadow: var(--shadow-md); }
     .login-card h2 { margin: 0; font-size: 1.125rem; font-weight: 700; }
