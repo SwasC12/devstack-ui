@@ -1,20 +1,23 @@
 package za.co.coffeeshoppro.pos;
 
 import android.Manifest;
+import android.app.Activity;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.os.Bundle;
+import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.camera.core.CameraSelector;
 import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.ImageProxy;
@@ -37,8 +40,10 @@ import java.util.concurrent.Executors;
 // Fast, native barcode scanner: CameraX preview + ML Kit real-time decoding
 // (bundled model - no Google Play Services needed). Returns the first decoded
 // value via setResult(); cancels on the button or back. This replaces the
-// slow third-party scanner plugin entirely.
-public class FastBarcodeActivity extends AppCompatActivity {
+// slow third-party scanner plugin entirely. NOTE: extends plain Activity -
+// AppCompatActivity would require a Theme.AppCompat theme, and the app's
+// theme isn't one (that was a crash).
+public class FastBarcodeActivity extends Activity {
 
     public static final String EXTRA_RESULT = "scan_result";
     private static final int[] FORMATS = {
@@ -66,33 +71,33 @@ public class FastBarcodeActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
 
         // Full-screen dark scanner UI with a scan frame.
-        LinearLayoutCompat root = new LinearLayoutCompat(this);
-        root.setOrientation(LinearLayoutCompat.VERTICAL);
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(Color.parseColor("#111111"));
 
         previewView = new PreviewView(this);
         previewView.setScaleType(PreviewView.ScaleType.FILL_CENTER);
-        root.addView(previewView, new LinearLayoutCompat.LayoutParams(
-            LinearLayoutCompat.LayoutParams.MATCH_PARENT, 0, 1f));
+        root.addView(previewView, new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
 
         ScanFrameView frame = new ScanFrameView(this);
-        root.addView(frame, new LinearLayoutCompat.LayoutParams(
-            LinearLayoutCompat.LayoutParams.MATCH_PARENT, 0, 1f));
+        root.addView(frame, new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
 
         statusText = new TextView(this);
         statusText.setText("Point the camera at the barcode");
         statusText.setTextColor(Color.WHITE);
         statusText.setTextSize(15);
-        statusText.setGravity(android.view.Gravity.CENTER);
-        root.addView(statusText, new LinearLayoutCompat.LayoutParams(
-            LinearLayoutCompat.LayoutParams.MATCH_PARENT, 90));
+        statusText.setGravity(Gravity.CENTER);
+        root.addView(statusText, new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, 90));
 
         Button cancel = new Button(this);
         cancel.setText("Cancel");
         cancel.setTextSize(16);
         cancel.setOnClickListener(v -> finish());
-        root.addView(cancel, new LinearLayoutCompat.LayoutParams(
-            LinearLayoutCompat.LayoutParams.MATCH_PARENT, 110));
+        root.addView(cancel, new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, 110));
 
         setContentView(root);
 
@@ -205,7 +210,7 @@ public class FastBarcodeActivity extends AppCompatActivity {
     }
 
     // Minimal vertical linear layout helper (avoids the appcompat layout XML).
-    static class LinearLayoutCompat extends android.widget.LinearLayout {
-        public LinearLayoutCompat(android.content.Context context) { super(context); }
+    static class LinearLayout extends android.widget.LinearLayout {
+        public LinearLayout(android.content.Context context) { super(context); }
     }
 }
