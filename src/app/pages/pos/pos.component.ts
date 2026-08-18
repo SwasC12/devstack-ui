@@ -362,10 +362,13 @@ export class PosComponent implements OnInit {
   }
 
   // Barcode scanner: finds the item by SKU and adds it to the cart. Uses the
-  // camera (native plugin); on web it reports unavailable.
+  // camera (native plugin); on web it reports unavailable. ZXING is bundled
+  // (no Google Play Services dependency) and scanOrientation is omitted - the
+  // plugin README: orientation is ignored on tablets at targetSdk 36+ and can
+  // leave the preview blank.
   readonly scanning = signal(false);
   scanBarcode() {
-    void import('@capacitor/barcode-scanner').then(async ({ CapacitorBarcodeScanner, CapacitorBarcodeScannerTypeHint }) => {
+    void import('@capacitor/barcode-scanner').then(async ({ CapacitorBarcodeScanner, CapacitorBarcodeScannerTypeHint, CapacitorBarcodeScannerAndroidScanningLibrary }) => {
       try {
         this.scanning.set(true);
         const res = await CapacitorBarcodeScanner.scanBarcode({
@@ -374,7 +377,7 @@ export class PosComponent implements OnInit {
           scanButton: true,
           scanText: 'Tap to scan',
           cameraDirection: 1,
-          scanOrientation: 1,
+          android: { scanningLibrary: CapacitorBarcodeScannerAndroidScanningLibrary.ZXING },
         });
         this.scanning.set(false);
         const sku = (res.ScanResult ?? '').trim();

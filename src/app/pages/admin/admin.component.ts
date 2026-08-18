@@ -133,17 +133,32 @@ export class AdminComponent implements OnInit {
     }).catch(() => { /* barcode lib unavailable */ });
   }
 
+  // Label preview fallback (shown when no printer is available - the user is
+  // never left on a blank window).
+  readonly labelPreview = signal<{ img: string; name: string; sku: string; price: number } | null>(null);
+
+  previewPrint() { window.print(); }
+
   printSkuLabel() {
     if (!this.fSku) { this.dialog.toast('Generate a SKU first', 'info'); return; }
-    void import('jsbarcode').then((m: any) => {
+    void import('jsbarcode').then(async (m: any) => {
       const JsBarcode = m.default ?? m;
       const cv = document.createElement('canvas');
       JsBarcode(cv, this.fSku, { format: 'CODE128', width: 3, height: 80, displayValue: true, background: '#ffffff', lineColor: '#111111' });
-      const w = window.open('', '_blank');
-      if (!w) { this.dialog.toast('Pop-up blocked - allow pop-ups to print', 'error'); return; }
+      const img = cv.toDataURL('image/png');
       const esc = (v: any) => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
-      w.document.write(`<!doctype html><html><head><title>Barcode label</title><style>body{text-align:center;padding:2rem;font-family:Arial,sans-serif;color:#111}img{width:300px;background:#fff;padding:.5rem;border:1px dashed #ccc}.name{font-size:20px;font-weight:700;margin:.6rem 0 .1rem}.sku{font-size:13px;color:#555;margin-bottom:.3rem}.price{font-size:19px;font-weight:700}</style></head><body><img src="${cv.toDataURL()}"/><div class="name">${esc(this.fName)}</div><div class="sku">${esc(this.fSku)}</div><div class="price">R${(this.fPrice ?? 0).toFixed(2)}</div><script>window.onload=function(){window.print()}<\/script></body></html>`);
-      w.document.close();
+      const html = `<div style="font-family:Arial,sans-serif;color:#111;text-align:center;padding:1rem">
+        <img src="${img}" style="width:300px;background:#fff;padding:.4rem;border:1px dashed #ccc"/>
+        <div style="font-size:20px;font-weight:700;margin:.6rem 0 .1rem">${esc(this.fName)}</div>
+        <div style="font-size:13px;color:#555;margin-bottom:.3rem">${esc(this.fSku)}</div>
+        <div style="font-size:19px;font-weight:700">R${(this.fPrice ?? 0).toFixed(2)}</div>
+      </div>`;
+      // Native path (Android print framework - the same one receipts use).
+      const ok = await this.printer.printReceiptHtml(html);
+      if (!ok) {
+        // No printer / web: show the label in-app so nothing is ever stuck.
+        this.labelPreview.set({ img, name: this.fName, sku: this.fSku, price: this.fPrice ?? 0 });
+      }
     }).catch(() => this.dialog.toast('Could not build the label', 'error'));
   }
 
@@ -285,10 +300,9 @@ export class AdminComponent implements OnInit {
       drawTable('By cashier', ['Cashier', 'Orders', 'Revenue'],
         (a.cashiers ?? []).map((c: any) => [c.name, c.orders, `R${Number(c.revenue).toFixed(2)}`]));
 
-      // Open with the print dialog (and still offer the download).
-      doc.autoPrint();
-      const url = doc.output('bloburl');
-      window.open(url, '_blank');
+      // Deliver the PDF as a download - window.open(blob) leaves a stuck blank
+      // screen on tablets, same as the label print bug.
+      doc.save(`analytics-${new Date().toISOString().slice(0, 10)}.pdf`);
     }).catch(() => this.dialog.toast('Could not build the PDF', 'error'));
   }
 

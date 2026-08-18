@@ -170,6 +170,22 @@
                   </div>
                 </div>
               }
+              @if (labelPreview(); as l) {
+                <div class="print-scrim" (click)="labelPreview.set(null)">
+                  <div class="print-panel" (click)="$event.stopPropagation()">
+                    <img [src]="l.img" style="background:#fff;max-width:280px;border-radius:6px;padding:.4rem;border:1px dashed var(--border-hover)" alt="" />
+                    <div style="text-align:center">
+                      <div style="font-size:1.1rem;font-weight:800;color:var(--text)">{{ l.name }}</div>
+                      <div style="font-size:0.8rem;color:var(--muted)">{{ l.sku }}</div>
+                      <div style="font-size:1rem;font-weight:800;color:var(--accent-2)">R{{ l.price | number:'1.2-2' }}</div>
+                    </div>
+                    <div class="form-acts">
+                      <app-btn size="sm" (onClick)="labelPreview.set(null)">Close</app-btn>
+                      <app-btn variant="primary" size="sm" (onClick)="previewPrint()">Print</app-btn>
+                    </div>
+                  </div>
+                </div>
+              }
               <div class="form-section">Photo</div>
               <div class="field wide">
                 <label>Photo</label>
