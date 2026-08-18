@@ -191,9 +191,9 @@
           }
         </div>
         <div class="table-card">
-          <table>
+          <table appSort [data]="items()" (dataChange)="items.set($event)">
             <thead>
-              <tr><th>Item</th><th>Category</th><th>Price</th><th>Stock</th><th>Status</th><th></th></tr>
+              <tr><th data-sort="name">Item</th><th data-sort="category">Category</th><th data-sort="price">Price</th><th data-sort="stockQuantity">Stock</th><th data-sort="isAvailable">Status</th><th class="no-sort"></th></tr>
             </thead>
             <tbody>
               @for (item of filteredItems(); track item.id) {
@@ -221,6 +221,7 @@
       @if (tab() === 'categories') {
         <div class="section-head">
           <h2 class="page-title">Categories</h2>
+          <input class="tbl-filter cashup-date" [(ngModel)]="catsQ" placeholder="Filter categories…" />
           <app-btn variant="primary" (onClick)="openCatForm()">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             New category
@@ -253,10 +254,10 @@
         }
 
         <div class="table-card">
-          <table class="cats">
-            <thead><tr><th>Name</th><th>Station</th><th>Created</th><th></th></tr></thead>
+          <table appSort [data]="categories()" (dataChange)="categories.set($event)">
+            <thead><tr><th data-sort="name">Name</th><th data-sort="station">Station</th><th data-sort="createdAt">Created</th><th class="no-sort"></th></tr></thead>
             <tbody>
-              @for (cat of categories(); track cat.id) {
+              @for (cat of filteredCats(); track cat.id) {
                 <tr>
                   <td><strong>{{ cat.name }}</strong></td>
                   <td><span class="status-pill" [class.voided]="cat.station === 'bar'">{{ cat.station === 'kitchen' ? 'Kitchen' : (cat.station === 'bar' ? 'Bar' : 'Both') }}</span></td>
@@ -278,6 +279,7 @@
       @if (tab() === 'users') {
         <div class="section-head">
           <h2 class="page-title">Users</h2>
+          <input class="tbl-filter cashup-date" [(ngModel)]="usersQ" placeholder="Filter users…" />
           <app-btn variant="primary" (onClick)="openUserForm()">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             New user
@@ -306,10 +308,10 @@
         }
 
         <div class="table-card">
-          <table>
-            <thead><tr><th>Username</th><th>Display name</th><th>Role</th><th>Wage</th><th></th></tr></thead>
+          <table appSort [data]="users()" (dataChange)="users.set($event)">
+            <thead><tr><th data-sort="username">Username</th><th data-sort="displayName">Display name</th><th data-sort="role">Role</th><th data-sort="wageRate">Wage</th><th class="no-sort"></th></tr></thead>
             <tbody>
-              @for (u of users(); track u.id) {
+              @for (u of filteredUsers(); track u.id) {
                 <tr>
                   <td><strong>{{ u.username }}</strong></td>
                   <td>{{ u.displayName }}</td>
@@ -446,8 +448,8 @@
         }
 
         <div class="table-card">
-          <table class="orders">
-            <thead><tr><th>Order</th><th>Time</th><th>Cashier</th><th>Items</th><th>Total</th><th>Status</th></tr></thead>
+          <table class="orders" appSort [data]="orders()" (dataChange)="orders.set($event)">
+            <thead><tr><th data-sort="id">Order</th><th data-sort="createdAt">Time</th><th data-sort="cashierName">Cashier</th><th class="no-sort">Items</th><th data-sort="total">Total</th><th data-sort="voidedAt">Status</th></tr></thead>
             <tbody>
               @for (o of orders(); track o.id) {
                 <tr class="order-row" [class.row-voided]="o.voidedAt" (click)="selectedOrder.set(o)">
@@ -530,6 +532,7 @@
               <button class="chip" [class.on]="analyticsDays() === d" (click)="loadAnalytics(d)">{{ d }}d</button>
             }
           </div>
+          <app-btn size="sm" (onClick)="printAnalytics()">🖨 Print report</app-btn>
         </div>
 
         @if (analytics(); as a) {
@@ -592,7 +595,8 @@
       <!-- ───── DISCOUNTS / SPECIALS ───── -->
       @if (tab() === 'discounts') {
         <div class="section-head">
-          <h2 class="page-title">Discounts & specials</h2>
+          <h2 class="page-title">Discounts &amp; specials</h2>
+          <input class="tbl-filter cashup-date" [(ngModel)]="discQ" placeholder="Filter discounts…" />
           <app-btn variant="primary" (onClick)="openDiscForm()">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             New discount
@@ -636,10 +640,10 @@
         }
 
         <div class="table-card">
-          <table class="discs">
-            <thead><tr><th>Name</th><th>Value</th><th>Schedule</th><th>Status</th><th></th></tr></thead>
+          <table class="discs" appSort [data]="discounts()" (dataChange)="discounts.set($event)">
+            <thead><tr><th data-sort="name">Name</th><th data-sort="value">Value</th><th data-sort="dayOfWeek">Schedule</th><th data-sort="isActive">Status</th><th class="no-sort"></th></tr></thead>
             <tbody>
-              @for (d of discounts(); track d.id) {
+              @for (d of filteredDiscs(); track d.id) {
                 <tr>
                   <td><strong>{{ d.name }}</strong></td>
                   <td>{{ d.type === 'percent' ? d.value + '%' : 'R' + (d.value | number:'1.2-2') }}</td>
@@ -747,6 +751,7 @@
             <h2 class="page-title">Transaction journal</h2>
             <input class="cashup-date" type="date" [ngModel]="journalFrom" (ngModelChange)="journalFrom = $event; loadJournal()" title="From" />
             <input class="cashup-date" type="date" [ngModel]="journalTo" (ngModelChange)="journalTo = $event; loadJournal()" title="To" />
+            <input class="tbl-filter cashup-date" [(ngModel)]="jQ" placeholder="Filter journal…" />
             <app-btn size="sm" (onClick)="loadJournal()" [loading]="journalBusy()">Refresh</app-btn>
           </div>
           @if (journal(); as j) {
@@ -754,10 +759,10 @@
               <span>Closing balance</span><strong>R{{ j.closingBalance | number:'1.2-2' }}</strong>
             </div>
             <div class="table-card">
-              <table class="orders">
-                <thead><tr><th>Time</th><th>Type</th><th>Ref</th><th>Detail</th><th class="num">Amount</th><th class="num">Balance</th></tr></thead>
+              <table class="orders" appSort [data]="journal()?.events ?? []" (dataChange)="setJournalEvents($event)">
+                <thead><tr><th data-sort="at">Time</th><th data-sort="type">Type</th><th data-sort="ref">Ref</th><th data-sort="detail">Detail</th><th class="num" data-sort="delta">Amount</th><th class="num" data-sort="balance">Balance</th></tr></thead>
                 <tbody>
-                  @for (e of j.events; track $index) {
+                  @for (e of filteredJournal(); track $index) {
                     <tr>
                       <td>{{ e.at | date:'short' }}</td>
                       <td><span class="status-pill" [class.voided]="e.delta < 0">{{ e.type }}</span></td>
@@ -783,13 +788,14 @@
             <h2 class="page-title">Audit trail</h2>
             <input class="cashup-date" type="date" [ngModel]="auditFrom" (ngModelChange)="auditFrom = $event; loadAudit()" title="From" />
             <input class="cashup-date" type="date" [ngModel]="auditTo" (ngModelChange)="auditTo = $event; loadAudit()" title="To" />
+            <input class="tbl-filter cashup-date" [(ngModel)]="aQ" placeholder="Filter audit…" />
             <app-btn size="sm" (onClick)="loadAudit()" [loading]="auditBusy()">Refresh</app-btn>
           </div>
           <div class="table-card">
-            <table class="orders">
-              <thead><tr><th>When</th><th>Action</th><th>By</th><th>Detail</th></tr></thead>
+            <table class="orders" appSort [data]="audit()" (dataChange)="audit.set($event)">
+              <thead><tr><th data-sort="createdAtUtc">When</th><th data-sort="action">Action</th><th data-sort="by">By</th><th data-sort="detail">Detail</th></tr></thead>
               <tbody>
-                @for (a of audit(); track a.id) {
+                @for (a of filteredAudit(); track a.id) {
                   <tr>
                     <td>{{ a.createdAtUtc | date:'short' }}</td>
                     <td><span class="status-pill">{{ a.action }}</span></td>
@@ -831,8 +837,8 @@
             </div>
           }
           <div class="table-card">
-            <table class="orders">
-              <thead><tr><th>Customer</th><th class="num">Balance</th><th></th></tr></thead>
+            <table class="orders" appSort [data]="customers()" (dataChange)="customers.set($event)">
+              <thead><tr><th data-sort="name">Customer</th><th class="num" data-sort="balance">Balance</th><th class="no-sort"></th></tr></thead>
               <tbody>
                 @for (c of customers(); track c.id) {
                   <tr>
@@ -861,6 +867,7 @@
         <div class="cashup">
           <div class="cashup-head">
             <h2 class="page-title">Suppliers &amp; purchase orders</h2>
+            <input class="tbl-filter cashup-date" [(ngModel)]="poQ" placeholder="Filter POs…" />
             <app-btn variant="primary" size="sm" (onClick)="openPoForm()">+ Purchase order</app-btn>
           </div>
           @if (showPoForm()) {
@@ -915,10 +922,10 @@
             </div>
           }
           <div class="table-card">
-            <table class="orders">
-              <thead><tr><th>Supplier</th><th>Items</th><th>Total</th><th>Status</th><th></th></tr></thead>
+            <table class="orders" appSort [data]="pos()" (dataChange)="pos.set($event)">
+              <thead><tr><th data-sort="supplierName">Supplier</th><th class="no-sort">Items</th><th data-sort="total">Total</th><th data-sort="status">Status</th><th class="no-sort"></th></tr></thead>
               <tbody>
-                @for (po of pos(); track po.id) {
+                @for (po of filteredPos(); track po.id) {
                   <tr>
                     <td><strong>{{ po.supplierName }}</strong></td>
                     <td>{{ po.lines.length }}</td>
@@ -944,6 +951,7 @@
             <h2 class="page-title">Expenses &amp; petty cash</h2>
             <input class="cashup-date" type="date" [ngModel]="expFrom" (ngModelChange)="expFrom = $event; loadExpenses()" title="From" />
             <input class="cashup-date" type="date" [ngModel]="expTo" (ngModelChange)="expTo = $event; loadExpenses()" title="To" />
+            <input class="tbl-filter cashup-date" [(ngModel)]="expQ" placeholder="Filter expenses…" />
             <app-btn variant="primary" size="sm" (onClick)="openExpForm()">+ Expense</app-btn>
           </div>
           @if (showExpForm()) {
@@ -964,10 +972,10 @@
             <div class="cu-stat" style="max-width:260px"><span>Total this range</span><strong>R{{ ex.total | number:'1.2-2' }}</strong></div>
           }
           <div class="table-card">
-            <table class="orders">
-              <thead><tr><th>When</th><th>Category</th><th>Note</th><th>By</th><th class="num">Amount</th><th></th></tr></thead>
+            <table class="orders" appSort [data]="expenses()?.items ?? []" (dataChange)="setExpenseItems($event)">
+              <thead><tr><th data-sort="createdAt">When</th><th data-sort="category">Category</th><th data-sort="note">Note</th><th data-sort="by">By</th><th class="num" data-sort="amount">Amount</th><th class="no-sort"></th></tr></thead>
               <tbody>
-                @for (e of expenses()?.items ?? []; track e.id) {
+                @for (e of filteredExpenses(); track e.id) {
                   <tr>
                     <td>{{ e.createdAt | date:'short' }}</td>
                     <td><strong>{{ e.category }}</strong></td>

@@ -13,13 +13,14 @@ import { DialogService } from '../../dialog.service';
 import { SoundService } from '../../sound.service';
 import { firstValueFrom } from 'rxjs';
 import { ThemeService } from '../../theme.service';
+import { SortableDirective } from '../../sortable.directive';
 import { environment } from '../../../environments/environment';
 import { Capacitor } from '@capacitor/core';
 
 @Component({
   selector: 'app-admin',
   standalone: true,
-  imports: [CommonModule, FormsModule, BtnComponent, PasswordInputComponent, ReceiptViewComponent],
+  imports: [CommonModule, FormsModule, BtnComponent, PasswordInputComponent, ReceiptViewComponent, SortableDirective],
   templateUrl: './admin.component.html',
   styleUrl: './admin.component.scss',
 })
@@ -115,12 +116,26 @@ export class AdminComponent implements OnInit {
 
   // Users
   readonly users = signal<any[]>([]);
+  usersQ = '';
+  readonly filteredUsers = computed(() => {
+    const q = this.usersQ.trim().toLowerCase();
+    if (!q) return this.users();
+    return this.users().filter((u: any) =>
+      `${u.username} ${u.displayName ?? ''} ${u.role}`.toLowerCase().includes(q));
+  });
   readonly showUserForm = signal(false);
   uName = ''; uPass = ''; uDisplay = ''; uRole: 'cashier' | 'admin' = 'cashier'; uPin = ''; uWage = '';
   uEditId: number | null = null; // null = creating a new user, else editing
 
   // Categories
   readonly categories = signal<Category[]>([]);
+  catsQ = '';
+  readonly filteredCats = computed(() => {
+    const q = this.catsQ.trim().toLowerCase();
+    if (!q) return this.categories();
+    return this.categories().filter((c: any) =>
+      `${c.name} ${c.station ?? ''}`.toLowerCase().includes(q));
+  });
   readonly showCatForm = signal(false);
   readonly editingCat = signal<Category | null>(null);
   catName = '';
@@ -161,8 +176,68 @@ export class AdminComponent implements OnInit {
   readonly analytics = signal<any | null>(null);
   readonly analyticsDays = signal(14);
 
+  // Print a colourful report from the data ALREADY on the page (no server
+  // round-trip): opens a print-ready window with CSS bar charts + tables,
+  // then triggers the system print dialog.
+  printAnalytics() {
+    const a = this.analytics();
+    if (!a) { this.dialog.toast('Load analytics first', 'info'); return; }
+    const w = window.open('', '_blank', 'width=900,height=1000');
+    if (!w) { this.dialog.toast('Pop-up blocked - allow pop-ups to print', 'error'); return; }
+    const shop = this.shopInfo?.name ?? 'CoffeeShop Pro';
+    const days = a.days;
+    const max = Math.max(...a.daily.map((d: any) => d.revenue), 1);
+    const bars = a.daily.map((d: any) =>
+      `<div class="bar-row"><span class="bar-lbl">${d.date}</span><div class="bar-track"><div class="bar" style="width:${Math.max(2, (d.revenue / max) * 100)}%"><span>R${d.revenue.toFixed(2)}</span></div></div><span class="bar-orders">${d.orders} ord</span></div>`
+    ).join('');
+    const catRows = (a.categories ?? []).map((c: any) =>
+      `<tr><td>${c.name}</td><td>${c.quantity}</td><td>R${Number(c.revenue).toFixed(2)}</td><td>R${Number(c.grossProfit).toFixed(2)}</td></tr>`
+    ).join('');
+    const cashRows = (a.cashiers ?? []).map((c: any) =>
+      `<tr><td>${c.name}</td><td>${c.orders}</td><td>R${Number(c.revenue).toFixed(2)}</td></tr>`
+    ).join('');
+    w.document.write(`<!doctype html><html><head><title>Analytics - ${shop}</title><style>
+      body{font-family:system-ui,sans-serif;color:#1a1a1a;padding:2rem;max-width:760px;margin:0 auto}
+      h1{font-size:1.4rem;margin:0 0 .2rem} .sub{color:#666;margin-bottom:1.5rem}
+      h2{font-size:1rem;margin:1.5rem 0 .6rem;border-bottom:2px solid #eee;padding-bottom:.3rem}
+      .metrics{display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1rem}
+      .metric{flex:1;min-width:130px;border:1px solid #ddd;border-radius:10px;padding:.8rem;text-align:center}
+      .metric b{display:block;font-size:1.3rem;color:#b45309}.metric span{font-size:.75rem;color:#666;text-transform:uppercase}
+      .bar-row{display:grid;grid-template-columns:80px 1fr 70px;align-items:center;gap:.6rem;margin:.35rem 0}
+      .bar-lbl{font-size:.72rem;color:#666;text-align:right}.bar-orders{font-size:.72rem;color:#666}
+      .bar-track{background:#f0ede9;border-radius:6px;overflow:hidden;height:24px}
+      .bar{background:linear-gradient(90deg,#c88738,#e0a75c);color:#fff;font-size:.68rem;font-weight:700;height:24px;border-radius:6px;display:flex;align-items:center;padding-left:.4rem;white-space:nowrap}
+      table{width:100%;border-collapse:collapse;font-size:.82rem;margin-top:.4rem}
+      th{text-align:left;background:#f7f5f2;padding:.45rem .6rem;border-bottom:1px solid #ddd;font-size:.7rem;text-transform:uppercase;color:#666}
+      td{padding:.45rem .6rem;border-bottom:1px solid #eee}
+      .gp{color:#15803d;font-weight:700}
+      @media print{body{padding:1rem}}
+    </style></head><body>
+      <h1>${shop} - Analytics</h1>
+      <div class="sub">Last ${days} days · Generated ${new Date().toLocaleString()} · ${this.auth.getUser()?.displayName ?? ''}</div>
+      <div class="metrics">
+        <div class="metric"><b>R${Number(a.totals.revenue).toFixed(2)}</b><span>Revenue</span></div>
+        <div class="metric"><b>R${Number(a.totals.grossProfit).toFixed(2)}</b><span>Gross profit</span></div>
+        <div class="metric"><b>${a.totals.orders}</b><span>Orders</span></div>
+        <div class="metric"><b>${a.totals.items}</b><span>Items sold</span></div>
+      </div>
+      <h2>Daily revenue</h2>${bars || '<p>No sales in this period.</p>'}
+      <h2>By category</h2><table><thead><tr><th>Category</th><th>Qty</th><th>Revenue</th><th>GP</th></tr></thead><tbody>${catRows}</tbody></table>
+      <h2>By cashier</h2><table><thead><tr><th>Cashier</th><th>Orders</th><th>Revenue</th></tr></thead><tbody>${cashRows}</tbody></table>
+      <script>window.onload=function(){window.print()}<\/script>
+    </body></html>`);
+    w.document.close();
+  }
+
   // Discounts / specials
   readonly discounts = signal<any[]>([]);
+  discQ = '';
+  readonly filteredDiscs = computed(() => {
+    const q = this.discQ.trim().toLowerCase();
+    if (!q) return this.discounts();
+    return this.discounts().filter((d: any) =>
+      `${d.name} ${d.type}`.toLowerCase().includes(q));
+  });
   readonly showDiscForm = signal(false);
   readonly editingDisc = signal<any | null>(null);
   dName = ''; dType: 'percent' | 'fixed' = 'percent'; dValue: number | null = null;
@@ -419,6 +494,17 @@ export class AdminComponent implements OnInit {
   readonly journal = signal<any | null>(null);
   readonly journalBusy = signal(false);
   journalFrom = ''; journalTo = '';
+  jQ = '';
+  readonly filteredJournal = computed(() => {
+    const events = this.journal()?.events ?? [];
+    const q = this.jQ.trim().toLowerCase();
+    if (!q) return events;
+    return events.filter((e: any) =>
+      `${e.type} ${e.ref} ${e.detail}`.toLowerCase().includes(q));
+  });
+  setJournalEvents(events: any[]) {
+    this.journal.update(j => (j ? { ...j, events } : j));
+  }
   loadJournal() {
     this.journalBusy.set(true);
     this.service.getJournal(this.journalFrom || undefined, this.journalTo || undefined).subscribe({
@@ -432,6 +518,13 @@ export class AdminComponent implements OnInit {
   readonly audit = signal<any[]>([]);
   readonly auditBusy = signal(false);
   auditFrom = ''; auditTo = '';
+  aQ = '';
+  readonly filteredAudit = computed(() => {
+    const q = this.aQ.trim().toLowerCase();
+    if (!q) return this.audit();
+    return this.audit().filter((a: any) =>
+      `${a.action} ${a.by} ${a.detail}`.toLowerCase().includes(q));
+  });
   loadAudit() {
     this.auditBusy.set(true);
     this.service.getAudit(this.auditFrom || undefined, this.auditTo || undefined).subscribe({
@@ -479,6 +572,13 @@ export class AdminComponent implements OnInit {
 
   readonly suppliers = signal<any[]>([]);
   readonly pos = signal<any[]>([]);
+  poQ = '';
+  readonly filteredPos = computed(() => {
+    const q = this.poQ.trim().toLowerCase();
+    if (!q) return this.pos();
+    return this.pos().filter((p: any) =>
+      `${p.supplierName} ${p.status}`.toLowerCase().includes(q));
+  });
   readonly showSupplierForm = signal(false);
   readonly showPoForm = signal(false);
   supEditId: number | null = null;
@@ -529,6 +629,17 @@ export class AdminComponent implements OnInit {
   readonly expenses = signal<any | null>(null);
   readonly showExpForm = signal(false);
   expFrom = ''; expTo = '';
+  expQ = '';
+  readonly filteredExpenses = computed(() => {
+    const items = this.expenses()?.items ?? [];
+    const q = this.expQ.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter((e: any) =>
+      `${e.category} ${e.note ?? ''}`.toLowerCase().includes(q));
+  });
+  setExpenseItems(items: any[]) {
+    this.expenses.update(e => (e ? { ...e, items } : e));
+  }
   efCategory = ''; efAmount: number | null = null; efNote = '';
   loadExpenses() {
     this.service.getExpenses(this.expFrom || undefined, this.expTo || undefined).subscribe(e => this.expenses.set(e));

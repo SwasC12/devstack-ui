@@ -202,3 +202,16 @@ input[type='radio'] {
   accent-color: var(--accent-2);
   cursor: pointer;
 }
+
+/* -- Sortable table headers -- */
+th[data-sort] {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+th[data-sort]:hover { color: var(--text); }
+th.sort-asc::after { content: ' ?'; font-size: 0.65em; color: var(--accent); }
+th.sort-desc::after { content: ' ?'; font-size: 0.65em; color: var(--accent); }
+
+/* -- Table filter boxes -- */
+.tbl-filter { max-width: 240px; }
