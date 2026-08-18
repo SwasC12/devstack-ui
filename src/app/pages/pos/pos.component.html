@@ -462,4 +462,19 @@
         </div>
       </div>
     }
+
+    <!-- Barcode scan overlay (html5-qrcode renders its camera preview here) -->
+    @if (scanOpen()) {
+      <div class="scan-overlay">
+        <div class="scan-card">
+          <div class="scan-head">
+            <h3>Scan barcode</h3>
+            <app-btn size="sm" (onClick)="cancelScan()">✕</app-btn>
+          </div>
+          <div id="pos-scanner-region" class="scan-region"></div>
+          <p class="scan-hint">Point the camera at the label barcode - it adds the item automatically.</p>
+          <app-btn size="sm" [block]="true" (onClick)="cancelScan()">Cancel</app-btn>
+        </div>
+      </div>
+    }
   

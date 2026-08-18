@@ -300,3 +300,11 @@
     app-btn { margin: 0.25rem; }
   }
 }
+    /* Barcode scan overlay */
+    .scan-overlay { position: fixed; inset: 0; z-index: 600; background: rgba(0, 0, 0, 0.8); display: flex; align-items: center; justify-content: center; padding: 1.5rem; }
+    .scan-card { background: var(--surface); border: 1px solid var(--accent); border-radius: var(--radius-lg); padding: 1.25rem; width: min(420px, 100%); display: flex; flex-direction: column; gap: 0.75rem; }
+    .scan-head { display: flex; justify-content: space-between; align-items: center; }
+    .scan-head h3 { margin: 0; font-size: 1rem; }
+    .scan-region { width: 100%; border-radius: var(--radius-sm); overflow: hidden; background: #000; min-height: 220px; }
+    .scan-region video { width: 100% !important; }
+    .scan-hint { margin: 0; font-size: 0.8125rem; color: var(--muted); text-align: center; }

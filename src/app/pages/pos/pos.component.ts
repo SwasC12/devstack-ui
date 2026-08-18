@@ -361,36 +361,81 @@ export class PosComponent implements OnInit {
     this.addLine(item.id, item.name, item.price, undefined, undefined, undefined, undefined);
   }
 
-  // Barcode scanner: finds the item by SKU and adds it to the cart. Continuous
-  // scanning (scanButton off) with the full format set - restricting the hint
-  // to CODE_128 broke the scanner activity on this plugin, so ALL + ZXING it
-  // is. Real errors are surfaced instead of a generic "cancelled" toast.
+  // Barcode scanner: finds the item by SKU and adds it to the cart.
+  // Primary: html5-qrcode (JS ZXing) - decodes CODE_128 in well under a
+  // second in the WebView (the native plugin's decode loop was taking a
+  // minute). Fallback: the native plugin when camera access is unavailable.
   readonly scanning = signal(false);
+  readonly scanOpen = signal(false);
+  private htmlScanner: any = null;
+
   scanBarcode() {
-    void import('@capacitor/barcode-scanner').then(async ({ CapacitorBarcodeScanner, CapacitorBarcodeScannerTypeHint, CapacitorBarcodeScannerAndroidScanningLibrary }) => {
+    if (this.scanOpen()) return;
+    void import('html5-qrcode').then(async ({ Html5Qrcode, Html5QrcodeSupportedFormats }) => {
       try {
+        const scanner = new Html5Qrcode('pos-scanner-region', { formatsToSupport: [Html5QrcodeSupportedFormats.CODE_128], useBarCodeDetectorIfSupported: true, verbose: false });
+        this.htmlScanner = scanner;
+        this.scanOpen.set(true);
         this.scanning.set(true);
-        const res = await CapacitorBarcodeScanner.scanBarcode({
-          hint: CapacitorBarcodeScannerTypeHint.ALL,
-          scanInstructions: 'Point the camera at the label barcode',
-          scanButton: false,
-          cameraDirection: 1,
-          android: { scanningLibrary: CapacitorBarcodeScannerAndroidScanningLibrary.ZXING },
-        });
+        await scanner.start(
+          { facingMode: 'environment' },
+          { fps: 10, qrbox: { width: 260, height: 140 } },
+          (text: string) => void this.onScanResult(text),
+          () => { /* keep scanning while no code is in frame */ },
+        );
+      } catch {
+        // Camera unavailable in the WebView - fall back to the native plugin.
+        this.scanOpen.set(false);
         this.scanning.set(false);
-        const sku = (res.ScanResult ?? '').trim();
-        if (!sku) { this.dialog.toast('No barcode detected', 'info'); return; }
-        const item = this.items.find(i => (i as any).sku && (i as any).sku.toLowerCase() === sku.toLowerCase());
-        if (!item) { this.dialog.toast(`No item with barcode ${sku}`, 'error'); return; }
-        this.addToCart(item);
-        this.dialog.toast(`${item.name} added`, 'success');
-      } catch (e: any) {
-        this.scanning.set(false);
-        const msg = e?.message ?? '';
-        if (/cancel/i.test(msg)) this.dialog.toast('Scan cancelled', 'info');
-        else this.dialog.toast(`Scanner error: ${msg || 'could not start the camera'}`, 'error');
+        void this.scanNative();
       }
-    }).catch(() => this.dialog.toast('Barcode scanner needs the app (not web)', 'error'));
+    }).catch(() => void this.scanNative());
+  }
+
+  private async onScanResult(text: string) {
+    try { await this.htmlScanner?.stop(); await this.htmlScanner?.clear(); } catch { /* ignore */ }
+    this.htmlScanner = null;
+    this.scanOpen.set(false);
+    this.scanning.set(false);
+    const sku = (text ?? '').trim();
+    if (!sku) { this.dialog.toast('No barcode detected', 'info'); return; }
+    const item = this.items.find(i => (i as any).sku && (i as any).sku.toLowerCase() === sku.toLowerCase());
+    if (!item) { this.dialog.toast(`No item with barcode ${sku}`, 'error'); return; }
+    this.addToCart(item);
+    this.dialog.toast(`${item.name} added`, 'success');
+  }
+
+  cancelScan() {
+    if (this.htmlScanner) { void this.htmlScanner.stop().then(() => this.htmlScanner?.clear()).catch(() => {}); this.htmlScanner = null; }
+    this.scanOpen.set(false);
+    this.scanning.set(false);
+  }
+
+  // Native plugin fallback (camera permission handled by the plugin itself).
+  private async scanNative() {
+    try {
+      const { CapacitorBarcodeScanner, CapacitorBarcodeScannerTypeHint, CapacitorBarcodeScannerAndroidScanningLibrary } = await import('@capacitor/barcode-scanner');
+      this.scanning.set(true);
+      const res = await CapacitorBarcodeScanner.scanBarcode({
+        hint: CapacitorBarcodeScannerTypeHint.ALL,
+        scanInstructions: 'Point the camera at the label barcode',
+        scanButton: false,
+        cameraDirection: 1,
+        android: { scanningLibrary: CapacitorBarcodeScannerAndroidScanningLibrary.ZXING },
+      });
+      this.scanning.set(false);
+      const sku = (res.ScanResult ?? '').trim();
+      if (!sku) { this.dialog.toast('No barcode detected', 'info'); return; }
+      const item = this.items.find(i => (i as any).sku && (i as any).sku.toLowerCase() === sku.toLowerCase());
+      if (!item) { this.dialog.toast(`No item with barcode ${sku}`, 'error'); return; }
+      this.addToCart(item);
+      this.dialog.toast(`${item.name} added`, 'success');
+    } catch (e: any) {
+      this.scanning.set(false);
+      const msg = e?.message ?? '';
+      if (/cancel/i.test(msg)) this.dialog.toast('Scan cancelled', 'info');
+      else this.dialog.toast(`Scanner error: ${msg || 'could not start the camera'}`, 'error');
+    }
   }
 
   cfgPickSize(cfg: { item: MenuItem; sizeId: number | null }, sizeId: number) {
