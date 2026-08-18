@@ -78,6 +78,10 @@
         .menu-item.danger { color: var(--red); }
     .menu-item.danger:hover { background: var(--red-bg); color: var(--red); }
     .picker { min-width: 280px; }
+    /* Email template picker: full-screen scrim + centered card - always
+       visible the moment Email owner is tapped. */
+    .picker-overlay { position: fixed; inset: 0; z-index: 900; background: rgba(0, 0, 0, 0.55); display: flex; align-items: center; justify-content: center; padding: 1.5rem; }
+    .picker-overlay .menu-drop.picker { position: static; transform: none; width: min(340px, 100%); }
     .picker-title { font-size: 0.68rem; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; padding: 0.4rem 0.6rem 0.3rem; }
     .menu-item.tmpl { flex-direction: column; align-items: flex-start; gap: 0.12rem; }
     .tmpl-label { font-size: 0.82rem; font-weight: 700; color: var(--text); }
@@ -88,8 +92,13 @@
     .rail { display: flex; flex-direction: column; gap: 1rem; }
     .rail-card { background: var(--surface); border: 1px solid var(--border); border-radius: 1.25em; padding: 1.1em 1.25em; }
     .rail-card h3 { margin: 0 0 0.85em; font-size: 0.72rem; font-weight: 800; color: var(--accent-2); text-transform: uppercase; letter-spacing: 0.06em; }
+    .rail-head { display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
+    .rail-head:hover { color: var(--accent); }
+    .chev { font-size: 0.85rem; color: var(--muted); }
     .ov-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6em; }
-    .ov-cell { display: flex; flex-direction: column; align-items: center; gap: 0.15rem; background: var(--surface-2); border-radius: 0.75em; padding: 0.7em 0.4em; }
+    .ov-cell { display: flex; flex-direction: column; align-items: center; gap: 0.15rem; background: var(--surface-2); border: 0; border-radius: 0.75em; padding: 0.7em 0.4em; cursor: pointer; font-family: inherit; transition: background 0.15s; }
+    .ov-cell:hover { background: var(--surface-3); }
+    .ov-cell:active { transform: scale(0.98); }
     .ov-val { font-size: 1.3rem; font-weight: 800; color: var(--text); line-height: 1.1; }
     .ov-val.warn { color: var(--red); }
     .ov-lbl { font-size: 0.6rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700; text-align: center; }
@@ -129,3 +138,9 @@
     }
   
 .backup-msg { font-size: 0.8125rem; color: var(--green); font-weight: 700; }
+    /* Collapsible card headers (Notify owners, Live Activity) */
+    .form-head.collapsible { cursor: pointer; user-select: none; margin-bottom: 0; }
+    .form-head.collapsible:hover h3 { color: var(--accent); }
+    .form-head.collapsible .chev { font-size: 0.9rem; color: var(--muted); }
+    .announce { padding: 1.1em 1.25em; }
+    .announce .form-grid, .announce .form-acts { margin-top: 1em; }

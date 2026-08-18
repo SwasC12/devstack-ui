@@ -1,4 +1,4 @@
-﻿
+
     <div class="shops">
       <div class="page-tabs">
         <button class="page-tab" [class.on]="tab() === 'shops'" (click)="tab.set('shops')">Shops</button>
@@ -22,7 +22,6 @@
       <div class="section-head">
         <h2 class="page-title">Shops</h2>
         @if (backupMsg()) { <span class="backup-msg">{{ backupMsg() }}</span> }
-        <app-btn variant="primary" (onClick)="downloadBackup()">⬇️ Backup</app-btn>
         <app-btn variant="primary" (onClick)="openForm()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           New shop
@@ -31,7 +30,11 @@
 
       <!-- Announcement composer: type a message, push it to owners' notifications -->
       <div class="form-sheet announce">
-        <div class="form-head"><h3>📣 Notify owners</h3></div>
+        <div class="form-head collapsible" (click)="toggleAnnounce()">
+          <h3>Notify owners</h3>
+          <span class="chev">{{ announceOpen() ? '▾' : '▸' }}</span>
+        </div>
+        @if (announceOpen()) {
         <div class="form-grid">
           <div class="field"><label>Title</label><input [(ngModel)]="bcTitle" placeholder="e.g. Update available" /></div>
           <div class="field">
@@ -47,6 +50,7 @@
           <app-btn variant="primary" size="sm" (onClick)="broadcast()" [loading]="bcBusy()">Send notification</app-btn>
           <app-btn size="sm" (onClick)="emailAllOwners()">Email all owners</app-btn>
         </div>
+        }
       </div>
 
       @if (showForm()) {
@@ -96,8 +100,8 @@
             @if (search.trim()) { <span class="search-count">{{ filteredShops().length }} of {{ shops().length }}</span> }
           </div>
           <div class="table-card">
-            <table>
-              <thead><tr><th>Name</th><th>Code</th><th>Status</th><th>Users</th><th>Orders</th><th>Last order</th><th>Created</th><th></th></tr></thead>
+            <table appSort [data]="filteredShops()" (dataChange)="shops.set($event)">
+              <thead><tr><th data-sort="name">Name</th><th data-sort="code">Code</th><th data-sort="isActive">Status</th><th data-sort="userCount">Users</th><th data-sort="orderCount">Orders</th><th data-sort="lastOrderAt">Last order</th><th data-sort="createdAt">Created</th><th class="no-sort"></th></tr></thead>
               <tbody>
                 @for (s of filteredShops(); track s.id) {
                   <tr [class.row-suspended]="!s.isActive">
@@ -142,10 +146,12 @@
             }
           }
 
-          <!-- Email template picker: choose a draft, opens in your mail app -->
+          <!-- Email template picker: centered overlay so it always shows the
+               moment Email owner is tapped (no stale-position bugs). -->
           @if (emailPickerFor(); as id) {
             @if (shopById(id); as s) {
-              <div class="menu-drop picker" [style.left.px]="menuPos()?.x ?? 0" [style.top.px]="menuPos()?.y ?? 0" (click)="$event.stopPropagation()">
+              <div class="picker-overlay" (click)="closeEmailPicker()">
+              <div class="menu-drop picker" (click)="$event.stopPropagation()">
                 <div class="picker-title">Email — {{ s.name }}</div>
                 @for (t of emailTemplates; track t.key) {
                   <button class="menu-item tmpl" (click)="sendEmailTemplate(s, t); closeEmailPicker()">
@@ -155,6 +161,7 @@
                 }
                 <button class="menu-item" (click)="closeEmailPicker()">✕ Cancel</button>
               </div>
+              </div>
             }
           }
         </div>
@@ -163,12 +170,12 @@
           <div class="rail-card">
             <h3>Platform Overview</h3>
             <div class="ov-grid">
-              <div class="ov-cell"><span class="ov-val">{{ overview()?.stats?.activeShops ?? '—' }}</span><span class="ov-lbl">Active shops</span></div>
-              <div class="ov-cell"><span class="ov-val">{{ overview()?.stats?.suspendedShops ?? '—' }}</span><span class="ov-lbl">Suspended</span></div>
-              <div class="ov-cell"><span class="ov-val">{{ overview()?.stats?.ordersToday ?? '—' }}</span><span class="ov-lbl">Orders today</span></div>
-              <div class="ov-cell"><span class="ov-val">{{ overview()?.stats?.notificationsSent30d ?? '—' }}</span><span class="ov-lbl">Notifications 30d</span></div>
-              <div class="ov-cell"><span class="ov-val">{{ overview()?.stats?.passwordResets30d ?? '—' }}</span><span class="ov-lbl">Password resets</span></div>
-              <div class="ov-cell"><span class="ov-val" [class.warn]="(overview()?.stats?.pushFailures30d ?? 0) > 0">{{ overview()?.stats?.pushFailures30d ?? '—' }}</span><span class="ov-lbl">Push failures</span></div>
+              <button class="ov-cell" (click)="explainMetric('activeShops')"><span class="ov-val">{{ overview()?.stats?.activeShops ?? '—' }}</span><span class="ov-lbl">Active shops</span></button>
+              <button class="ov-cell" (click)="explainMetric('suspendedShops')"><span class="ov-val">{{ overview()?.stats?.suspendedShops ?? '—' }}</span><span class="ov-lbl">Suspended</span></button>
+              <button class="ov-cell" (click)="explainMetric('ordersToday')"><span class="ov-val">{{ overview()?.stats?.ordersToday ?? '—' }}</span><span class="ov-lbl">Orders today</span></button>
+              <button class="ov-cell" (click)="explainMetric('notificationsSent30d')"><span class="ov-val">{{ overview()?.stats?.notificationsSent30d ?? '—' }}</span><span class="ov-lbl">Notifications 30d</span></button>
+              <button class="ov-cell" (click)="explainMetric('passwordResets30d')"><span class="ov-val">{{ overview()?.stats?.passwordResets30d ?? '—' }}</span><span class="ov-lbl">Password resets</span></button>
+              <button class="ov-cell" (click)="explainMetric('pushFailures30d')"><span class="ov-val" [class.warn]="(overview()?.stats?.pushFailures30d ?? 0) > 0">{{ overview()?.stats?.pushFailures30d ?? '—' }}</span><span class="ov-lbl">Push failures</span></button>
             </div>
           </div>
 
@@ -196,28 +203,29 @@
           </div>
 
           <div class="rail-card">
-            <h3>Live Activity</h3>
-            <div class="feed">
-              @for (ev of overview()?.events ?? []; track ev.id) {
-                <div class="feed-item">
-                  <span class="feed-ic">{{ eventIcon(ev.type) }}</span>
-                  <div class="feed-body">
-                    <span class="feed-text">{{ ev.detail }}</span>
-                    <span class="feed-time">{{ ev.createdAtUtc | date:'short' }}</span>
+            <h3 class="rail-head" (click)="toggleLive()">Live Activity <span class="chev">{{ liveOpen() ? '▾' : '▸' }}</span></h3>
+            @if (liveOpen()) {
+              <div class="feed">
+                @for (ev of overview()?.events ?? []; track ev.id) {
+                  <div class="feed-item">
+                    <span class="feed-ic">{{ eventIcon(ev.type) }}</span>
+                    <div class="feed-body">
+                      <span class="feed-text">{{ ev.detail }}</span>
+                      <span class="feed-time">{{ ev.createdAtUtc | date:'short' }}</span>
+                    </div>
                   </div>
-                </div>
-              } @empty {
-                <p class="rail-empty">No activity yet.</p>
-              }
-            </div>
+                } @empty {
+                  <p class="rail-empty">No activity yet.</p>
+                }
+              </div>
+            }
           </div>
 
           <div class="rail-card">
-            <h3>Quick Actions</h3>
-            <div class="qa">
-              <button class="qa-btn" (click)="openForm()">＋ New shop</button>
-              <button class="qa-btn" (click)="focusComposer()">📣 Broadcast message</button>
-            </div>
+            <h3>Platform backup</h3>
+            <p class="rail-empty" style="margin-bottom:0.6rem">Download all shops' data as a JSON file.</p>
+            @if (backupMsg()) { <p class="backup-msg" style="margin:0 0 0.6rem">{{ backupMsg() }}</p> }
+            <app-btn size="sm" [block]="true" (onClick)="downloadBackup()">Download backup</app-btn>
           </div>
         </aside>
       </div>
@@ -243,8 +251,8 @@
         </div>
 
         <div class="table-card">
-          <table class="releases">
-            <thead><tr><th>Version</th><th>Type</th><th>Size</th><th>Notes</th><th>Published</th><th></th></tr></thead>
+          <table class="releases" appSort [data]="releases()" (dataChange)="releases.set($event)">
+            <thead><tr><th data-sort="version">Version</th><th data-sort="isRequired">Type</th><th data-sort="sizeBytes">Size</th><th data-sort="releaseNotes">Notes</th><th data-sort="createdAtUtc">Published</th><th class="no-sort"></th></tr></thead>
             <tbody>
               @for (r of releases(); track r.id) {
                 <tr>

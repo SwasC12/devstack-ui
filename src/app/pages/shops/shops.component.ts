@@ -7,13 +7,14 @@ import { PasswordInputComponent } from '../../password-input.component';
 import { AuthService } from '../../auth.service';
 import { DialogService } from '../../dialog.service';
 import { SoundService } from '../../sound.service';
+import { SortableDirective } from '../../sortable.directive';
 import { Capacitor } from '@capacitor/core';
 import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-shops',
   standalone: true,
-  imports: [CommonModule, FormsModule, BtnComponent, PasswordInputComponent],
+  imports: [CommonModule, FormsModule, BtnComponent, PasswordInputComponent, SortableDirective],
   templateUrl: './shops.component.html',
   styleUrl: './shops.component.scss',
 })
@@ -159,12 +160,45 @@ export class ShopsComponent implements OnInit {
   }
 
   welcomeIssues(): string | null {
-    const s = this.overview()?.stats;
-    if (!s) return null;
+    const ev = this.overview()?.events ?? [];
+    if (!ev.length) return null;
+    const today = new Date();
+    const isToday = (iso: string) => { const d = new Date(iso); return d.toDateString() === today.toDateString(); };
+    const todays = ev.filter((e: any) => isToday(e.createdAtUtc));
     const parts: string[] = [];
-    if (s.suspendedShops > 0) parts.push(`${s.suspendedShops} shop${s.suspendedShops === 1 ? '' : 's'} suspended`);
-    if (s.pushFailures30d > 0) parts.push(`${s.pushFailures30d} push failure${s.pushFailures30d === 1 ? '' : 's'}`);
+    const pushFails = todays.filter((e: any) => e.type === 'push_failed').length;
+    if (pushFails > 0) parts.push(`${pushFails} push failure${pushFails === 1 ? '' : 's'} today`);
+    const suspended = todays.filter((e: any) => e.type === 'shop_suspended').length;
+    if (suspended > 0) parts.push(`${suspended} shop${suspended === 1 ? '' : 's'} suspended today`);
     return parts.length ? parts.join(' · ') : null;
+  }
+
+  // Collapsible rail cards (Live Activity grows large; the announce composer
+  // pushes the New shop form down).
+  readonly liveOpen = signal(false);
+  toggleLive() { this.liveOpen.update(v => !v); }
+  readonly announceOpen = signal(false);
+  toggleAnnounce() { this.announceOpen.update(v => !v); }
+
+  // Overview cells explain themselves when tapped - a popup beats a mystery number.
+  explainMetric(key: string) {
+    const s = this.overview()?.stats;
+    const u = this.overview()?.update;
+    const n = s?.[key] ?? (u?.[key] ?? 0);
+    const map: Record<string, [string, string]> = {
+      activeShops: ['Active shops', 'Shops currently active on the platform. Suspended shops are excluded. A shop can be suspended/reactivated from the ⋮ menu on its row.'],
+      suspendedShops: ['Suspended shops', 'Shops suspended by the platform owner. Suspended shops cannot log in until reactivated - existing sessions die within the access-token lifetime.'],
+      ordersToday: ['Orders today', 'Orders placed across ALL shops today (SAST), excluding voided ones.'],
+      notificationsSent30d: ['Notifications 30d', 'In-app notifications + FCM pushes sent to shop admins in the last 30 days (broadcasts, low-stock alerts).'],
+      passwordResets30d: ['Password resets 30d', 'Admin password resets performed in the last 30 days (via the ⋮ menu on a shop row).'],
+      pushFailures30d: ['Push failures 30d', 'Device pushes that failed in the last 30 days - usually a dead/old push token after an app reinstall. The device token is dropped automatically after a failure.'],
+      currentVersion: ['Current version', 'The app version published as the latest release on the App Releases tab.'],
+      shopsCheckedIn: ['Shops checked in', 'Shops whose POS has phoned home at least once (reports the version it runs).'],
+      shopsUpdated: ['Shops updated', 'Shops currently running the latest published version.'],
+      shopsOnOldVersion: ['Shops on old version', 'Shops running an older build - they will see the update banner at the next sign-in.'],
+    };
+    const hit = map[key];
+    if (hit) void this.dialog.alert(hit[0], `${hit[1]}\n\nValue: ${n}`);
   }
 
   // ⋮ row menu
