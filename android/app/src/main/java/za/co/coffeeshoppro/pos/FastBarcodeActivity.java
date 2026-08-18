@@ -25,6 +25,9 @@ import androidx.camera.core.Preview;
 import androidx.camera.lifecycle.ProcessCameraProvider;
 import androidx.camera.view.PreviewView;
 import androidx.core.content.ContextCompat;
+import androidx.lifecycle.Lifecycle;
+import androidx.lifecycle.LifecycleOwner;
+import androidx.lifecycle.LifecycleRegistry;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.mlkit.vision.barcode.BarcodeScanner;
@@ -43,28 +46,24 @@ import java.util.concurrent.Executors;
 // slow third-party scanner plugin entirely. NOTE: extends plain Activity -
 // AppCompatActivity would require a Theme.AppCompat theme, and the app's
 // theme isn't one (that was a crash).
-public class FastBarcodeActivity extends Activity {
+public class FastBarcodeActivity extends Activity implements LifecycleOwner {
 
     public static final String EXTRA_RESULT = "scan_result";
     private static final int[] FORMATS = {
         Barcode.FORMAT_CODE_128, Barcode.FORMAT_EAN_13, Barcode.FORMAT_EAN_8,
         Barcode.FORMAT_UPC_A, Barcode.FORMAT_UPC_E, Barcode.FORMAT_QR_CODE
     };
+    private static final int PERMISSION_REQUEST = 100;
 
+    private final LifecycleRegistry lifecycleRegistry = new LifecycleRegistry(this);
     private PreviewView previewView;
     private TextView statusText;
     private ExecutorService analysisExecutor;
     private BarcodeScanner mlScanner;
     private boolean finished = false;
 
-    private final ActivityResultLauncher<String> permissionLauncher =
-        registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted -> {
-            if (granted) startCamera();
-            else {
-                Toast.makeText(this, "Camera permission is needed to scan barcodes", Toast.LENGTH_LONG).show();
-                finish();
-            }
-        });
+    @Override
+    public Lifecycle getLifecycle() { return lifecycleRegistry; }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -118,9 +117,31 @@ public class FastBarcodeActivity extends Activity {
                 == PackageManager.PERMISSION_GRANTED) {
             startCamera();
         } else {
-            permissionLauncher.launch(Manifest.permission.CAMERA);
+            requestPermissions(new String[]{Manifest.permission.CAMERA}, PERMISSION_REQUEST);
         }
     }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == PERMISSION_REQUEST) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                startCamera();
+            } else {
+                Toast.makeText(this, "Camera permission is needed to scan barcodes", Toast.LENGTH_LONG).show();
+                finish();
+            }
+        }
+    }
+
+    @Override
+    protected void onStart() { super.onStart(); lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_START); }
+    @Override
+    protected void onResume() { super.onResume(); lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME); }
+    @Override
+    protected void onPause() { lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE); super.onPause(); }
+    @Override
+    protected void onStop() { lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_STOP); super.onStop(); }
 
     private void startCamera() {
         ListenableFuture<ProcessCameraProvider> future =
@@ -174,6 +195,7 @@ public class FastBarcodeActivity extends Activity {
     protected void onDestroy() {
         super.onDestroy();
         finished = true;
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY);
         if (analysisExecutor != null) analysisExecutor.shutdown();
         if (mlScanner != null) mlScanner.close();
     }
@@ -209,8 +231,4 @@ public class FastBarcodeActivity extends Activity {
         }
     }
 
-    // Minimal vertical linear layout helper (avoids the appcompat layout XML).
-    static class LinearLayout extends android.widget.LinearLayout {
-        public LinearLayout(android.content.Context context) { super(context); }
-    }
 }
