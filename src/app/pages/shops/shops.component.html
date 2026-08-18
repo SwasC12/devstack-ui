@@ -1,4 +1,4 @@
-
+﻿
     <div class="shops">
       <div class="page-tabs">
         <button class="page-tab" [class.on]="tab() === 'shops'" (click)="tab.set('shops')">Shops</button>
@@ -12,7 +12,7 @@
         <div class="welcome-main">{{ greeting() }}, {{ auth.getUser()?.displayName || 'boss' }} 👋</div>
         <div class="welcome-line">{{ overview()?.stats?.activeShops ?? 0 }} shops active · {{ overview()?.stats?.ordersToday ?? 0 }} orders processed today.</div>
         @if (welcomeIssues(); as issues) {
-          <div class="welcome-issues">⚠️ {{ issues }}.</div>
+          <div class="welcome-issues">{{ issues }}.</div>
         } @else {
           <div class="welcome-ok">No platform issues detected.</div>
         }
@@ -45,7 +45,7 @@
         </div>
         <div class="form-acts">
           <app-btn variant="primary" size="sm" (onClick)="broadcast()" [loading]="bcBusy()">Send notification</app-btn>
-          <app-btn size="sm" (onClick)="emailAllOwners()">✉ Email all owners</app-btn>
+          <app-btn size="sm" (onClick)="emailAllOwners()">Email all owners</app-btn>
         </div>
       </div>
 
@@ -131,12 +131,12 @@
             @if (shopById(id); as s) {
               <div class="menu-drop" [style.left.px]="menuPos()?.x ?? 0" [style.top.px]="menuPos()?.y ?? 0" (click)="$event.stopPropagation()">
                 @if (s.ownerEmail) {
-                  <button class="menu-item" (click)="emailOwner(s); closeMenu()">✉️ Email owner</button>
+                  <button class="menu-item" (click)="emailOwner(s); closeMenu()">Email owner</button>
                 }
-                <button class="menu-item" (click)="openOwnerEdit(s); closeMenu()">👤 Owner contact</button>
-                <button class="menu-item" (click)="resetPassword(s); closeMenu()">🔑 Reset password</button>
+                <button class="menu-item" (click)="openOwnerEdit(s); closeMenu()">Owner contact</button>
+                <button class="menu-item" (click)="resetPassword(s); closeMenu()">Reset password</button>
                 <button class="menu-item" [class.danger]="s.isActive" (click)="toggleStatus(s); closeMenu()">
-                  {{ s.isActive ? '⏸ Suspend' : '▶️ Activate' }}
+                  {{ s.isActive ? 'Suspend' : 'Activate' }}
                 </button>
               </div>
             }

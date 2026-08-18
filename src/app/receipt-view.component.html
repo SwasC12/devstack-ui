@@ -12,7 +12,7 @@
       </div>
       @if (order.dineMode === 'dinein' || order.tableNumber) {
         <div class="r-meta">
-          <span>{{ order.dineMode === 'dinein' ? '🍽️ Dine-in' : '🛍️ Takeaway' }}{{ order.tableNumber ? ' — Table ' + order.tableNumber : '' }}</span>
+          <span>{{ order.dineMode === 'dinein' ? 'Dine-in' : 'Takeaway' }}{{ order.tableNumber ? ' — Table ' + order.tableNumber : '' }}</span>
         </div>
       }
       <div class="r-items">
@@ -21,7 +21,7 @@
             <span>{{ line.quantity }} × {{ line.name }}{{ line.sizeName ? ' (' + line.sizeName + ')' : '' }}{{ modText(line) ? ' (' + modText(line) + ')' : '' }}</span>
             <span>R{{ (line.price * line.quantity) | number:'1.2-2' }}</span>
           </div>
-          @if (line.note) { <div class="r-note">📝 {{ line.note }}</div> }
+          @if (line.note) { <div class="r-note">{{ line.note }}</div> }
         }
       </div>
       @if (order.discountAmount > 0) {

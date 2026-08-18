@@ -112,7 +112,40 @@ export class AdminComponent implements OnInit {
   fGroups: { id: number; name: string; isMulti: boolean; modifiers: { id: number; name: string; priceDelta: number }[] }[] = [];
   fCostBasis: number | null = null;
   fRecipe: { id: number; name: string; costPerUnit: number; quantity: number }[] = [];
+  fSku = '';
   readonly recipeCost = computed(() => this.fRecipe.reduce((s, r) => s + (r.costPerUnit || 0) * (r.quantity || 0), 0));
+  @ViewChild('skuCanvas') skuCanvasRef!: ElementRef<HTMLCanvasElement>;
+
+  // SKU / barcode for prepacked items: generate a unique one, render the
+  // Code-128 barcode client-side (JsBarcode), and print a label.
+  genSku() {
+    const s = 'SKU-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 6).toUpperCase();
+    this.fSku = s;
+    this.renderSku();
+  }
+
+  renderSku() {
+    if (!this.fSku) return;
+    void import('jsbarcode').then((m: any) => {
+      const JsBarcode = m.default ?? m;
+      const cv = this.skuCanvasRef?.nativeElement;
+      if (cv) JsBarcode(cv, this.fSku, { format: 'CODE128', width: 2, height: 56, displayValue: true, background: '#ffffff', lineColor: '#111111', margin: 4 });
+    }).catch(() => { /* barcode lib unavailable */ });
+  }
+
+  printSkuLabel() {
+    if (!this.fSku) { this.dialog.toast('Generate a SKU first', 'info'); return; }
+    void import('jsbarcode').then((m: any) => {
+      const JsBarcode = m.default ?? m;
+      const cv = document.createElement('canvas');
+      JsBarcode(cv, this.fSku, { format: 'CODE128', width: 3, height: 80, displayValue: true, background: '#ffffff', lineColor: '#111111' });
+      const w = window.open('', '_blank');
+      if (!w) { this.dialog.toast('Pop-up blocked - allow pop-ups to print', 'error'); return; }
+      const esc = (v: any) => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
+      w.document.write(`<!doctype html><html><head><title>Barcode label</title><style>body{text-align:center;padding:2rem;font-family:Arial,sans-serif;color:#111}img{width:300px;background:#fff;padding:.5rem;border:1px dashed #ccc}.name{font-size:20px;font-weight:700;margin:.6rem 0 .1rem}.sku{font-size:13px;color:#555;margin-bottom:.3rem}.price{font-size:19px;font-weight:700}</style></head><body><img src="${cv.toDataURL()}"/><div class="name">${esc(this.fName)}</div><div class="sku">${esc(this.fSku)}</div><div class="price">R${(this.fPrice ?? 0).toFixed(2)}</div><script>window.onload=function(){window.print()}<\/script></body></html>`);
+      w.document.close();
+    }).catch(() => this.dialog.toast('Could not build the label', 'error'));
+  }
 
   // Users
   readonly users = signal<any[]>([]);
@@ -176,57 +209,87 @@ export class AdminComponent implements OnInit {
   readonly analytics = signal<any | null>(null);
   readonly analyticsDays = signal(14);
 
-  // Print a colourful report from the data ALREADY on the page (no server
-  // round-trip): opens a print-ready window with CSS bar charts + tables,
-  // then triggers the system print dialog.
+  // Print a PDF report from the data ALREADY on the page (zero server load):
+  // jsPDF draws the metric cards, a colourful bar chart and the tables, then
+  // opens it with the print dialog.
   printAnalytics() {
     const a = this.analytics();
     if (!a) { this.dialog.toast('Load analytics first', 'info'); return; }
-    const w = window.open('', '_blank', 'width=900,height=1000');
-    if (!w) { this.dialog.toast('Pop-up blocked - allow pop-ups to print', 'error'); return; }
-    const shop = this.shopInfo?.name ?? 'CoffeeShop Pro';
-    const days = a.days;
-    const max = Math.max(...a.daily.map((d: any) => d.revenue), 1);
-    const bars = a.daily.map((d: any) =>
-      `<div class="bar-row"><span class="bar-lbl">${d.date}</span><div class="bar-track"><div class="bar" style="width:${Math.max(2, (d.revenue / max) * 100)}%"><span>R${d.revenue.toFixed(2)}</span></div></div><span class="bar-orders">${d.orders} ord</span></div>`
-    ).join('');
-    const catRows = (a.categories ?? []).map((c: any) =>
-      `<tr><td>${c.name}</td><td>${c.quantity}</td><td>R${Number(c.revenue).toFixed(2)}</td><td>R${Number(c.grossProfit).toFixed(2)}</td></tr>`
-    ).join('');
-    const cashRows = (a.cashiers ?? []).map((c: any) =>
-      `<tr><td>${c.name}</td><td>${c.orders}</td><td>R${Number(c.revenue).toFixed(2)}</td></tr>`
-    ).join('');
-    w.document.write(`<!doctype html><html><head><title>Analytics - ${shop}</title><style>
-      body{font-family:system-ui,sans-serif;color:#1a1a1a;padding:2rem;max-width:760px;margin:0 auto}
-      h1{font-size:1.4rem;margin:0 0 .2rem} .sub{color:#666;margin-bottom:1.5rem}
-      h2{font-size:1rem;margin:1.5rem 0 .6rem;border-bottom:2px solid #eee;padding-bottom:.3rem}
-      .metrics{display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1rem}
-      .metric{flex:1;min-width:130px;border:1px solid #ddd;border-radius:10px;padding:.8rem;text-align:center}
-      .metric b{display:block;font-size:1.3rem;color:#b45309}.metric span{font-size:.75rem;color:#666;text-transform:uppercase}
-      .bar-row{display:grid;grid-template-columns:80px 1fr 70px;align-items:center;gap:.6rem;margin:.35rem 0}
-      .bar-lbl{font-size:.72rem;color:#666;text-align:right}.bar-orders{font-size:.72rem;color:#666}
-      .bar-track{background:#f0ede9;border-radius:6px;overflow:hidden;height:24px}
-      .bar{background:linear-gradient(90deg,#c88738,#e0a75c);color:#fff;font-size:.68rem;font-weight:700;height:24px;border-radius:6px;display:flex;align-items:center;padding-left:.4rem;white-space:nowrap}
-      table{width:100%;border-collapse:collapse;font-size:.82rem;margin-top:.4rem}
-      th{text-align:left;background:#f7f5f2;padding:.45rem .6rem;border-bottom:1px solid #ddd;font-size:.7rem;text-transform:uppercase;color:#666}
-      td{padding:.45rem .6rem;border-bottom:1px solid #eee}
-      .gp{color:#15803d;font-weight:700}
-      @media print{body{padding:1rem}}
-    </style></head><body>
-      <h1>${shop} - Analytics</h1>
-      <div class="sub">Last ${days} days · Generated ${new Date().toLocaleString()} · ${this.auth.getUser()?.displayName ?? ''}</div>
-      <div class="metrics">
-        <div class="metric"><b>R${Number(a.totals.revenue).toFixed(2)}</b><span>Revenue</span></div>
-        <div class="metric"><b>R${Number(a.totals.grossProfit).toFixed(2)}</b><span>Gross profit</span></div>
-        <div class="metric"><b>${a.totals.orders}</b><span>Orders</span></div>
-        <div class="metric"><b>${a.totals.items}</b><span>Items sold</span></div>
-      </div>
-      <h2>Daily revenue</h2>${bars || '<p>No sales in this period.</p>'}
-      <h2>By category</h2><table><thead><tr><th>Category</th><th>Qty</th><th>Revenue</th><th>GP</th></tr></thead><tbody>${catRows}</tbody></table>
-      <h2>By cashier</h2><table><thead><tr><th>Cashier</th><th>Orders</th><th>Revenue</th></tr></thead><tbody>${cashRows}</tbody></table>
-      <script>window.onload=function(){window.print()}<\/script>
-    </body></html>`);
-    w.document.close();
+    void import('jspdf').then(({ jsPDF }) => {
+      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+      const W = 210;
+      const shop = this.shopInfo?.name ?? 'CoffeeShop Pro';
+      let y = 16;
+
+      doc.setFontSize(16); doc.setTextColor(40, 40, 40);
+      doc.text(`${shop} - Analytics`, 14, y); y += 6;
+      doc.setFontSize(9); doc.setTextColor(130, 130, 130);
+      doc.text(`Last ${a.days} days · Generated ${new Date().toLocaleString()}${this.auth.getUser()?.displayName ? ' · ' + this.auth.getUser()!.displayName : ''}`, 14, y); y += 9;
+
+      // Metric cards
+      const metrics = [
+        [`R${Number(a.totals.revenue).toFixed(2)}`, 'Revenue'],
+        [`R${Number(a.totals.grossProfit).toFixed(2)}`, 'Gross profit'],
+        [`${a.totals.orders}`, 'Orders'],
+        [`${a.totals.items}`, 'Items sold'],
+      ];
+      const mw = (W - 28 - 12) / 4;
+      metrics.forEach((m, i) => {
+        const x = 14 + i * (mw + 4);
+        doc.setFillColor(247, 245, 242);
+        doc.roundedRect(x, y, mw, 17, 2, 2, 'F');
+        doc.setFontSize(13); doc.setTextColor(180, 83, 9); doc.text(m[0], x + 4, y + 8);
+        doc.setFontSize(6.5); doc.setTextColor(120, 120, 120); doc.text(m[1].toUpperCase(), x + 4, y + 13);
+      });
+      y += 26;
+
+      // Daily revenue bar chart (colourful, drawn with rects)
+      doc.setFontSize(12); doc.setTextColor(40, 40, 40);
+      doc.text('Daily revenue', 14, y); y += 3;
+      const max = Math.max(...a.daily.map((d: any) => Number(d.revenue)), 1);
+      const chartW = W - 14 - 62;
+      a.daily.forEach((d: any) => {
+        const bw = Math.max(3, (Number(d.revenue) / max) * chartW);
+        doc.setFillColor(200, 135, 56);
+        doc.rect(14, y, bw, 4, 'F');
+        doc.setFontSize(7); doc.setTextColor(90, 90, 90);
+        doc.text(`${d.date}  R${Number(d.revenue).toFixed(2)}  (${d.orders} ord)`, 14 + bw + 2, y + 3);
+        y += 6.4;
+      });
+      y += 7;
+
+      // Tables: category + cashier
+      const drawTable = (title: string, headers: string[], rows: (string | number)[][]) => {
+        if (y > 245) { doc.addPage(); y = 16; }
+        doc.setFontSize(12); doc.setTextColor(40, 40, 40);
+        doc.text(title, 14, y); y += 2;
+        const colW = (W - 28) / headers.length;
+        doc.setFillColor(247, 245, 242);
+        doc.rect(14, y, W - 28, 7, 'F');
+        doc.setFontSize(8); doc.setTextColor(110, 110, 110);
+        headers.forEach((h, i) => doc.text(h.toUpperCase(), 15 + i * colW, y + 5));
+        y += 8;
+        doc.setFontSize(9); doc.setTextColor(40, 40, 40);
+        rows.forEach((r) => {
+          if (y > 285) { doc.addPage(); y = 16; }
+          doc.setDrawColor(230, 230, 230);
+          doc.line(14, y - 1, W - 14, y - 1);
+          r.forEach((cell, i) => doc.text(String(cell), 15 + i * colW, y + 3));
+          y += 6.5;
+        });
+        y += 6;
+      };
+
+      drawTable('By category', ['Category', 'Qty', 'Revenue', 'Gross profit'],
+        (a.categories ?? []).map((c: any) => [c.name, c.quantity, `R${Number(c.revenue).toFixed(2)}`, `R${Number(c.grossProfit).toFixed(2)}`]));
+      drawTable('By cashier', ['Cashier', 'Orders', 'Revenue'],
+        (a.cashiers ?? []).map((c: any) => [c.name, c.orders, `R${Number(c.revenue).toFixed(2)}`]));
+
+      // Open with the print dialog (and still offer the download).
+      doc.autoPrint();
+      const url = doc.output('bloburl');
+      window.open(url, '_blank');
+    }).catch(() => this.dialog.toast('Could not build the PDF', 'error'));
   }
 
   // Discounts / specials
@@ -312,7 +375,7 @@ export class AdminComponent implements OnInit {
     const q = this.invQuery.trim().toLowerCase();
     const f = this.invFilter();
     return this.items().filter(i => {
-      if (q && !(i.name.toLowerCase().includes(q) || i.category.toLowerCase().includes(q))) return false;
+      if (q && !(i.name.toLowerCase().includes(q) || i.category.toLowerCase().includes(q) || (i.sku ?? '').toLowerCase().includes(q))) return false;
       if (f === 'low' && i.stockQuantity >= (i.lowStockThreshold ?? 5)) return false;
       if (f === 'out' && i.stockQuantity >= 1) return false;
       return true;
@@ -320,7 +383,7 @@ export class AdminComponent implements OnInit {
   }
 
   openNew() { this.resetInv(); this.showForm.set(true); }
-  edit(item: MenuItem) { this.clearPendingImage(); this.editing.set(item); this.fName = item.name; this.fCategory = item.category; this.fPrice = item.price; this.fStock = item.stockQuantity; this.fLowStock = item.lowStockThreshold ?? 5; this.fDesc = item.description ?? ''; this.fAvail = item.isAvailable; this.fImageUrl = item.imageUrl ?? ''; this.fImagePublicId = item.imagePublicId ?? ''; this.fCostBasis = (item as any).costBasis ?? null; this.fSizes = (item.sizes ?? []).map(s => ({ id: s.id, name: s.name, price: s.price })); this.fGroups = (item.modifierGroups ?? []).map(g => ({ id: g.id, name: g.name, isMulti: g.isMulti, modifiers: g.modifiers.map(m => ({ id: m.id, name: m.name, priceDelta: m.priceDelta })) })); this.fRecipe = ((item as any).recipeLines ?? []).map((r: any) => ({ id: r.id, name: r.name, costPerUnit: r.costPerUnit, quantity: r.quantity })); this.showForm.set(true); }
+  edit(item: MenuItem) { this.clearPendingImage(); this.editing.set(item); this.fName = item.name; this.fCategory = item.category; this.fPrice = item.price; this.fStock = item.stockQuantity; this.fLowStock = item.lowStockThreshold ?? 5; this.fDesc = item.description ?? ''; this.fAvail = item.isAvailable; this.fImageUrl = item.imageUrl ?? ''; this.fImagePublicId = item.imagePublicId ?? ''; this.fCostBasis = (item as any).costBasis ?? null; this.fSku = (item as any).sku ?? ''; this.fSizes = (item.sizes ?? []).map(s => ({ id: s.id, name: s.name, price: s.price })); this.fGroups = (item.modifierGroups ?? []).map(g => ({ id: g.id, name: g.name, isMulti: g.isMulti, modifiers: g.modifiers.map(m => ({ id: m.id, name: m.name, priceDelta: m.priceDelta })) })); this.fRecipe = ((item as any).recipeLines ?? []).map((r: any) => ({ id: r.id, name: r.name, costPerUnit: r.costPerUnit, quantity: r.quantity })); this.showForm.set(true); setTimeout(() => this.renderSku(), 50); }
   closeForm() { this.showForm.set(false); this.editing.set(null); this.clearPendingImage(); }
   addSizeRow() { this.fSizes = [...this.fSizes, { id: 0, name: '', price: 0 }]; }
   removeSizeRow(i: number) { this.fSizes = this.fSizes.filter((_, idx) => idx !== i); }
@@ -338,6 +401,7 @@ export class AdminComponent implements OnInit {
       modifiers: g.modifiers.filter(m => m.name.trim()).map(m => ({ id: m.id, name: m.name.trim(), priceDelta: m.priceDelta ?? 0 }))
     }));
     const recipeLines = this.fRecipe.filter(r => r.name.trim()).map(r => ({ id: r.id, name: r.name.trim(), costPerUnit: r.costPerUnit ?? 0, quantity: r.quantity ?? 0 }));
+    const sku = this.fSku.trim() || null;
     let imageUrl = this.fImageUrl || null;
     let imagePublicId = this.fImagePublicId || null;
     // Upload only when the user actually saves - picking then cancelling an
@@ -355,14 +419,14 @@ export class AdminComponent implements OnInit {
       }
       this.uploading.set(false);
     }
-    this.service.writeItem({ id: this.editing()?.id ?? 0, name: this.fName, category: this.fCategory, price: this.fPrice ?? 0, stockQuantity: this.fStock ?? 0, lowStockThreshold: this.fLowStock ?? 5, description: this.fDesc || null, imageUrl, imagePublicId, isAvailable: this.fAvail, sizes, modifierGroups, costBasis: this.fCostBasis ?? 0, recipeLines }).subscribe({ next: () => { this.loadInv(); this.closeForm(); }, error: () => this.dialog.toast('Save failed', 'error') });
+    this.service.writeItem({ id: this.editing()?.id ?? 0, name: this.fName, category: this.fCategory, price: this.fPrice ?? 0, stockQuantity: this.fStock ?? 0, lowStockThreshold: this.fLowStock ?? 5, description: this.fDesc || null, imageUrl, imagePublicId, isAvailable: this.fAvail, sizes, modifierGroups, costBasis: this.fCostBasis ?? 0, recipeLines, sku }).subscribe({ next: () => { this.loadInv(); this.closeForm(); }, error: (e) => this.dialog.toast(e.error?.error || 'Save failed', 'error') });
   }
   remove(id: number) {
     this.dialog.confirm('Delete item', 'Delete this item?').then(ok => {
       if (ok) this.service.deleteItem(id).subscribe({ next: () => this.loadInv(), error: () => this.dialog.toast('Delete failed', 'error') });
     });
   }
-  private resetInv() { this.fName = ''; this.fCategory = ''; this.fPrice = null; this.fStock = null; this.fLowStock = 5; this.fDesc = ''; this.fAvail = true; this.fImageUrl = ''; this.fImagePublicId = ''; this.fSizes = []; this.fGroups = []; this.fCostBasis = null; this.fRecipe = []; this.clearPendingImage(); }
+  private resetInv() { this.fName = ''; this.fCategory = ''; this.fPrice = null; this.fStock = null; this.fLowStock = 5; this.fDesc = ''; this.fAvail = true; this.fImageUrl = ''; this.fImagePublicId = ''; this.fSizes = []; this.fGroups = []; this.fCostBasis = null; this.fRecipe = []; this.fSku = ''; this.clearPendingImage(); }
 
   onImageSelected(event: Event) {
     const input = event.target as HTMLInputElement;

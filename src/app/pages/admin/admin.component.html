@@ -153,6 +153,23 @@
                 <app-btn size="sm" (onClick)="addRecipeRow()">+ Ingredient</app-btn>
                 @if (recipeCost() > 0) { <span class="field-hint">Recipe cost ≈ <strong>R{{ recipeCost() }}</strong> per serving (GP at R{{ fPrice ?? 0 }}: <strong>R{{ ((fPrice ?? 0) - recipeCost()) | number:'1.2-2' }}</strong>)</span> }
               </div>
+              <div class="form-section">Barcode / SKU</div>
+              <div class="field">
+                <label>SKU (barcode)</label>
+                <input [(ngModel)]="fSku" placeholder="e.g. SKU-9F2K1A" (ngModelChange)="renderSku()" />
+                <span class="field-hint">For prepacked items (labelled cookies etc.). Leave empty for counter items.</span>
+              </div>
+              <div class="field" style="justify-content:flex-end;">
+                <app-btn size="sm" (onClick)="genSku()">Generate SKU</app-btn>
+              </div>
+              @if (fSku) {
+                <div class="field wide">
+                  <canvas #skuCanvas style="background:#fff;border-radius:6px;max-width:100%;height:auto;"></canvas>
+                  <div class="form-acts" style="margin-top:0.4rem;">
+                    <app-btn size="sm" (onClick)="printSkuLabel()">Print label</app-btn>
+                  </div>
+                </div>
+              }
               <div class="form-section">Photo</div>
               <div class="field wide">
                 <label>Photo</label>
@@ -193,7 +210,7 @@
         <div class="table-card">
           <table appSort [data]="items()" (dataChange)="items.set($event)">
             <thead>
-              <tr><th data-sort="name">Item</th><th data-sort="category">Category</th><th data-sort="price">Price</th><th data-sort="stockQuantity">Stock</th><th data-sort="isAvailable">Status</th><th class="no-sort"></th></tr>
+              <tr><th data-sort="name">Item</th><th data-sort="category">Category</th><th data-sort="sku">SKU</th><th data-sort="price">Price</th><th data-sort="stockQuantity">Stock</th><th data-sort="isAvailable">Status</th><th class="no-sort"></th></tr>
             </thead>
             <tbody>
               @for (item of filteredItems(); track item.id) {
@@ -203,6 +220,7 @@
                     <span>{{ item.name }}</span>
                   </td>
                   <td><span class="pill">{{ item.category }}</span></td>
+                  <td class="mono muted">{{ item.sku || '—' }}</td>
                   <td class="num">R{{ item.price | number:'1.2-2' }}</td>
                   <td><span class="stock" [class.low]="item.stockQuantity < (item.lowStockThreshold ?? 5)" [class.out]="item.stockQuantity < 1">{{ item.stockQuantity }}</span></td>
                   <td><span class="dot" [class.on]="item.isAvailable"></span></td>
@@ -427,7 +445,7 @@
                   <span class="ol-name">{{ line.quantity }} × {{ line.name }}{{ line.sizeName ? ' (' + line.sizeName + ')' : '' }}{{ lineMods(line) ? ' (' + lineMods(line) + ')' : '' }}</span>
                   <span class="ol-price">R{{ (line.price * line.quantity) | number:'1.2-2' }}</span>
                 </div>
-                @if (line.note) { <div class="ol-note">📝 {{ line.note }}</div> }
+                @if (line.note) { <div class="ol-note">{{ line.note }}</div> }
               }
             </div>
             <div class="order-total"><span>Total</span><strong>R{{ o.total | number:'1.2-2' }}</strong></div>
@@ -532,7 +550,7 @@
               <button class="chip" [class.on]="analyticsDays() === d" (click)="loadAnalytics(d)">{{ d }}d</button>
             }
           </div>
-          <app-btn size="sm" (onClick)="printAnalytics()">🖨 Print report</app-btn>
+          <app-btn size="sm" (onClick)="printAnalytics()">Print report</app-btn>
         </div>
 
         @if (analytics(); as a) {
@@ -691,7 +709,7 @@
           <div class="form-grid">
             <div class="field wide"><label>Kitchen display address(es)</label><input [(ngModel)]="brKitchenUrl" placeholder="http://192.168.1.50:8123, http://192.168.1.51:8123" /></div>
             <div class="field wide">
-              <app-btn size="sm" (onClick)="findKitchen()" [loading]="kitchenScanning()">🔍 Find kitchen tablet</app-btn>
+              <app-btn size="sm" (onClick)="findKitchen()" [loading]="kitchenScanning()">Find kitchen tablet</app-btn>
               @if (kitchenFound(); as f) { <p class="form-msg" style="color:var(--green)">{{ f }}</p> }
               @if (kitchenMsg()) { <p class="form-msg" [class.err]="true">{{ kitchenMsg() }}</p> }
             </div>

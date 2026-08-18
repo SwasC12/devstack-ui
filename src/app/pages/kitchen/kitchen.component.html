@@ -1,29 +1,29 @@
 <div class="kitchen">
   <div class="k-head">
-    <h1>👨‍🍳 Kitchen</h1>
+    <h1>Kitchen</h1>
     <span class="k-count" [class.k-busy]="orders().length > 0">{{ orders().length }} pending</span>
     <div class="k-stations">
       <button class="k-station" [class.on]="station() === 'all'" (click)="setStation('all')">All</button>
-      <button class="k-station" [class.on]="station() === 'kitchen'" (click)="setStation('kitchen')">🍳 Kitchen</button>
-      <button class="k-station" [class.on]="station() === 'bar'" (click)="setStation('bar')">🍸 Bar</button>
+      <button class="k-station" [class.on]="station() === 'kitchen'" (click)="setStation('kitchen')">Kitchen</button>
+      <button class="k-station" [class.on]="station() === 'bar'" (click)="setStation('bar')">Bar</button>
     </div>
-    <button class="k-lock" (click)="toggleKiosk()" (pointerdown)="startHold()" (pointerup)="cancelHold()" (pointerleave)="cancelHold()" [title]="kiosk() ? 'Hold 1s to unlock' : 'Lock to kitchen screen'">{{ kiosk() ? '🔒' : '🔓' }}</button>
+    <button class="k-lock" (click)="toggleKiosk()" (pointerdown)="startHold()" (pointerup)="cancelHold()" (pointerleave)="cancelHold()" [title]="kiosk() ? 'Hold 1s to unlock' : 'Lock to kitchen screen'">{{ kiosk() ? 'Unlock' : 'Lock' }}</button>
     <span class="k-updated">{{ firstLoad() ? 'Syncing…' : (lastRefresh() ? 'Updated ' + (lastRefresh() | date:'HH:mm:ss') : '…') }}</span>
-    @if (offline()) { <span class="k-offline">⚠ offline — retrying</span> }
-    @if (pendingDone() > 0) { <span class="k-pending-done" title="Tapped Done while offline — will sync when back online">⏳ {{ pendingDone() }} done queued</span> }
+    @if (offline()) { <span class="k-offline">Offline — retrying</span> }
+    @if (pendingDone() > 0) { <span class="k-pending-done" title="Tapped Done while offline — will sync when back online">{{ pendingDone() }} done queued</span> }
   </div>
 
   @if (pendingSync().length > 0) {
     <div class="k-pending">
       @for (p of pendingSync(); track p.id) {
-        <div class="k-pending-card">⏳ <strong>Offline order</strong> — {{ p.summary }} <em>pending sync</em></div>
+        <div class="k-pending-card"><strong>Offline order</strong> — {{ p.summary }} <em>pending sync</em></div>
       }
     </div>
   }
 
   @if (held().length > 0) {
     <div class="k-held">
-      <div class="k-held-title">⏸ Held ({{ held().length }})</div>
+      <div class="k-held-title">Held ({{ held().length }})</div>
       <div class="k-held-grid">
         @for (o of held(); track o.id) {
           <div class="k-card k-held-card">
@@ -39,7 +39,7 @@
                 </div>
               }
             </div>
-            <button class="k-done" (click)="send(o)">▶ Send to queue</button>
+            <button class="k-done" (click)="send(o)">Send to queue</button>
           </div>
         }
       </div>
@@ -48,7 +48,6 @@
 
   @if (orders().length === 0) {
     <div class="k-empty">
-      <div class="k-empty-ic">☕</div>
       <p>No orders in the queue — all caught up.</p>
     </div>
   }
@@ -62,9 +61,9 @@
           <span class="k-age" [class.crit]="ageClass(o, tick()) === 'crit'">{{ ageLabel(o) }}</span>
         </div>
         @if (o.dineMode === 'dinein' || o.tableNumber) {
-          <div class="k-table">🍽️ Table {{ o.tableNumber || '—' }}</div>
+          <div class="k-table">Table {{ o.tableNumber || '—' }}</div>
         }
-        @if (o.customerName) { <div class="k-cust">👤 {{ o.customerName }}</div> }
+        @if (o.customerName) { <div class="k-cust">{{ o.customerName }}</div> }
         <div class="k-items">
           @for (i of o.items; track $index) {
             <div class="k-item">
@@ -75,10 +74,10 @@
             </div>
           }
         </div>
-        @if (o.notes) { <div class="k-order-note">📝 {{ o.notes }}</div> }
+        @if (o.notes) { <div class="k-order-note">{{ o.notes }}</div> }
         <div class="k-acts">
-          <button class="k-hold" (click)="hold(o)">⏸ Hold</button>
-          <button class="k-done" (click)="complete(o)">✓ Done</button>
+          <button class="k-hold" (click)="hold(o)">Hold</button>
+          <button class="k-done" (click)="complete(o)">Done</button>
         </div>
       </div>
     }

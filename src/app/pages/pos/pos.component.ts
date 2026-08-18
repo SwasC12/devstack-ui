@@ -140,7 +140,7 @@ export class PosComponent implements OnInit {
   readonly filtered = () => {
     const q = this.query().trim().toLowerCase();
     return q
-      ? this.items.filter(i => i.name.toLowerCase().includes(q))
+      ? this.items.filter(i => i.name.toLowerCase().includes(q) || (i.sku ?? '').toLowerCase().includes(q))
       : this.items.filter(i => i.category === this.activeCat);
   };
   readonly total = () => this.cart().reduce((s, i) => s + i.price * i.quantity, 0);
@@ -359,6 +359,35 @@ export class PosComponent implements OnInit {
       return;
     }
     this.addLine(item.id, item.name, item.price, undefined, undefined, undefined, undefined);
+  }
+
+  // Barcode scanner: finds the item by SKU and adds it to the cart. Uses the
+  // camera (native plugin); on web it reports unavailable.
+  readonly scanning = signal(false);
+  scanBarcode() {
+    void import('@capacitor/barcode-scanner').then(async ({ CapacitorBarcodeScanner, CapacitorBarcodeScannerTypeHint }) => {
+      try {
+        this.scanning.set(true);
+        const res = await CapacitorBarcodeScanner.scanBarcode({
+          hint: CapacitorBarcodeScannerTypeHint.ALL,
+          scanInstructions: 'Point the camera at a barcode',
+          scanButton: true,
+          scanText: 'Tap to scan',
+          cameraDirection: 1,
+          scanOrientation: 1,
+        });
+        this.scanning.set(false);
+        const sku = (res.ScanResult ?? '').trim();
+        if (!sku) { this.dialog.toast('No barcode detected', 'info'); return; }
+        const item = this.items.find(i => (i as any).sku && (i as any).sku.toLowerCase() === sku.toLowerCase());
+        if (!item) { this.dialog.toast(`No item with barcode ${sku}`, 'error'); return; }
+        this.addToCart(item);
+        this.dialog.toast(`${item.name} added`, 'success');
+      } catch {
+        this.scanning.set(false);
+        this.dialog.toast('Scan cancelled', 'info');
+      }
+    }).catch(() => this.dialog.toast('Barcode scanner needs the app (not web)', 'error'));
   }
 
   cfgPickSize(cfg: { item: MenuItem; sizeId: number | null }, sizeId: number) {

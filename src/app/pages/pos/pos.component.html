@@ -31,7 +31,7 @@
         <div class="clockin-card">
           @if (updateInfo(); as u) {
             <div class="update-banner" [class.required]="u.isRequired" [class.ready]="updateState() === 'ready'">
-              <strong>📦 CoffeeShop Pro {{ u.version }} available</strong>
+              <strong>CoffeeShop Pro {{ u.version }} available</strong>
               @if (u.releaseNotes) { <span class="upd-notes">{{ u.releaseNotes }}</span> }
               @if (u.isRequired) { <span class="upd-req">This update is required — install it to keep using the app.</span> }
               @if (updateState() === 'downloading') {
@@ -79,7 +79,7 @@
       @if (updateInfo(); as u) {
         <div class="upd-till" [class.required]="u.isRequired" [class.ready]="updateState() === 'ready'">
           <div class="upd-till-text">
-            <strong>📦 CoffeeShop Pro {{ u.version }} available</strong>
+            <strong>CoffeeShop Pro {{ u.version }} available</strong>
             @if (u.releaseNotes) { <span class="upd-till-notes">{{ u.releaseNotes }}</span> }
             @if (u.isRequired) { <span class="upd-till-req">Required — install to keep using the app.</span> }
           </div>
@@ -119,6 +119,7 @@
           <input [(ngModel)]="search" (ngModelChange)="onSearch()" placeholder="Search drinks…" />
         </div>
         <div class="pos-bar-right">
+          <app-btn size="sm" (onClick)="scanBarcode()" [loading]="scanning()" title="Scan a barcode to add the item">Scan</app-btn>
           @if (appVersion()) { <span class="app-ver">{{ appVersion() }}</span> }
           <button class="pos-reprint upd-btn" [class.has-update]="!!updateInfo()" (click)="forceCheckForUpdate()" title="Check for updates">📦</button>
           <button class="pos-reprint" (click)="reprintLast()" [disabled]="!lastReceipt()" title="Reprint last receipt">🖨</button>
@@ -212,7 +213,7 @@
                   <span class="cart-name">{{ ci.name }}</span>
                   @if (ci.sizeName) { <span class="cart-size">{{ ci.sizeName }}</span> }
                   @if (ci.modifiers?.length) { <span class="cart-mod">{{ modSummary(ci) }}</span> }
-                  @if (ci.note) { <span class="cart-note">📝 {{ ci.note }}</span> }
+                  @if (ci.note) { <span class="cart-note">{{ ci.note }}</span> }
                   <span class="cart-unit">R{{ ci.price | number:'1.2-2' }} ea</span>
                 </div>
                 <div class="cart-qty">
@@ -252,8 +253,8 @@
             <app-receipt [order]="o" [shop]="shopInfo()" [cashierName]="auth.getUser()?.displayName ?? ''" />
           </div>
           <div class="receipt-acts">
-            <app-btn size="lg" [block]="true" (onClick)="printReceipt()">🖨 Print</app-btn>
-            <app-btn size="lg" [block]="true" (onClick)="printTicket()">👨‍🍳 Ticket</app-btn>
+            <app-btn size="lg" [block]="true" (onClick)="printReceipt()">Print</app-btn>
+            <app-btn size="lg" [block]="true" (onClick)="printTicket()">Kitchen ticket</app-btn>
             <app-btn variant="primary" size="lg" [block]="true" class="receipt-new" (onClick)="closeReceipt()">New order</app-btn>
           </div>
         </div>
@@ -370,8 +371,8 @@
 
           <!-- Dine-in / takeaway -->
           <div class="pay-methods">
-            <button class="pay-method" [class.on]="dineMode() === 'takeaway'" (click)="dineMode.set('takeaway')">🛍️ Takeaway</button>
-            <button class="pay-method" [class.on]="dineMode() === 'dinein'" (click)="dineMode.set('dinein')">🍽️ Dine-in</button>
+            <button class="pay-method" [class.on]="dineMode() === 'takeaway'" (click)="dineMode.set('takeaway')">Takeaway</button>
+            <button class="pay-method" [class.on]="dineMode() === 'dinein'" (click)="dineMode.set('dinein')">Dine-in</button>
           </div>
           @if (dineMode() === 'dinein') {
             <div class="pay-table">
@@ -382,8 +383,8 @@
 
           <!-- House account -->
           <div class="pay-methods">
-            <button class="pay-method" [class.on]="accountMode()" (click)="accountMode.set(!accountMode())">🏦 House account</button>
-            <button class="pay-method" [class.on]="splitMode()" (click)="splitMode.set(!splitMode())">➗ Split payment</button>
+            <button class="pay-method" [class.on]="accountMode()" (click)="accountMode.set(!accountMode())">House account</button>
+            <button class="pay-method" [class.on]="splitMode()" (click)="splitMode.set(!splitMode())">Split payment</button>
           </div>
 
           @if (accountMode()) {
@@ -427,8 +428,8 @@
 
           <!-- Method toggle -->
           <div class="pay-methods">
-            <button class="pay-method" [class.on]="payMethod() === 'cash'" (click)="payMethod.set('cash')">💵 Cash</button>
-            <button class="pay-method" [class.on]="payMethod() === 'card'" (click)="payMethod.set('card')">💳 Card</button>
+            <button class="pay-method" [class.on]="payMethod() === 'cash'" (click)="payMethod.set('cash')">Cash</button>
+            <button class="pay-method" [class.on]="payMethod() === 'card'" (click)="payMethod.set('card')">Card</button>
           </div>
 
           @if (payMethod() === 'cash' && !accountMode() && !splitMode()) {
