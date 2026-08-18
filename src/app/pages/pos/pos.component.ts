@@ -361,17 +361,17 @@ export class PosComponent implements OnInit {
     this.addLine(item.id, item.name, item.price, undefined, undefined, undefined, undefined);
   }
 
-  // Barcode scanner: finds the item by SKU and adds it to the cart. Hint is
-  // restricted to CODE_128 (our SKUs) - scanning ALL formats makes ZXING's
-  // decode loop crawl (observed ~2 min). Continuous scanning (scanButton off)
-  // decodes the moment a barcode is in frame.
+  // Barcode scanner: finds the item by SKU and adds it to the cart. Continuous
+  // scanning (scanButton off) with the full format set - restricting the hint
+  // to CODE_128 broke the scanner activity on this plugin, so ALL + ZXING it
+  // is. Real errors are surfaced instead of a generic "cancelled" toast.
   readonly scanning = signal(false);
   scanBarcode() {
     void import('@capacitor/barcode-scanner').then(async ({ CapacitorBarcodeScanner, CapacitorBarcodeScannerTypeHint, CapacitorBarcodeScannerAndroidScanningLibrary }) => {
       try {
         this.scanning.set(true);
         const res = await CapacitorBarcodeScanner.scanBarcode({
-          hint: CapacitorBarcodeScannerTypeHint.CODE_128,
+          hint: CapacitorBarcodeScannerTypeHint.ALL,
           scanInstructions: 'Point the camera at the label barcode',
           scanButton: false,
           cameraDirection: 1,
@@ -384,9 +384,11 @@ export class PosComponent implements OnInit {
         if (!item) { this.dialog.toast(`No item with barcode ${sku}`, 'error'); return; }
         this.addToCart(item);
         this.dialog.toast(`${item.name} added`, 'success');
-      } catch {
+      } catch (e: any) {
         this.scanning.set(false);
-        this.dialog.toast('Scan cancelled', 'info');
+        const msg = e?.message ?? '';
+        if (/cancel/i.test(msg)) this.dialog.toast('Scan cancelled', 'info');
+        else this.dialog.toast(`Scanner error: ${msg || 'could not start the camera'}`, 'error');
       }
     }).catch(() => this.dialog.toast('Barcode scanner needs the app (not web)', 'error'));
   }
