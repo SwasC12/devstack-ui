@@ -97,10 +97,17 @@ public class FastBarcodeActivity extends AppCompatActivity {
         setContentView(root);
 
         analysisExecutor = Executors.newSingleThreadExecutor();
-        BarcodeScannerOptions options = new BarcodeScannerOptions.Builder()
-            .setBarcodeFormats(FORMATS[0], FORMATS[1], FORMATS[2], FORMATS[3], FORMATS[4], FORMATS[5])
-            .build();
-        mlScanner = BarcodeScanning.getClient(options);
+        try {
+            BarcodeScannerOptions options = new BarcodeScannerOptions.Builder()
+                .setBarcodeFormats(FORMATS[0], FORMATS[1], FORMATS[2], FORMATS[3], FORMATS[4], FORMATS[5])
+                .build();
+            mlScanner = BarcodeScanning.getClient(options);
+        } catch (Throwable t) {
+            // Scanner init failed (e.g. no ML Kit model) - never crash the app.
+            Toast.makeText(this, "Scanner unavailable: " + t.getMessage(), Toast.LENGTH_LONG).show();
+            finish();
+            return;
+        }
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
                 == PackageManager.PERMISSION_GRANTED) {
@@ -162,8 +169,8 @@ public class FastBarcodeActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         finished = true;
-        analysisExecutor.shutdown();
-        mlScanner.close();
+        if (analysisExecutor != null) analysisExecutor.shutdown();
+        if (mlScanner != null) mlScanner.close();
     }
 
     // Simple scan-frame overlay (horizontal line + corners drawn over the preview).

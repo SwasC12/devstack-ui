@@ -26,6 +26,13 @@
 
         </activity>
 
+        <!-- Native barcode scanner screen (launched internally only) -->
+        <activity
+            android:name=".FastBarcodeActivity"
+            android:exported="false"
+            android:screenOrientation="landscape"
+            android:theme="@style/AppTheme.NoActionBarLaunch" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
