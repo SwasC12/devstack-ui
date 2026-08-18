@@ -569,6 +569,20 @@
           <app-btn size="sm" (onClick)="printAnalytics()">Print report</app-btn>
         </div>
 
+        <!-- Analytics report preview: instant in-app preview, then print or export -->
+        @if (reportOpen()) {
+          <div class="print-scrim" (click)="reportOpen.set(false)">
+            <div class="print-panel report-panel" (click)="$event.stopPropagation()">
+              <div class="report-body" [innerHTML]="reportHtml()"></div>
+              <div class="form-acts" style="margin-top:1rem">
+                <app-btn size="sm" (onClick)="reportOpen.set(false)">Close</app-btn>
+                <app-btn size="sm" (onClick)="printReport()">Print</app-btn>
+                <app-btn variant="primary" size="sm" (onClick)="exportReportPdf()">Export PDF</app-btn>
+              </div>
+            </div>
+          </div>
+        }
+
         @if (analytics(); as a) {
           <div class="metrics">
             <div class="metric"><div class="m-val">R{{ a.totals.revenue | number:'1.2-2' }}</div><div class="m-lbl">Revenue</div></div>

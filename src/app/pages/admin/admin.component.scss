@@ -200,3 +200,7 @@
   .section-head { flex-wrap: wrap; gap: 0.5rem; }
 }
 .cu-none { color: var(--muted); }
+    /* Analytics report preview modal */
+    .report-panel { width: min(720px, 100%); max-height: calc(100dvh - 4rem); overflow-y: auto; align-items: stretch; padding: 1.5rem 2rem; }
+    .report-body { color: #1a1a1a; background: #fff; border-radius: 0.75em; padding: 1.25rem; }
+    .report-body table { table-layout: auto; }

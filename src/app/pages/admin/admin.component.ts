@@ -224,24 +224,73 @@ export class AdminComponent implements OnInit {
   readonly analytics = signal<any | null>(null);
   readonly analyticsDays = signal(14);
 
-  // Print a PDF report from the data ALREADY on the page (zero server load):
-  // jsPDF draws the metric cards, a colourful bar chart and the tables, then
-  // opens it with the print dialog.
+  // Analytics report preview: an in-app modal (instant preview, no blank
+  // windows) with Print (native Android print path) and Export PDF (jsPDF
+  // download).
+  readonly reportOpen = signal(false);
+  readonly reportHtml = signal('');
+
+  private reportData(): any | null { return this.analytics(); }
+
   printAnalytics() {
     const a = this.analytics();
     if (!a) { this.dialog.toast('Load analytics first', 'info'); return; }
+    const shop = this.shopInfo?.name ?? 'CoffeeShop Pro';
+    const max = Math.max(...a.daily.map((d: any) => Number(d.revenue)), 1);
+    const bars = (a.daily ?? []).map((d: any) =>
+      `<div style="display:grid;grid-template-columns:80px 1fr 66px;align-items:center;gap:.5rem;margin:.3rem 0">
+        <span style="font-size:.72rem;color:#777;text-align:right">${d.date}</span>
+        <div style="background:#f0ede9;border-radius:6px;overflow:hidden;height:22px">
+          <div style="background:linear-gradient(90deg,#c88738,#e0a75c);width:${Math.max(2, (Number(d.revenue) / max) * 100)}%;height:22px;border-radius:6px;color:#fff;font-size:.65rem;font-weight:700;display:flex;align-items:center;padding-left:.4rem;white-space:nowrap">R${Number(d.revenue).toFixed(2)}</div>
+        </div>
+        <span style="font-size:.72rem;color:#777">${d.orders} ord</span>
+      </div>`).join('');
+    const catRows = (a.categories ?? []).map((c: any) =>
+      `<tr><td>${c.name}</td><td>${c.quantity}</td><td>R${Number(c.revenue).toFixed(2)}</td><td style="color:#15803d;font-weight:700">R${Number(c.grossProfit).toFixed(2)}</td></tr>`).join('');
+    const cashRows = (a.cashiers ?? []).map((c: any) =>
+      `<tr><td>${c.name}</td><td>${c.orders}</td><td>R${Number(c.revenue).toFixed(2)}</td></tr>`).join('');
+    const metric = (v: string, l: string) =>
+      `<div style="flex:1;min-width:130px;border:1px solid #ddd;border-radius:10px;padding:.7rem;text-align:center"><div style="font-size:1.25rem;font-weight:800;color:#b45309">${v}</div><div style="font-size:.68rem;color:#777;text-transform:uppercase">${l}</div></div>`;
+    const table = (title: string, head: string, rows: string) =>
+      `<h2 style="font-size:1rem;margin:1.2rem 0 .5rem;border-bottom:2px solid #eee;padding-bottom:.3rem">${title}</h2>
+       <table style="width:100%;border-collapse:collapse;font-size:.82rem"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table>`;
+    const head = (h: string) => `<th style="text-align:left;background:#f7f5f2;padding:.4rem .5rem;border-bottom:1px solid #ddd;font-size:.68rem;text-transform:uppercase;color:#666">${h}</th>`;
+    this.reportHtml.set(`
+      <h1 style="font-size:1.35rem;margin:0 0 .2rem">${shop} - Analytics</h1>
+      <div style="color:#777;margin-bottom:1rem;font-size:.85rem">Last ${a.days} days · ${new Date().toLocaleString()}${this.auth.getUser()?.displayName ? ' · ' + this.auth.getUser()!.displayName : ''}</div>
+      <div style="display:flex;gap:.75rem;flex-wrap:wrap">
+        ${metric('R' + Number(a.totals.revenue).toFixed(2), 'Revenue')}
+        ${metric('R' + Number(a.totals.grossProfit).toFixed(2), 'Gross profit')}
+        ${metric(String(a.totals.orders), 'Orders')}
+        ${metric(String(a.totals.items), 'Items sold')}
+      </div>
+      ${bars ? `<h2 style="font-size:1rem;margin:1.2rem 0 .5rem;border-bottom:2px solid #eee;padding-bottom:.3rem">Daily revenue</h2>${bars}` : ''}
+      ${table('By category', head('Category') + head('Qty') + head('Revenue') + head('Gross profit'), catRows)}
+      ${table('By cashier', head('Cashier') + head('Orders') + head('Revenue'), cashRows)}`);
+    this.reportOpen.set(true);
+  }
+
+  // Print the report through the native Android print framework (same path as
+  // receipts); on web it falls back to the system print dialog.
+  printReport() {
+    void this.printer.printReceiptHtml(this.reportHtml()).then(ok => {
+      if (!ok) window.print();
+    });
+  }
+
+  // Export the report as a PDF download (jsPDF, drawn client-side).
+  exportReportPdf() {
+    const a = this.analytics();
+    if (!a) return;
     void import('jspdf').then(({ jsPDF }) => {
       const doc = new jsPDF({ unit: 'mm', format: 'a4' });
       const W = 210;
       const shop = this.shopInfo?.name ?? 'CoffeeShop Pro';
       let y = 16;
-
       doc.setFontSize(16); doc.setTextColor(40, 40, 40);
       doc.text(`${shop} - Analytics`, 14, y); y += 6;
       doc.setFontSize(9); doc.setTextColor(130, 130, 130);
-      doc.text(`Last ${a.days} days · Generated ${new Date().toLocaleString()}${this.auth.getUser()?.displayName ? ' · ' + this.auth.getUser()!.displayName : ''}`, 14, y); y += 9;
-
-      // Metric cards
+      doc.text(`Last ${a.days} days · Generated ${new Date().toLocaleString()}`, 14, y); y += 9;
       const metrics = [
         [`R${Number(a.totals.revenue).toFixed(2)}`, 'Revenue'],
         [`R${Number(a.totals.grossProfit).toFixed(2)}`, 'Gross profit'],
@@ -257,8 +306,6 @@ export class AdminComponent implements OnInit {
         doc.setFontSize(6.5); doc.setTextColor(120, 120, 120); doc.text(m[1].toUpperCase(), x + 4, y + 13);
       });
       y += 26;
-
-      // Daily revenue bar chart (colourful, drawn with rects)
       doc.setFontSize(12); doc.setTextColor(40, 40, 40);
       doc.text('Daily revenue', 14, y); y += 3;
       const max = Math.max(...a.daily.map((d: any) => Number(d.revenue)), 1);
@@ -272,8 +319,6 @@ export class AdminComponent implements OnInit {
         y += 6.4;
       });
       y += 7;
-
-      // Tables: category + cashier
       const drawTable = (title: string, headers: string[], rows: (string | number)[][]) => {
         if (y > 245) { doc.addPage(); y = 16; }
         doc.setFontSize(12); doc.setTextColor(40, 40, 40);
@@ -294,15 +339,12 @@ export class AdminComponent implements OnInit {
         });
         y += 6;
       };
-
       drawTable('By category', ['Category', 'Qty', 'Revenue', 'Gross profit'],
         (a.categories ?? []).map((c: any) => [c.name, c.quantity, `R${Number(c.revenue).toFixed(2)}`, `R${Number(c.grossProfit).toFixed(2)}`]));
       drawTable('By cashier', ['Cashier', 'Orders', 'Revenue'],
         (a.cashiers ?? []).map((c: any) => [c.name, c.orders, `R${Number(c.revenue).toFixed(2)}`]));
-
-      // Deliver the PDF as a download - window.open(blob) leaves a stuck blank
-      // screen on tablets, same as the label print bug.
       doc.save(`analytics-${new Date().toISOString().slice(0, 10)}.pdf`);
+      this.dialog.toast('PDF exported', 'success');
     }).catch(() => this.dialog.toast('Could not build the PDF', 'error'));
   }
 
