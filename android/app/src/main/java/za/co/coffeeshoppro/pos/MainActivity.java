@@ -17,6 +17,7 @@ public class MainActivity extends BridgeActivity {
         // is silently dropped and Capacitor.Plugins never sees the plugin.
         registerPlugin(InstallApkPlugin.class);
         registerPlugin(KitchenServerPlugin.class);
+        registerPlugin(FastBarcodeScannerPlugin.class);
         super.onCreate(savedInstanceState);
         // Fullscreen kiosk-style: hide the Android status bar (clock/battery)
         // and navigation bar. Swiping from an edge reveals them briefly, then

@@ -362,34 +362,62 @@ export class PosComponent implements OnInit {
   }
 
   // Barcode scanner: finds the item by SKU and adds it to the cart.
-  // Primary: html5-qrcode (JS ZXing) - decodes CODE_128 in well under a
-  // second in the WebView (the native plugin's decode loop was taking a
-  // minute). Fallback: the native plugin when camera access is unavailable.
+  // 1) FastBarcodeScanner - our OWN native CameraX + ML Kit screen (instant,
+  //    bundled model, no webview involved). 2) html5-qrcode JS engine as a
+  //    fallback. 3) the old third-party plugin last.
   readonly scanning = signal(false);
   readonly scanOpen = signal(false);
   private htmlScanner: any = null;
 
   scanBarcode() {
     if (this.scanOpen()) return;
-    void import('html5-qrcode').then(async ({ Html5Qrcode, Html5QrcodeSupportedFormats }) => {
-      try {
-        const scanner = new Html5Qrcode('pos-scanner-region', { formatsToSupport: [Html5QrcodeSupportedFormats.CODE_128], useBarCodeDetectorIfSupported: true, verbose: false });
-        this.htmlScanner = scanner;
-        this.scanOpen.set(true);
-        this.scanning.set(true);
-        await scanner.start(
-          { facingMode: 'environment' },
-          { fps: 10, qrbox: { width: 260, height: 140 } },
-          (text: string) => void this.onScanResult(text),
-          () => { /* keep scanning while no code is in frame */ },
-        );
-      } catch {
-        // Camera unavailable in the WebView - fall back to the native plugin.
-        this.scanOpen.set(false);
+    // Native path first (works on the app).
+    const fast = (Capacitor as any).Plugins?.FastBarcodeScanner;
+    if (Capacitor.isNativePlatform() && fast) {
+      this.scanning.set(true);
+      fast.scan().then((res: any) => {
         this.scanning.set(false);
-        void this.scanNative();
-      }
-    }).catch(() => void this.scanNative());
+        this.handleScanValue(res?.ScanResult ?? '');
+      }).catch(() => {
+        this.scanning.set(false);
+        // User cancelled or camera failed - fall back to the JS engine.
+        void this.scanJs();
+      });
+      return;
+    }
+    void this.scanJs();
+  }
+
+  private handleScanValue(text: string) {
+    const sku = (text ?? '').trim();
+    if (!sku) { this.dialog.toast('No barcode detected', 'info'); return; }
+    const item = this.items.find(i => (i as any).sku && (i as any).sku.toLowerCase() === sku.toLowerCase());
+    if (!item) { this.dialog.toast(`No item with barcode ${sku}`, 'error'); return; }
+    this.addToCart(item);
+    this.dialog.toast(`${item.name} added`, 'success');
+  }
+
+  // JS engine fallback (html5-qrcode, works in the WebView when camera access
+  // is granted; also the web path).
+  private async scanJs() {
+    try {
+      const { Html5Qrcode, Html5QrcodeSupportedFormats } = await import('html5-qrcode');
+      const scanner = new Html5Qrcode('pos-scanner-region', { formatsToSupport: [Html5QrcodeSupportedFormats.CODE_128], useBarCodeDetectorIfSupported: true, verbose: false });
+      this.htmlScanner = scanner;
+      this.scanOpen.set(true);
+      this.scanning.set(true);
+      await scanner.start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: { width: 260, height: 140 } },
+        (text: string) => void this.onScanResult(text),
+        () => { /* keep scanning while no code is in frame */ },
+      );
+    } catch {
+      this.scanOpen.set(false);
+      this.scanning.set(false);
+      // Last resort: the old third-party native plugin.
+      void this.scanNative();
+    }
   }
 
   private async onScanResult(text: string) {
@@ -397,12 +425,7 @@ export class PosComponent implements OnInit {
     this.htmlScanner = null;
     this.scanOpen.set(false);
     this.scanning.set(false);
-    const sku = (text ?? '').trim();
-    if (!sku) { this.dialog.toast('No barcode detected', 'info'); return; }
-    const item = this.items.find(i => (i as any).sku && (i as any).sku.toLowerCase() === sku.toLowerCase());
-    if (!item) { this.dialog.toast(`No item with barcode ${sku}`, 'error'); return; }
-    this.addToCart(item);
-    this.dialog.toast(`${item.name} added`, 'success');
+    this.handleScanValue(text);
   }
 
   cancelScan() {
