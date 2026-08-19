@@ -1,4 +1,5 @@
 import { Component, effect, inject, signal, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
+import { DEFAULT_PRODUCT_IMAGE } from '../../default-product-image';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -174,6 +175,9 @@ export class PosComponent implements OnInit, OnDestroy {
   // stored up to 1920px. Inject a width/quality/format transform so each card
   // pulls a ~300px WebP instead of the full-res original - a big cut in image
   // traffic and decode time on the tablet.
+  // Default product image (bundled data URI) shown when an item has none.
+  readonly defaultProductImg = DEFAULT_PRODUCT_IMAGE;
+
   private thumbCache = new Map<string, string>();
   thumb(url: string | null | undefined): string {
     if (!url) return '';

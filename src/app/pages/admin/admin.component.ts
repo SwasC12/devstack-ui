@@ -1,6 +1,7 @@
 import { Component, inject, signal, computed, effect, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { MenuItemService } from '../../menu-item.service';
 import { MenuItem } from '../../menu-item.model';
 import { Category } from '../../category.model';
@@ -16,6 +17,7 @@ import { ThemeService } from '../../theme.service';
 import { SortableDirective } from '../../sortable.directive';
 import { environment } from '../../../environments/environment';
 import { Capacitor } from '@capacitor/core';
+import { DEFAULT_PRODUCT_IMAGE } from '../../default-product-image';
 
 @Component({
   selector: 'app-admin',
@@ -234,260 +236,191 @@ export class AdminComponent implements OnInit {
   readonly ordersBusy = signal(false);
   @ViewChild('adminReceiptBox') receiptBox!: ElementRef<HTMLElement>;
   private printer = inject(PrintService);
+  readonly defaultProductImg = DEFAULT_PRODUCT_IMAGE;
   shopInfo: any = null;
 
   // Analytics
   readonly analytics = signal<any | null>(null);
   readonly analyticsDays = signal(14);
 
-  // Analytics report: an in-app PDF VIEWER (pdf.js) - real pages, prev/next,
-  // native print, and a guaranteed save to Documents (never a silent download).
-  readonly pdfOpen = signal(false);
-  readonly pdfData = signal('');
-  readonly pdfPage = signal(1);
-  readonly pdfPages = signal(1);
-  readonly pdfBusy = signal(false);
+  // Analytics report: a styled HTML document shown in an iframe preview and
+  // printed through the PrintService. On native Android the print dialog offers
+  // "Save as PDF"; on web the browser's print dialog does too - so no PDF
+  // library (jsPDF) or in-app PDF renderer (pdf.js) is needed. This replaced a
+  // pdf.js->canvas viewer whose preview raced the ViewChild and often rendered
+  // blank.
+  private sanitizer = inject(DomSanitizer);
+  readonly reportOpen = signal(false);
+  readonly reportBusy = signal(false);
   readonly reportHtml = signal('');
-  private pdfDocument: any = null;
-  @ViewChild('pdfCanvas') pdfCanvasRef!: ElementRef<HTMLCanvasElement>;
+  readonly reportSafe = signal<SafeHtml>('');
 
-  private reportData(): any | null { return this.analytics(); }
+  private escHtml(v: any): string {
+    return String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
+  }
+  private money(v: any): string { return 'R' + Number(v ?? 0).toFixed(2); }
 
-  printAnalytics() {
+  // Open the analytics report preview: build the HTML document and show it in
+  // the iframe. Print / Save-as-PDF happen from inside the modal.
+  async openReport() {
     const a = this.analytics();
     if (!a) { this.dialog.toast('Load analytics first', 'info'); return; }
-    const shop = this.shopInfo?.name ?? 'CoffeeShop Pro';
-    const max = Math.max(...a.daily.map((d: any) => Number(d.revenue)), 1);
-    const bars = (a.daily ?? []).map((d: any) =>
-      `<div style="display:grid;grid-template-columns:80px 1fr 66px;align-items:center;gap:.5rem;margin:.3rem 0">
-        <span style="font-size:.72rem;color:#777;text-align:right">${d.date}</span>
-        <div style="background:#f0ede9;border-radius:6px;overflow:hidden;height:22px">
-          <div style="background:linear-gradient(90deg,#c88738,#e0a75c);width:${Math.max(2, (Number(d.revenue) / max) * 100)}%;height:22px;border-radius:6px;color:#fff;font-size:.65rem;font-weight:700;display:flex;align-items:center;padding-left:.4rem;white-space:nowrap">R${Number(d.revenue).toFixed(2)}</div>
-        </div>
-        <span style="font-size:.72rem;color:#777">${d.orders} ord</span>
-      </div>`).join('');
-    const catRows = (a.categories ?? []).map((c: any) =>
-      `<tr><td>${c.name}</td><td>${c.quantity}</td><td>R${Number(c.revenue).toFixed(2)}</td><td style="color:#15803d;font-weight:700">R${Number(c.grossProfit).toFixed(2)}</td></tr>`).join('');
-    const cashRows = (a.cashiers ?? []).map((c: any) =>
-      `<tr><td>${c.name}</td><td>${c.orders}</td><td>R${Number(c.revenue).toFixed(2)}</td></tr>`).join('');
-    const metric = (v: string, l: string) =>
-      `<div style="flex:1;min-width:130px;border:1px solid #ddd;border-radius:10px;padding:.7rem;text-align:center"><div style="font-size:1.25rem;font-weight:800;color:#b45309">${v}</div><div style="font-size:.68rem;color:#777;text-transform:uppercase">${l}</div></div>`;
-    const table = (title: string, head: string, rows: string) =>
-      `<h2 style="font-size:1rem;margin:1.2rem 0 .5rem;border-bottom:2px solid #eee;padding-bottom:.3rem">${title}</h2>
-       <table style="width:100%;border-collapse:collapse;font-size:.82rem"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table>`;
-    const head = (h: string) => `<th style="text-align:left;background:#f7f5f2;padding:.4rem .5rem;border-bottom:1px solid #ddd;font-size:.68rem;text-transform:uppercase;color:#666">${h}</th>`;
-    this.reportHtml.set(`
-      <h1 style="font-size:1.35rem;margin:0 0 .2rem">${shop} - Analytics</h1>
-      <div style="color:#777;margin-bottom:1rem;font-size:.85rem">Last ${a.days} days · ${new Date().toLocaleString()}${this.auth.getUser()?.displayName ? ' · ' + this.auth.getUser()!.displayName : ''}</div>
-      <div style="display:flex;gap:.75rem;flex-wrap:wrap">
-        ${metric('R' + Number(a.totals.revenue).toFixed(2), 'Revenue')}
-        ${metric('R' + Number(a.totals.grossProfit).toFixed(2), 'Gross profit')}
-        ${metric(String(a.totals.orders), 'Orders')}
-        ${metric(String(a.totals.items), 'Items sold')}
-      </div>
-      ${bars ? `<h2 style="font-size:1rem;margin:1.2rem 0 .5rem;border-bottom:2px solid #eee;padding-bottom:.3rem">Daily revenue</h2>${bars}` : ''}
-      ${table('By category', head('Category') + head('Qty') + head('Revenue') + head('Gross profit'), catRows)}
-      ${table('By cashier', head('Cashier') + head('Orders') + head('Revenue'), cashRows)}`);
-    void this.openReportPdf();
+    this.reportBusy.set(true);
+    try {
+      const html = await this.buildReportHtml(a);
+      this.reportHtml.set(html);
+      this.reportSafe.set(this.sanitizer.bypassSecurityTrustHtml(html));
+      this.reportOpen.set(true);
+    } catch {
+      this.dialog.toast('Could not build the report', 'error');
+    } finally {
+      this.reportBusy.set(false);
+    }
   }
 
-  // Print the report through the native Android print framework (same path as
-  // receipts); on web it falls back to the system print dialog.
+  closeReport() { this.reportOpen.set(false); }
+
+  // Print the report through the PrintService (native Android print framework /
+  // the web iframe fallback); both dialogs offer "Save as PDF".
   printReport() {
-    void this.printer.printReceiptHtml(this.reportHtml()).then(ok => {
-      if (!ok) window.print();
+    void this.printer.printHtml(this.reportHtml(), 'Analytics report').then(ok => {
+      if (!ok) this.dialog.toast('Could not open the print dialog', 'error');
     });
   }
 
-  // Build the 2-page monthly PDF: page 1 plain text, page 2 colourful graphs.
-  // Data comes from small on-demand reads (timesheet, expenses, items).
-  private async buildReportDoc(): Promise<any> {
-    const a = this.analytics();
+  // Build the full, self-contained analytics report as a styled HTML document.
+  // Same string is used for both the on-screen preview and the printout, so
+  // what you see is exactly what prints. Extra data (timesheet, expenses,
+  // inventory) is pulled on demand; a failed read degrades to an empty section.
+  private async buildReportHtml(a: any): Promise<string> {
     const now = new Date();
     const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     const from = fmt(new Date(now.getFullYear(), now.getMonth(), 1));
     const to = fmt(now);
-    const [ts, ex] = await Promise.all([
-      firstValueFrom(this.service.getTimesheet(from, to)),
-      firstValueFrom(this.service.getExpenses(from, to)),
+    const [ts, ex, items] = await Promise.all([
+      firstValueFrom(this.service.getTimesheet(from, to)).catch(() => null),
+      firstValueFrom(this.service.getExpenses(from, to)).catch(() => null),
+      firstValueFrom(this.service.getItems()).catch(() => [] as MenuItem[]),
     ]);
-    const items = await firstValueFrom(this.service.getItems());
-    const lowStock = items.filter(i => i.stockQuantity <= (i.lowStockThreshold ?? 5));
+    const lowStock = (items ?? []).filter(i => i.stockQuantity <= (i.lowStockThreshold ?? 5));
 
-    const { jsPDF } = await import('jspdf');
-    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-    const W = 210;
-    const shop = this.shopInfo?.name ?? 'CoffeeShop Pro';
-    const monthLabel = now.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
-    let y = 16;
+    const esc = (v: any) => this.escHtml(v);
+    const money = (v: any) => this.money(v);
+    const shop = esc(this.shopInfo?.name ?? 'CoffeeShop Pro');
+    const who = this.auth.getUser()?.displayName ? ' · ' + esc(this.auth.getUser()!.displayName) : '';
+    const t = a.totals ?? {};
+    const expTotal = Number(ex?.total ?? 0);
+    const net = Number(t.grossProfit ?? 0) - expTotal;
 
-    doc.setFontSize(16); doc.setTextColor(40, 40, 40);
-    doc.text(`${shop} - Monthly report`, 14, y); y += 6;
-    doc.setFontSize(9); doc.setTextColor(130, 130, 130);
-    doc.text(`${monthLabel} · Generated ${now.toLocaleString()}`, 14, y); y += 9;
+    const maxRev = Math.max(...(a.daily ?? []).map((d: any) => Number(d.revenue)), 1);
+    const dailyBars = (a.daily ?? []).map((d: any) => {
+      const pct = Math.max(2, (Number(d.revenue) / maxRev) * 100);
+      return `<div class="bar-row"><span class="bar-lbl">${esc(d.date)}</span><div class="bar-track"><div class="bar-fill" style="width:${pct}%"><span>${money(d.revenue)}</span></div></div><span class="bar-meta">${esc(d.orders)}</span></div>`;
+    }).join('') || '<div class="empty">No sales in this period.</div>';
 
-    doc.setFontSize(11); doc.setTextColor(40, 40, 40);
-    doc.text(`Revenue: R${Number(a.totals.revenue).toFixed(2)}   Gross profit: R${Number(a.totals.grossProfit).toFixed(2)} (${a.totals.grossMarginPct ?? 0}%)   Orders: ${a.totals.orders}   Items: ${a.totals.items}`, 14, y); y += 8;
-    doc.setDrawColor(220, 220, 220); doc.line(14, y, W - 14, y); y += 6;
+    const catRows = (a.categories ?? []).map((c: any) =>
+      `<tr><td>${esc(c.name)}</td><td class="num">${esc(c.quantity)}</td><td class="num">${money(c.revenue)}</td><td class="num pos">${money(c.grossProfit)}</td></tr>`).join('')
+      || '<tr><td colspan="4" class="empty">No sales in this period.</td></tr>';
+    const cashRows = (a.cashiers ?? []).map((c: any) =>
+      `<tr><td>${esc(c.name)}</td><td class="num">${esc(c.orders)}</td><td class="num">${money(c.revenue)}</td></tr>`).join('')
+      || '<tr><td colspan="3" class="empty">No cashier activity.</td></tr>';
+    const expRows = (ex?.items ?? []).map((e: any) =>
+      `<tr><td>${esc(String(e.createdAt ?? '').slice(0, 10))}</td><td>${esc(e.category)}</td><td>${esc(e.note ?? '')}</td><td class="num">${money(e.amount)}</td></tr>`).join('')
+      || '<tr><td colspan="4" class="empty">No expenses recorded.</td></tr>';
+    const empRows = (ts?.employees ?? []).map((e: any) =>
+      `<tr><td>${esc(e.name)}</td><td class="num">${Math.round((e.totalHours || 0) * 10) / 10}h</td><td class="num">${money(e.wageCost)}</td></tr>`).join('')
+      || '<tr><td colspan="3" class="empty">No shifts in this period.</td></tr>';
+    const lowRows = lowStock.map((i: any) =>
+      `<tr><td>${esc(i.name)}</td><td class="num ${i.stockQuantity <= 0 ? 'neg' : 'warn'}">${esc(i.stockQuantity)} left</td></tr>`).join('');
 
-    const section = (t: string) => { doc.setFontSize(11.5); doc.setTextColor(40, 40, 40); doc.text(t, 14, y); y += 4; };
-    const line = (t: string) => { doc.setFontSize(9); doc.setTextColor(60, 60, 60); doc.text(t, 14, y); y += 5; if (y > 285) { doc.addPage(); y = 16; } };
+    const kpi = (val: string, label: string, cls = '') =>
+      `<div class="kpi"><div class="kpi-val ${cls}">${val}</div><div class="kpi-lbl">${label}</div></div>`;
 
-    section('Daily revenue');
-    a.daily.forEach((d: any) => line(`${d.date}   R${Number(d.revenue).toFixed(2)}   (${d.orders} orders)`));
-    y += 2;
-    section('By cashier');
-    (a.cashiers ?? []).forEach((c: any) => line(`${c.name}: ${c.orders} orders, R${Number(c.revenue).toFixed(2)}`));
-    y += 2;
-    section('By category');
-    (a.categories ?? []).forEach((c: any) => line(`${c.name}: ${c.quantity} sold, R${Number(c.revenue).toFixed(2)} revenue, R${Number(c.grossProfit).toFixed(2)} GP`));
-    y += 2;
-    section('Expenses');
-    (ex?.items ?? []).forEach((e: any) => line(`${e.createdAt.slice(0, 10)}  ${e.category}  R${Number(e.amount).toFixed(2)}${e.note ? ` - ${e.note}` : ''}`));
-    line(`Total expenses: R${Number(ex?.total ?? 0).toFixed(2)}`);
-    y += 2;
-    section('Employees (hours & wages)');
-    (ts?.employees ?? []).forEach((e: any) => line(`${e.name}: ${Math.round(e.totalHours * 60) / 60}h, wage cost R${Number(e.wageCost ?? 0).toFixed(2)}`));
-    y += 2;
-    section('Inventory');
-    line(`${items.length} items on the menu.`);
-    if (lowStock.length) { line('LOW STOCK:'); lowStock.forEach((i: any) => line(`  ${i.name} - ${i.stockQuantity} left`)); }
-    else line('No low-stock items.');
+    return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${shop} — Analytics</title>
+<style>
+  :root { --ink:#1f2937; --muted:#6b7280; --line:#e5e7eb; --accent:#c88738; --accent2:#e0a75c; --pos:#15803d; --warn:#b45309; --neg:#b91c1c; --soft:#f7f5f2; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif; color:var(--ink); background:#fff; font-size:13px; line-height:1.45; }
+  .wrap { max-width:820px; margin:0 auto; padding:28px 30px 40px; }
+  header { border-bottom:3px solid var(--accent); padding-bottom:14px; margin-bottom:20px; }
+  h1 { font-size:22px; margin:0 0 4px; letter-spacing:-.01em; }
+  .sub { color:var(--muted); font-size:12.5px; }
+  h2 { font-size:14px; margin:26px 0 10px; padding-bottom:6px; border-bottom:1px solid var(--line); letter-spacing:.02em; text-transform:uppercase; color:#374151; }
+  .kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:4px; }
+  .kpi { border:1px solid var(--line); border-radius:12px; padding:14px 12px; text-align:center; background:linear-gradient(180deg,#fff,var(--soft)); }
+  .kpi-val { font-size:20px; font-weight:800; color:var(--ink); letter-spacing:-.02em; }
+  .kpi-val.pos { color:var(--pos); } .kpi-val.neg { color:var(--neg); } .kpi-val.accent { color:var(--warn); }
+  .kpi-lbl { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin-top:4px; font-weight:600; }
+  table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  th { text-align:left; background:var(--soft); padding:7px 9px; font-size:10.5px; text-transform:uppercase; letter-spacing:.04em; color:#6b7280; border-bottom:1px solid var(--line); }
+  td { padding:7px 9px; border-bottom:1px solid #f1f1f1; }
+  td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
+  td.pos { color:var(--pos); font-weight:700; } td.warn { color:var(--warn); font-weight:700; } td.neg { color:var(--neg); font-weight:700; }
+  .empty { color:var(--muted); font-style:italic; text-align:center; padding:14px; }
+  .bars { margin-top:6px; }
+  .bar-row { display:grid; grid-template-columns:76px 1fr 44px; align-items:center; gap:10px; margin:5px 0; }
+  .bar-lbl { font-size:11px; color:var(--muted); text-align:right; font-variant-numeric:tabular-nums; }
+  .bar-track { background:#f0ede9; border-radius:7px; height:22px; overflow:hidden; }
+  .bar-fill { background:linear-gradient(90deg,var(--accent),var(--accent2)); height:22px; border-radius:7px; display:flex; align-items:center; }
+  .bar-fill span { color:#fff; font-size:10.5px; font-weight:700; padding-left:8px; white-space:nowrap; }
+  .bar-meta { font-size:11px; color:var(--muted); }
+  .two { display:grid; grid-template-columns:1fr 1fr; gap:26px; }
+  .foot { margin-top:28px; padding-top:12px; border-top:1px solid var(--line); color:var(--muted); font-size:11px; text-align:center; }
+  @media print { .wrap { max-width:none; padding:0 6mm; } h2 { break-after:avoid; } tr, .bar-row { break-inside:avoid; } }
+</style></head>
+<body><div class="wrap">
+  <header>
+    <h1>${shop} — Analytics report</h1>
+    <div class="sub">Last ${esc(a.days ?? this.analyticsDays())} days · Generated ${esc(now.toLocaleString())}${who}</div>
+  </header>
 
-    doc.addPage();
-    y = 16;
-    doc.setFontSize(16); doc.setTextColor(40, 40, 40);
-    doc.text(`${shop} - Monthly graphs`, 14, y); y += 6;
-    doc.setFontSize(9); doc.setTextColor(130, 130, 130);
-    doc.text(monthLabel, 14, y); y += 10;
+  <div class="kpis">
+    ${kpi(money(t.revenue), 'Revenue')}
+    ${kpi(money(t.grossProfit) + (t.grossMarginPct != null ? ` <small style="font-size:11px;color:#6b7280">(${esc(t.grossMarginPct)}%)</small>` : ''), 'Gross profit', 'pos')}
+    ${kpi(String(t.orders ?? 0), 'Orders')}
+    ${kpi(String(t.items ?? 0), 'Items sold')}
+  </div>
+  <div class="kpis" style="margin-top:12px">
+    ${kpi(money(expTotal), 'Expenses (MTD)', 'accent')}
+    ${kpi(money(net), 'Profit after expenses', net < 0 ? 'neg' : 'pos')}
+    ${kpi(String((items ?? []).length), 'Menu items')}
+    ${kpi(String(lowStock.length), 'Low stock', lowStock.length ? 'neg' : '')}
+  </div>
 
-    const palette = ['#c88738', '#3b82f6', '#43b96d', '#e65252', '#8b5cf6', '#f2b94b', '#14b8a6', '#ec4899'];
-    const rgb = (hex: string): [number, number, number] => [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)];
-    const barChart = (title: string, rows: { label: string; value: number }[], colour: string) => {
-      doc.setFontSize(12); doc.setTextColor(40, 40, 40);
-      doc.text(title, 14, y); y += 4;
-      const max = Math.max(...rows.map(r => r.value), 1);
-      const chartW = W - 70;
-      rows.forEach((r: { label: string; value: number }) => {
-        const bw = Math.max(3, (r.value / max) * chartW);
-        doc.setFillColor(...rgb(colour));
-        doc.rect(14, y, bw, 5, 'F');
-        doc.setFontSize(7.5); doc.setTextColor(80, 80, 80);
-        doc.text(`${r.label}`, 14 + bw + 2, y + 4);
-        doc.text(`R${r.value.toFixed(2)}`, 14 + bw + 2 + 38, y + 4);
-        y += 7;
-        if (y > 282) { doc.addPage(); y = 16; }
-      });
-      y += 5;
-    };
+  <h2>Daily revenue</h2>
+  <div class="bars">${dailyBars}</div>
 
-    barChart('Daily revenue', a.daily.map((d: any) => ({ label: d.date, value: Number(d.revenue) })), '#c88738');
-    const catBars = (a.categories ?? []).map((c: any, i: number) => ({ label: c.name, value: Number(c.revenue), colour: palette[i % palette.length] }));
-    doc.setFontSize(12); doc.setTextColor(40, 40, 40);
-    doc.text('Revenue by category', 14, y); y += 4;
-    const maxCat = Math.max(...catBars.map((r: any) => r.value), 1);
-    const chartW = W - 70;
-    catBars.forEach((r: { label: string; value: number; colour: string }) => {
-      const bw = Math.max(3, (r.value / maxCat) * chartW);
-      doc.setFillColor(...rgb(r.colour));
-      doc.rect(14, y, bw, 5, 'F');
-      doc.setFontSize(7.5); doc.setTextColor(80, 80, 80);
-      doc.text(`${r.label}`, 14 + bw + 2, y + 4);
-      doc.text(`R${r.value.toFixed(2)}`, 14 + bw + 2 + 38, y + 4);
-      y += 7;
-      if (y > 282) { doc.addPage(); y = 16; }
-    });
-    y += 5;
-    const expBars = (ex?.items ?? []).slice(0, 12).map((e: any, i: number) => ({ label: e.category, value: Number(e.amount), colour: palette[(i + 3) % palette.length] }));
-    if (expBars.length) {
-      doc.setFontSize(12); doc.setTextColor(40, 40, 40);
-      doc.text('Expenses', 14, y); y += 4;
-      const maxExp = Math.max(...expBars.map((r: any) => r.value), 1);
-      expBars.forEach((r: { label: string; value: number; colour: string }) => {
-        const bw = Math.max(3, (r.value / maxExp) * chartW);
-        doc.setFillColor(...rgb(r.colour));
-        doc.rect(14, y, bw, 5, 'F');
-        doc.setFontSize(7.5); doc.setTextColor(80, 80, 80);
-        doc.text(`${r.label}`, 14 + bw + 2, y + 4);
-        doc.text(`R${r.value.toFixed(2)}`, 14 + bw + 2 + 38, y + 4);
-        y += 7;
-        if (y > 282) { doc.addPage(); y = 16; }
-      });
-    }
-    return doc;
-  }
+  <div class="two">
+    <div>
+      <h2>By category</h2>
+      <table><thead><tr><th>Category</th><th class="num">Qty</th><th class="num">Revenue</th><th class="num">Gross profit</th></tr></thead><tbody>${catRows}</tbody></table>
+    </div>
+    <div>
+      <h2>By cashier</h2>
+      <table><thead><tr><th>Cashier</th><th class="num">Orders</th><th class="num">Revenue</th></tr></thead><tbody>${cashRows}</tbody></table>
+    </div>
+  </div>
 
-  // Build + open the report: saves it (native -> Documents with a visible
-  // path; web -> download) and shows the in-app PDF viewer with the pages.
-  async openReportPdf() {
-    const a = this.analytics();
-    if (!a) { this.dialog.toast('Load analytics first', 'info'); return; }
-    this.pdfBusy.set(true);
-    try {
-      const doc = await this.buildReportDoc();
-      this.pdfData.set(doc.output('datauristring'));
-      this.pdfPage.set(1);
-      this.pdfPages.set(doc.getNumberOfPages());
-      this.pdfOpen.set(true);
-      await this.renderPdfPage();
-      // Guaranteed save: native writes to Documents (visible + toast with the
-      // path), web triggers the browser download.
-      const name = `monthly-report-${new Date().toISOString().slice(0, 10)}.pdf`;
-      if (Capacitor.isNativePlatform()) {
-        const { Filesystem, Directory } = await import('@capacitor/filesystem');
-        const data = doc.output('datauristring').split(',')[1];
-        await Filesystem.writeFile({ path: name, data, directory: Directory.Documents });
-        this.dialog.toast(`Saved to Documents/${name}`, 'success');
-      } else {
-        doc.save(name);
-      }
-    } catch {
-      this.dialog.toast('Could not build the report', 'error');
-    } finally {
-      this.pdfBusy.set(false);
-    }
-  }
+  <div class="two">
+    <div>
+      <h2>Expenses (this month)</h2>
+      <table><thead><tr><th>Date</th><th>Category</th><th>Note</th><th class="num">Amount</th></tr></thead><tbody>${expRows}</tbody>
+        <tfoot><tr><td colspan="3" style="text-align:right;font-weight:700">Total</td><td class="num" style="font-weight:800">${money(expTotal)}</td></tr></tfoot></table>
+    </div>
+    <div>
+      <h2>Employees (hours &amp; wages)</h2>
+      <table><thead><tr><th>Employee</th><th class="num">Hours</th><th class="num">Wage cost</th></tr></thead><tbody>${empRows}</tbody></table>
+    </div>
+  </div>
 
-  // Render the current PDF page onto the canvas (pdf.js).
-  async renderPdfPage() {
-    const cv = this.pdfCanvasRef?.nativeElement;
-    if (!cv || !this.pdfData()) return;
-    try {
-      const pdfjs = await import('pdfjs-dist');
-      const worker = await import('pdfjs-dist/build/pdf.worker.min.mjs?url');
-      pdfjs.GlobalWorkerOptions.workerSrc = worker.default ?? worker;
-      this.pdfDocument ??= await pdfjs.getDocument({ data: atob(this.pdfData().split(',')[1]) }).promise;
-      const page = await this.pdfDocument.getPage(this.pdfPage());
-      const base = Math.min(2, (cv.clientWidth || 640) / page.getViewport({ scale: 1 }).width);
-      const viewport = page.getViewport({ scale: base });
-      cv.width = viewport.width;
-      cv.height = viewport.height;
-      await page.render({ canvasContext: cv.getContext('2d')!, viewport }).promise;
-    } catch {
-      /* render error - keep the previous page */
-    }
-  }
+  <h2>Low stock${lowStock.length ? ` (${lowStock.length})` : ''}</h2>
+  ${lowStock.length
+    ? `<table style="max-width:420px"><thead><tr><th>Item</th><th class="num">On hand</th></tr></thead><tbody>${lowRows}</tbody></table>`
+    : '<div class="empty" style="text-align:left">All items are above their low-stock threshold. 👍</div>'}
 
-  pdfNext() { if (this.pdfPage() < this.pdfPages()) { this.pdfPage.update(p => p + 1); void this.renderPdfPage(); } }
-  pdfPrev() { if (this.pdfPage() > 1) { this.pdfPage.update(p => p - 1); void this.renderPdfPage(); } }
-  closePdf() { this.pdfOpen.set(false); this.pdfDocument = null; }
-
-  // Re-save the report (native -> Documents again, web -> browser download).
-  async saveReportPdf() {
-    try {
-      const doc = await this.buildReportDoc();
-      const name = `monthly-report-${new Date().toISOString().slice(0, 10)}.pdf`;
-      if (Capacitor.isNativePlatform()) {
-        const { Filesystem, Directory } = await import('@capacitor/filesystem');
-        const data = doc.output('datauristring').split(',')[1];
-        await Filesystem.writeFile({ path: name, data, directory: Directory.Documents });
-        this.dialog.toast(`Saved to Documents/${name}`, 'success');
-      } else {
-        doc.save(name);
-      }
-    } catch {
-      this.dialog.toast('Could not save the PDF', 'error');
-    }
+  <div class="foot">${shop} · Generated by CoffeeShop Pro · ${esc(now.toLocaleString())}</div>
+</div></body></html>`;
   }
 
   // Discounts / specials
