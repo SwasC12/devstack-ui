@@ -17,8 +17,10 @@ export class MenuItemService {
   private auth = inject(AuthService);
   private offline = inject(OfflineService);
 
-  getItems(): Observable<MenuItem[]> {
-    return this.http.get<MenuItem[]>(`${API}/menuitems`).pipe(
+  // bg=true sends X-Background so the call doesn't raise the full-screen loader
+  // (the POS shows its own skeleton cards while the menu loads).
+  getItems(bg = false): Observable<MenuItem[]> {
+    return this.http.get<MenuItem[]>(`${API}/menuitems`, bg ? { headers: { 'X-Background': '1' } } : undefined).pipe(
       tap(items => void this.offline.cacheMenu('items', items)),
       catchError(err => this.fallbackOrThrow('items', err, []))
     );
@@ -26,8 +28,10 @@ export class MenuItemService {
 
   // Lightweight stock snapshot for cross-till sync: id + on-hand + availability
   // only (no sizes/modifiers/recipe/images). Tiny payload, safe to poll cheaply.
+  // X-Background so this silent 20s poll never triggers the full-screen loader.
   getStock(): Observable<{ id: number; stockQuantity: number; isAvailable: boolean }[]> {
-    return this.http.get<{ id: number; stockQuantity: number; isAvailable: boolean }[]>(`${API}/menuitems/stock`);
+    return this.http.get<{ id: number; stockQuantity: number; isAvailable: boolean }[]>(
+      `${API}/menuitems/stock`, { headers: { 'X-Background': '1' } });
   }
 
   writeItem(item: Partial<MenuItem>): Observable<MenuItem> {
@@ -174,8 +178,8 @@ export class MenuItemService {
 
   // ── Discounts / specials ───────────────────────────────
 
-  getDiscounts(): Observable<any[]> {
-    return this.http.get<any[]>(`${API}/discounts`);
+  getDiscounts(bg = false): Observable<any[]> {
+    return this.http.get<any[]>(`${API}/discounts`, bg ? { headers: { 'X-Background': '1' } } : undefined);
   }
 
   writeDiscount(data: any): Observable<any> {
@@ -186,8 +190,9 @@ export class MenuItemService {
     return this.http.delete<void>(`${API}/discounts/${id}`);
   }
 
-  getActiveShift(): Observable<{ active: boolean; id?: number; startTime?: string }> {
-    return this.http.get<{ active: boolean; id?: number; startTime?: string }>(`${API}/shifts/active`);
+  getActiveShift(bg = false): Observable<{ active: boolean; id?: number; startTime?: string }> {
+    return this.http.get<{ active: boolean; id?: number; startTime?: string }>(
+      `${API}/shifts/active`, bg ? { headers: { 'X-Background': '1' } } : undefined);
   }
 
   startShift(startingFloat?: number): Observable<any> {
@@ -228,12 +233,14 @@ export class MenuItemService {
 
   // ── In-app updater ──────────────────────────────────
 
+  // X-Background: the update check runs on startup AND every app foreground -
+  // it must never hold the full-screen loader in front of the cashier.
   getAppVersion(): Observable<any> {
-    return this.http.get(`${API}/app/version`);
+    return this.http.get(`${API}/app/version`, { headers: { 'X-Background': '1' } });
   }
 
   checkinApp(version: string): Observable<void> {
-    return this.http.post<void>(`${API}/app/checkin`, { version });
+    return this.http.post<void>(`${API}/app/checkin`, { version }, { headers: { 'X-Background': '1' } });
   }
 
   getReleases(): Observable<any[]> {
@@ -403,8 +410,9 @@ export class MenuItemService {
   }
 
   // Current shop (any logged-in shop user): branding + kitchen webhook shown in the POS.
-  getShopInfo(): Observable<{ id: number; name: string; code: string; logoUrl?: string | null; receiptQrUrl?: string | null; kitchenUrl?: string | null }> {
-    return this.http.get<{ id: number; name: string; code: string; logoUrl?: string | null; receiptQrUrl?: string | null; kitchenUrl?: string | null }>(`${API}/shops/me`);
+  getShopInfo(bg = false): Observable<{ id: number; name: string; code: string; logoUrl?: string | null; receiptQrUrl?: string | null; kitchenUrl?: string | null }> {
+    return this.http.get<{ id: number; name: string; code: string; logoUrl?: string | null; receiptQrUrl?: string | null; kitchenUrl?: string | null }>(
+      `${API}/shops/me`, bg ? { headers: { 'X-Background': '1' } } : undefined);
   }
 
   // Owner (admin): update the current shop's branding + kitchen webhook.

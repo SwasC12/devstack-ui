@@ -230,7 +230,7 @@ export class PosComponent implements OnInit, OnDestroy {
 
   private load() {
     this.loading.set(true);
-    this.service.getItems().subscribe(items => {
+    this.service.getItems(true).subscribe(items => {
       this.items = items;
       this.loading.set(false);
       // The default category is a guess ('Hot Drinks'); snap to the first real
@@ -247,8 +247,8 @@ export class PosComponent implements OnInit, OnDestroy {
       if (raw) this.cart.set(JSON.parse(raw));
     } catch { /* corrupted or unavailable — start clean */ }
   }
-  private checkShift() { this.service.getActiveShift().subscribe({ next: s => this.shiftActive.set(s.active), error: () => this.dialog.toast('Could not check shift status', 'error') }); }
-  private loadShop() { this.service.getShopInfo().subscribe(s => this.shopInfo.set(s)); }
+  private checkShift() { this.service.getActiveShift(true).subscribe({ next: s => this.shiftActive.set(s.active), error: () => this.dialog.toast('Could not check shift status', 'error') }); }
+  private loadShop() { this.service.getShopInfo(true).subscribe(s => this.shopInfo.set(s)); }
 
   // Native build version shown in the top bar / clock-in screen so cashiers
   // and the owner can always tell which build is running.
@@ -580,7 +580,7 @@ export class PosComponent implements OnInit, OnDestroy {
 
   // ── Discounts / specials ──────────────────────────────
 
-  private loadDiscounts() { this.service.getDiscounts().subscribe(ds => this.discounts.set(ds)); }
+  private loadDiscounts() { this.service.getDiscounts(true).subscribe(ds => this.discounts.set(ds)); }
 
   liveDiscounts(): any[] { return this.discounts().filter(d => d.isLive); }
 
