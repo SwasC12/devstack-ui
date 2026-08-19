@@ -131,7 +131,11 @@
     .stock.out { color: var(--red); }
     .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
     .dot.on { background: var(--green); }
-    .cell-acts { display: flex; gap: 0.4em; justify-content: flex-end; }
+    /* overflow: visible overrides the td{overflow:hidden} that was clipping the
+       left-most (Edit) button; nowrap keeps the buttons on one line (the
+       table-card scrolls horizontally if the row is genuinely too wide). */
+    .cell-acts { display: flex; gap: 0.4em; justify-content: flex-end; flex-wrap: nowrap; white-space: nowrap; overflow: visible; }
+    .cell-acts app-btn { flex: 0 0 auto; }
     .cell-acts app-btn { white-space: nowrap; }
     .cust-sub { display: block; font-size: 0.72rem; color: var(--muted); margin-top: 0.15em; }
     .bal-ok { color: var(--green); }

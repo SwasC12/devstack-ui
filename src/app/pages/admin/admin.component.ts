@@ -645,7 +645,7 @@ export class AdminComponent implements OnInit {
     });
   }
   setPin(u: any) {
-    this.dialog.prompt(`Set a ${u.hasPin ? 'new ' : ''}PIN for ${u.displayName}`, '4–6 digits').then(pin => {
+    this.dialog.prompt(`Set a ${u.hasPin ? 'new ' : ''}PIN for ${u.displayName}`, '4–6 digits', { inputType: 'pin', placeholder: '••••' }).then(pin => {
       if (!pin) return;
       if (!/^\d{4,6}$/.test(pin)) { this.dialog.toast('PIN must be 4-6 digits', 'error'); return; }
       this.service.setUserPin(u.id, pin).subscribe({
@@ -943,7 +943,7 @@ export class AdminComponent implements OnInit {
 
   // Voiding is a one-way door on the till: require a manager PIN first.
   async voidOrder(o: any) {
-    const pin = await this.dialog.prompt('Manager PIN required', `Enter the manager PIN to void order #${o.id} (R${o.total.toFixed(2)}). Stock is returned to inventory.`);
+    const pin = await this.dialog.prompt('Manager PIN required', `Enter the manager PIN to void order #${o.id} (R${o.total.toFixed(2)}). Stock is returned to inventory.`, { inputType: 'pin', placeholder: '••••' });
     if (!pin) return;
     this.service.verifyPin(pin).subscribe({
       next: (res) => {
@@ -970,7 +970,7 @@ export class AdminComponent implements OnInit {
   async refundOrder(o: any) {
     const remaining = Math.max(0, (o.total ?? 0) - (o.refundedAmount ?? 0));
     if (remaining <= 0) { this.dialog.toast('Nothing left to refund on this order', 'info'); return; }
-    const pin = await this.dialog.prompt('Manager PIN required', `Enter the manager PIN to refund order #${o.id}. Refundable: R${remaining.toFixed(2)}.`);
+    const pin = await this.dialog.prompt('Manager PIN required', `Enter the manager PIN to refund order #${o.id}. Refundable: R${remaining.toFixed(2)}.`, { inputType: 'pin', placeholder: '••••' });
     if (!pin) return;
     this.service.verifyPin(pin).subscribe({
       next: (res) => {

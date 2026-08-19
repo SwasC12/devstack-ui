@@ -36,8 +36,12 @@ export class DialogService {
   prompt(title: string, message: string, opts?: { inputType?: 'pin' | 'text'; placeholder?: string }): Promise<string | null> {
     return new Promise(resolve => this.state.set({
       kind: 'prompt', title, message,
-      inputType: opts?.inputType ?? 'pin',
-      placeholder: opts?.placeholder ?? '••••',
+      // Default to a normal TEXT input. PIN entry is the exception (employee
+      // login / manager void / setting a PIN) and those callers pass
+      // inputType:'pin' explicitly. Defaulting to 'pin' made every text prompt
+      // (email subject/body, settle amount, receive stock…) pop a PIN pad.
+      inputType: opts?.inputType ?? 'text',
+      placeholder: opts?.placeholder ?? '',
       resolve
     }));
   }
