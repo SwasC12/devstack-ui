@@ -183,12 +183,15 @@ export class AdminComponent implements OnInit {
   // Users
   readonly users = signal<any[]>([]);
   usersQ = '';
-  readonly filteredUsers = computed(() => {
+  // Plain method (not computed): the search text `usersQ` is a template-bound
+  // property, not a signal, so a computed() would never re-run when you type.
+  // As a method it re-evaluates each change-detection pass, like filteredItems.
+  filteredUsers() {
     const q = this.usersQ.trim().toLowerCase();
     if (!q) return this.users();
     return this.users().filter((u: any) =>
       `${u.username} ${u.displayName ?? ''} ${u.role}`.toLowerCase().includes(q));
-  });
+  }
   readonly showUserForm = signal(false);
   uName = ''; uPass = ''; uDisplay = ''; uRole: 'cashier' | 'admin' = 'cashier'; uPin = ''; uWage = '';
   uEditId: number | null = null; // null = creating a new user, else editing
@@ -196,12 +199,13 @@ export class AdminComponent implements OnInit {
   // Categories
   readonly categories = signal<Category[]>([]);
   catsQ = '';
-  readonly filteredCats = computed(() => {
+  // Plain method (see filteredUsers) so typing in the `catsQ` box actually filters.
+  filteredCats() {
     const q = this.catsQ.trim().toLowerCase();
     if (!q) return this.categories();
     return this.categories().filter((c: any) =>
       `${c.name} ${c.station ?? ''}`.toLowerCase().includes(q));
-  });
+  }
   readonly showCatForm = signal(false);
   readonly editingCat = signal<Category | null>(null);
   catName = '';
@@ -426,12 +430,13 @@ export class AdminComponent implements OnInit {
   // Discounts / specials
   readonly discounts = signal<any[]>([]);
   discQ = '';
-  readonly filteredDiscs = computed(() => {
+  // Plain method (see filteredUsers) so typing in the `discQ` box actually filters.
+  filteredDiscs() {
     const q = this.discQ.trim().toLowerCase();
     if (!q) return this.discounts();
     return this.discounts().filter((d: any) =>
       `${d.name} ${d.type}`.toLowerCase().includes(q));
-  });
+  }
   readonly showDiscForm = signal(false);
   readonly editingDisc = signal<any | null>(null);
   dName = ''; dType: 'percent' | 'fixed' = 'percent'; dValue: number | null = null;
