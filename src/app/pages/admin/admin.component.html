@@ -148,13 +148,13 @@
                 @if (recipeCost() > 0) { <span class="field-hint">Recipe cost ≈ <strong>R{{ recipeCost() }}</strong> per serving (GP at R{{ fPrice ?? 0 }}: <strong>R{{ ((fPrice ?? 0) - recipeCost()) | number:'1.2-2' }}</strong>)</span> }
               </div>
               <div class="form-section">Barcode / SKU</div>
-              <div class="field">
+              <div class="field wide">
                 <label>SKU (barcode)</label>
-                <input [(ngModel)]="fSku" placeholder="e.g. SKU-9F2K1A" (ngModelChange)="renderSku()" />
+                <div class="sku-row">
+                  <input [(ngModel)]="fSku" placeholder="e.g. 2001234500009" (ngModelChange)="renderSku()" />
+                  <app-btn size="sm" (onClick)="genSku()">Generate SKU</app-btn>
+                </div>
                 <span class="field-hint">For prepacked items (labelled cookies etc.). Leave empty for counter items.</span>
-              </div>
-              <div class="field" style="justify-content:flex-end;">
-                <app-btn size="sm" (onClick)="genSku()">Generate SKU</app-btn>
               </div>
               @if (fSku) {
                 <div class="field wide">

@@ -10,6 +10,7 @@ import { LoadingService } from './loading.service';
 import { AppLogoComponent } from './app-logo.component';
 import { ClockComponent } from './clock.component';
 import { OfflineService } from './offline.service';
+import { SwUpdate } from '@angular/service-worker';
 import { Preferences } from '@capacitor/preferences';
 
 @Component({
@@ -28,6 +29,20 @@ export class AppComponent implements OnDestroy {
 
   constructor() {
     const loading = inject(LoadingService);
+
+    // Web PWA only: when the service worker has a new version ready, activate it
+    // and reload, so the browser never keeps serving a stale bundle (which is
+    // what makes "my fix didn't apply" bugs on the web). Native has the SW
+    // disabled entirely, so isEnabled is false there and this is a no-op.
+    const swUpdate = inject(SwUpdate);
+    if (swUpdate.isEnabled) {
+      swUpdate.versionUpdates.subscribe(e => {
+        if (e.type === 'VERSION_READY') {
+          void swUpdate.activateUpdate().then(() => location.reload());
+        }
+      });
+    }
+
     // Page switching: show the loader while a route is resolving, hide when it lands.
     this.router.events.pipe(
       filter(e => e instanceof NavigationStart || e instanceof NavigationEnd || e instanceof NavigationError || e instanceof NavigationCancel)
