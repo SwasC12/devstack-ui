@@ -17,12 +17,35 @@ export class MenuItemService {
   private auth = inject(AuthService);
   private offline = inject(OfflineService);
 
-  // bg=true sends X-Background so the call doesn't raise the full-screen loader
-  // (the POS shows its own skeleton cards while the menu loads).
+  // Conditional GET: send the stored ETag as If-None-Match. On 304 the menu is
+  // unchanged so we serve the cache without re-downloading/parsing/re-caching;
+  // on 200 we refresh both the cache and the ETag. This also means the offline
+  // cache is only rewritten when the menu actually changed. bg=true sends
+  // X-Background so the call doesn't raise the full-screen loader (the POS
+  // shows its own skeleton cards while the menu loads).
   getItems(bg = false): Observable<MenuItem[]> {
-    return this.http.get<MenuItem[]>(`${API}/menuitems`, bg ? { headers: { 'X-Background': '1' } } : undefined).pipe(
-      tap(items => void this.offline.cacheMenu('items', items)),
-      catchError(err => this.fallbackOrThrow('items', err, []))
+    return from(this.offline.menuEtag('items')).pipe(
+      switchMap(etag => {
+        const headers: Record<string, string> = {};
+        if (bg) headers['X-Background'] = '1';
+        if (etag) headers['If-None-Match'] = etag;
+        return this.http.get<MenuItem[]>(`${API}/menuitems`, { headers, observe: 'response' }).pipe(
+          switchMap(resp => {
+            const items = resp.body ?? [];
+            return from(Promise.all([
+              this.offline.cacheMenu('items', items),
+              this.offline.setMenuEtag('items', resp.headers.get('ETag')),
+            ])).pipe(map(() => items));
+          }),
+          catchError(err => {
+            // 304 Not Modified → reuse the cached menu, no re-download.
+            if (err?.status === 304) {
+              return from(this.offline.cachedMenu('items')).pipe(map(c => (c as MenuItem[]) ?? []));
+            }
+            return this.fallbackOrThrow('items', err, []);
+          })
+        );
+      })
     );
   }
 

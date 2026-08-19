@@ -174,11 +174,16 @@ export class PosComponent implements OnInit, OnDestroy {
   // stored up to 1920px. Inject a width/quality/format transform so each card
   // pulls a ~300px WebP instead of the full-res original - a big cut in image
   // traffic and decode time on the tablet.
+  private thumbCache = new Map<string, string>();
   thumb(url: string | null | undefined): string {
     if (!url) return '';
-    return url.includes('/upload/')
+    const hit = this.thumbCache.get(url);
+    if (hit) return hit;
+    const out = url.includes('/upload/')
       ? url.replace('/upload/', '/upload/w_300,h_300,c_fill,q_auto,f_auto/')
       : url;
+    this.thumbCache.set(url, out);
+    return out;
   }
   inCartAtStock(id: number): boolean {
     const inCart = this.cart().filter(i => i.id === id).reduce((s, i) => s + i.quantity, 0);
@@ -194,11 +199,40 @@ export class PosComponent implements OnInit, OnDestroy {
     // each one so the display updates instantly instead of waiting for its poll.
     this.offline.orderSynced.subscribe(order => this.pingKitchen(order?.id, order?.items));
     this.startStockSync();
+    // Capture phase so we see the scanner burst before any focused control.
+    document.addEventListener('keydown', this.hidListener, true);
   }
 
   ngOnDestroy() {
     if (this.stockTimer) { clearInterval(this.stockTimer); this.stockTimer = null; }
+    document.removeEventListener('keydown', this.hidListener, true);
   }
+
+  // ── Hardware barcode scanner (USB / Bluetooth HID) ───────────────────────
+  // These scanners "type" the barcode as a very fast burst of keystrokes ending
+  // in Enter. We accumulate a fast burst and, on Enter, treat it as a scan - so
+  // shops with a physical scanner work with NO setup, alongside the camera Scan
+  // button (shops without a scanner just use the camera). Human typing is far
+  // slower, so the >HID_GAP_MS gap resets the buffer; and we never intercept
+  // while a text field is focused, so the search box / keypad are untouched.
+  private hidBuffer = '';
+  private hidLastTs = 0;
+  private static readonly HID_GAP_MS = 60;
+  private hidListener = (e: KeyboardEvent) => {
+    const el = document.activeElement as HTMLElement | null;
+    if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)) return;
+    if (this.scanOpen()) return; // camera overlay is handling its own input
+    const now = Date.now();
+    if (now - this.hidLastTs > PosComponent.HID_GAP_MS) this.hidBuffer = '';
+    this.hidLastTs = now;
+    if (e.key === 'Enter') {
+      const code = this.hidBuffer.trim();
+      this.hidBuffer = '';
+      if (code.length >= 3) { e.preventDefault(); this.handleScanValue(code); }
+      return;
+    }
+    if (e.key.length === 1) this.hidBuffer += e.key; // a single printable char
+  };
 
   // ── Cross-till stock sync ────────────────────────────────────────────────
   // Cheap: pulls ONLY id+stock+availability (see MenuItemService.getStock) so a

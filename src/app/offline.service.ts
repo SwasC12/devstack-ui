@@ -45,6 +45,19 @@ export class OfflineService {
     return value ? JSON.parse(value) : null;
   }
 
+  // ETag for the cached payload, so a conditional GET can 304 and reuse the
+  // cache instead of re-downloading. Stored next to the cache so both survive
+  // an app restart (and stay consistent - the etag matches the cached body).
+  async menuEtag(key: string): Promise<string | null> {
+    const { value } = await Preferences.get({ key: `cache:etag:${key}` });
+    return value ?? null;
+  }
+
+  async setMenuEtag(key: string, etag: string | null): Promise<void> {
+    if (etag) await Preferences.set({ key: `cache:etag:${key}`, value: etag });
+    else await Preferences.remove({ key: `cache:etag:${key}` });
+  }
+
   // ── Order queue: replay when back online ────────────────────────────────
 
   async queueOrder(url: string, body: any): Promise<void> {
