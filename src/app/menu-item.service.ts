@@ -11,6 +11,22 @@ import { OfflineService } from './offline.service';
 
 const API = environment.apiBase;
 
+// Defensive: normalize object keys to camelCase (first letter lower) recursively.
+// The API should already return camelCase, but this makes the POS resilient to
+// a PascalCase payload (e.g. a mis-serialized response) instead of showing an
+// empty grid. Idempotent - camelCase keys are left unchanged.
+function camelizeKeys(value: any): any {
+  if (Array.isArray(value)) return value.map(camelizeKeys);
+  if (value && typeof value === 'object') {
+    const out: any = {};
+    for (const k of Object.keys(value)) {
+      out[k.charAt(0).toLowerCase() + k.slice(1)] = camelizeKeys(value[k]);
+    }
+    return out;
+  }
+  return value;
+}
+
 @Injectable({ providedIn: 'root' })
 export class MenuItemService {
   private http = inject(HttpClient);
@@ -31,7 +47,7 @@ export class MenuItemService {
         if (etag) headers['If-None-Match'] = etag;
         return this.http.get<MenuItem[]>(`${API}/menuitems`, { headers, observe: 'response' }).pipe(
           switchMap(resp => {
-            const items = resp.body ?? [];
+            const items = camelizeKeys(resp.body ?? []) as MenuItem[];
             return from(Promise.all([
               this.offline.cacheMenu('items', items),
               this.offline.setMenuEtag('items', resp.headers.get('ETag')),
@@ -40,9 +56,9 @@ export class MenuItemService {
           catchError(err => {
             // 304 Not Modified → reuse the cached menu, no re-download.
             if (err?.status === 304) {
-              return from(this.offline.cachedMenu('items')).pipe(map(c => (c as MenuItem[]) ?? []));
+              return from(this.offline.cachedMenu('items')).pipe(map(c => camelizeKeys(c ?? []) as MenuItem[]));
             }
-            return this.fallbackOrThrow('items', err, []);
+            return this.fallbackOrThrow('items', err, []).pipe(map(c => camelizeKeys(c ?? []) as MenuItem[]));
           })
         );
       })
