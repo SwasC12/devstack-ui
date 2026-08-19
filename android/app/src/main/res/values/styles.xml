@@ -19,4 +19,12 @@
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="android:background">@drawable/splash</item>
     </style>
+
+    <!-- Opaque, fullscreen, no-splash theme for the native barcode scanner.
+         Plain android theme (the scanner Activity is a ComponentActivity, which
+         does not need Theme.AppCompat). A black window background means the
+         camera preview is the only thing on screen - no splash logo leaks. -->
+    <style name="ScannerTheme" parent="@android:style/Theme.Black.NoTitleBar.Fullscreen">
+        <item name="android:windowBackground">@android:color/black</item>
+    </style>
 </resources>

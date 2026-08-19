@@ -31,7 +31,7 @@
             android:name=".FastBarcodeActivity"
             android:exported="false"
             android:screenOrientation="landscape"
-            android:theme="@style/AppTheme.NoActionBarLaunch" />
+            android:theme="@style/ScannerTheme" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

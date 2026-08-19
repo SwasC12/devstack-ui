@@ -1,4 +1,4 @@
-import { Component, effect, inject, signal, OnInit, ViewChild, ElementRef } from '@angular/core';
+import { Component, effect, inject, signal, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -36,7 +36,7 @@ function compareVersions(a: string, b: string): number {
   templateUrl: './pos.component.html',
   styleUrl: './pos.component.scss',
 })
-export class PosComponent implements OnInit {
+export class PosComponent implements OnInit, OnDestroy {
   private service = inject(MenuItemService);
   private dialog = inject(DialogService);
   private router = inject(Router);
@@ -159,6 +159,27 @@ export class PosComponent implements OnInit {
   // Stock guardrails — the cart can never exceed what we have. Stock is shared
   // across sizes, so the guard sums every line of the same item.
   stockOf(id: number): number { return this.items.find(i => i.id === id)?.stockQuantity ?? 0; }
+
+  // Decrement on-hand stock locally after a sale (stock is shared across sizes,
+  // so sum the quantities per item id). Avoids a full menu re-fetch per sale.
+  private applyLocalStock(sold: CartItem[]) {
+    if (!sold.length) return;
+    const byId = new Map<number, number>();
+    for (const line of sold) byId.set(line.id, (byId.get(line.id) ?? 0) + line.quantity);
+    this.items = this.items.map(i =>
+      byId.has(i.id) ? { ...i, stockQuantity: Math.max(0, i.stockQuantity - (byId.get(i.id) ?? 0)) } : i);
+  }
+
+  // Cloudinary thumbnail. POS grid tiles are small, but uploaded images are
+  // stored up to 1920px. Inject a width/quality/format transform so each card
+  // pulls a ~300px WebP instead of the full-res original - a big cut in image
+  // traffic and decode time on the tablet.
+  thumb(url: string | null | undefined): string {
+    if (!url) return '';
+    return url.includes('/upload/')
+      ? url.replace('/upload/', '/upload/w_300,h_300,c_fill,q_auto,f_auto/')
+      : url;
+  }
   inCartAtStock(id: number): boolean {
     const inCart = this.cart().filter(i => i.id === id).reduce((s, i) => s + i.quantity, 0);
     return inCart >= this.stockOf(id);
@@ -172,6 +193,39 @@ export class PosComponent implements OnInit {
     // Offline orders replay when the internet returns - ping the kitchen for
     // each one so the display updates instantly instead of waiting for its poll.
     this.offline.orderSynced.subscribe(order => this.pingKitchen(order?.id, order?.items));
+    this.startStockSync();
+  }
+
+  ngOnDestroy() {
+    if (this.stockTimer) { clearInterval(this.stockTimer); this.stockTimer = null; }
+  }
+
+  // ── Cross-till stock sync ────────────────────────────────────────────────
+  // Cheap: pulls ONLY id+stock+availability (see MenuItemService.getStock) so a
+  // second till sees what the other sold, without re-downloading the menu.
+  // Runs on a light interval while the till is open and immediately whenever
+  // the app is brought to the foreground. Local per-sale decrements stay
+  // authoritative between polls; a failed poll (offline) keeps current counts.
+  private stockTimer: any = null;
+  private static readonly STOCK_SYNC_MS = 20000;
+
+  private startStockSync() {
+    this.syncStock();
+    this.stockTimer = setInterval(() => this.syncStock(), PosComponent.STOCK_SYNC_MS);
+  }
+
+  private syncStock() {
+    this.service.getStock().subscribe({
+      next: rows => {
+        if (!rows?.length) return;
+        const byId = new Map(rows.map(r => [r.id, r]));
+        this.items = this.items.map(i => {
+          const r = byId.get(i.id);
+          return r ? { ...i, stockQuantity: r.stockQuantity, isAvailable: r.isAvailable } : i;
+        });
+      },
+      error: () => { /* offline / transient - keep the counts we have */ },
+    });
   }
 
   private load() {
@@ -219,7 +273,7 @@ export class PosComponent implements OnInit {
       if (!Capacitor.isNativePlatform()) return;
       const { App } = await import('@capacitor/app');
       await App.addListener('appStateChange', ({ isActive }) => {
-        if (isActive) void this.checkForUpdate();
+        if (isActive) { void this.checkForUpdate(); this.syncStock(); }
       });
       const { PushNotifications } = await import('@capacitor/push-notifications');
       await PushNotifications.addListener('pushNotificationActionPerformed', (n) => {
@@ -362,39 +416,60 @@ export class PosComponent implements OnInit {
   }
 
   // Barcode scanner: finds the item by SKU and adds it to the cart.
-  // 1) FastBarcodeScanner - our OWN native CameraX + ML Kit screen (instant,
-  //    bundled model, no webview involved). 2) html5-qrcode JS engine as a
-  //    fallback. 3) the old third-party plugin last.
+  // On the app this is the ONLY path: FastBarcodeScanner, our native
+  // CameraX + ML Kit screen (instant, bundled model, no webview). If it fails
+  // the user gets a clear toast - never a broken half-loaded webview overlay.
+  // The html5-qrcode overlay below is used ONLY in a plain web browser (dev),
+  // where its assets load fine; it never runs inside the native app.
   readonly scanning = signal(false);
   readonly scanOpen = signal(false);
   private htmlScanner: any = null;
 
   scanBarcode() {
-    if (this.scanOpen()) return;
-    // Native path first (works on the app).
-    const fast = (Capacitor as any).Plugins?.FastBarcodeScanner;
-    if (Capacitor.isNativePlatform() && fast) {
+    if (this.scanOpen() || this.scanning()) return;
+    if (Capacitor.isNativePlatform()) {
+      const fast = (Capacitor as any).Plugins?.FastBarcodeScanner;
+      if (!fast) { this.dialog.toast('Scanner is unavailable on this build', 'error'); return; }
       this.scanning.set(true);
       fast.scan().then((res: any) => {
         this.scanning.set(false);
         this.handleScanValue(res?.ScanResult ?? '');
-      }).catch(() => {
+      }).catch((e: any) => {
         this.scanning.set(false);
-        // User cancelled or camera failed - fall back to the JS engine.
-        void this.scanJs();
+        const msg = (e?.message ?? e?.code ?? '').toString();
+        // SCAN_CANCELLED = user backed out / hit cancel: stay silent.
+        if (!/cancel/i.test(msg)) {
+          this.dialog.toast('Could not open the camera - check the camera permission and try again', 'error');
+        }
       });
       return;
     }
+    // Web/dev browser only.
     void this.scanJs();
+  }
+
+  private findBySku(sku: string): MenuItem | undefined {
+    return this.items.find(i => (i as any).sku && (i as any).sku.toLowerCase() === sku.toLowerCase());
   }
 
   private handleScanValue(text: string) {
     const sku = (text ?? '').trim();
     if (!sku) { this.dialog.toast('No barcode detected', 'info'); return; }
-    const item = this.items.find(i => (i as any).sku && (i as any).sku.toLowerCase() === sku.toLowerCase());
-    if (!item) { this.dialog.toast(`No item with barcode ${sku}`, 'error'); return; }
-    this.addToCart(item);
-    this.dialog.toast(`${item.name} added`, 'success');
+    const item = this.findBySku(sku);
+    if (item) { this.addToCart(item); this.dialog.toast(`${item.name} added`, 'success'); return; }
+    // Miss on the in-memory catalog: the POS list is loaded once in ngOnInit
+    // and has no live refresh, so a SKU just generated/edited in Admin (even on
+    // this same device) isn't here yet. Refresh from the server and retry once
+    // before giving up, so a freshly generated barcode scans without a restart.
+    this.service.getItems().subscribe({
+      next: items => {
+        this.items = items;
+        const again = this.findBySku(sku);
+        if (again) { this.addToCart(again); this.dialog.toast(`${again.name} added`, 'success'); }
+        else this.dialog.toast(`No item with barcode ${sku}`, 'error');
+      },
+      error: () => this.dialog.toast(`No item with barcode ${sku}`, 'error'),
+    });
   }
 
   // JS engine fallback (html5-qrcode, works in the WebView when camera access
@@ -415,8 +490,7 @@ export class PosComponent implements OnInit {
     } catch {
       this.scanOpen.set(false);
       this.scanning.set(false);
-      // Last resort: the old third-party native plugin.
-      void this.scanNative();
+      this.dialog.toast('Could not start the camera in the browser', 'error');
     }
   }
 
@@ -434,32 +508,6 @@ export class PosComponent implements OnInit {
     this.scanning.set(false);
   }
 
-  // Native plugin fallback (camera permission handled by the plugin itself).
-  private async scanNative() {
-    try {
-      const { CapacitorBarcodeScanner, CapacitorBarcodeScannerTypeHint, CapacitorBarcodeScannerAndroidScanningLibrary } = await import('@capacitor/barcode-scanner');
-      this.scanning.set(true);
-      const res = await CapacitorBarcodeScanner.scanBarcode({
-        hint: CapacitorBarcodeScannerTypeHint.ALL,
-        scanInstructions: 'Point the camera at the label barcode',
-        scanButton: false,
-        cameraDirection: 1,
-        android: { scanningLibrary: CapacitorBarcodeScannerAndroidScanningLibrary.ZXING },
-      });
-      this.scanning.set(false);
-      const sku = (res.ScanResult ?? '').trim();
-      if (!sku) { this.dialog.toast('No barcode detected', 'info'); return; }
-      const item = this.items.find(i => (i as any).sku && (i as any).sku.toLowerCase() === sku.toLowerCase());
-      if (!item) { this.dialog.toast(`No item with barcode ${sku}`, 'error'); return; }
-      this.addToCart(item);
-      this.dialog.toast(`${item.name} added`, 'success');
-    } catch (e: any) {
-      this.scanning.set(false);
-      const msg = e?.message ?? '';
-      if (/cancel/i.test(msg)) this.dialog.toast('Scan cancelled', 'info');
-      else this.dialog.toast(`Scanner error: ${msg || 'could not start the camera'}`, 'error');
-    }
-  }
 
   cfgPickSize(cfg: { item: MenuItem; sizeId: number | null }, sizeId: number) {
     this.configurator.update(c => (c ? { ...c, sizeId } : c));
@@ -649,9 +697,13 @@ export class PosComponent implements OnInit {
       next: (order) => {
         this.busy.set(false);
         this.paymentOpen.set(false);
+        const sold = this.cart();
         this.cart.set([]);
         this.selectedDiscount.set(null);
-        this.load();
+        // Update stock locally instead of re-fetching the ENTIRE menu after
+        // every sale - that GET is heavy and rewrites the whole offline cache,
+        // which is what made the till feel slow between customers.
+        this.applyLocalStock(sold);
         this.lastOrder.set(order);
         this.lastReceipt.set(order);
         this.sound.orderComplete();
@@ -660,7 +712,8 @@ export class PosComponent implements OnInit {
       error: (e) => {
         this.busy.set(false);
         this.dialog.toast(this.apiError(e) || 'Checkout failed', 'error');
-        this.load();
+        // No reload: a failed checkout changed nothing, so the menu/stock we
+        // already have is still correct.
       }
     });
   }

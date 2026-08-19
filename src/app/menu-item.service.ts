@@ -24,6 +24,12 @@ export class MenuItemService {
     );
   }
 
+  // Lightweight stock snapshot for cross-till sync: id + on-hand + availability
+  // only (no sizes/modifiers/recipe/images). Tiny payload, safe to poll cheaply.
+  getStock(): Observable<{ id: number; stockQuantity: number; isAvailable: boolean }[]> {
+    return this.http.get<{ id: number; stockQuantity: number; isAvailable: boolean }[]>(`${API}/menuitems/stock`);
+  }
+
   writeItem(item: Partial<MenuItem>): Observable<MenuItem> {
     return this.http.put<MenuItem>(`${API}/menuitems`, item);
   }

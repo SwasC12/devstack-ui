@@ -166,7 +166,7 @@
             @for (item of filtered(); track item.id) {
               <button class="item" [class.sold]="!item.isAvailable || item.stockQuantity < 1 || inCartAtStock(item.id)"
                 (click)="addToCart(item)" [disabled]="!item.isAvailable || item.stockQuantity < 1 || inCartAtStock(item.id)">
-                @if (item.imageUrl) { <img [src]="item.imageUrl" alt="" class="item-img" /> }
+                @if (item.imageUrl) { <img [src]="thumb(item.imageUrl)" loading="lazy" decoding="async" alt="" class="item-img" /> }
                 @else { <div class="item-img placeholder"><app-logo [size]="54" /></div> }
                 <div class="item-body">
                   <span class="item-name">{{ item.name }}</span>

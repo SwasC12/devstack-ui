@@ -116,12 +116,28 @@ export class AdminComponent implements OnInit {
   readonly recipeCost = computed(() => this.fRecipe.reduce((s, r) => s + (r.costPerUnit || 0) * (r.quantity || 0), 0));
   @ViewChild('skuCanvas') skuCanvasRef!: ElementRef<HTMLCanvasElement>;
 
-  // SKU / barcode for prepacked items: generate a unique one, render the
-  // Code-128 barcode client-side (JsBarcode), and print a label.
+  // SKU / barcode for prepacked items: generate a unique internal EAN-13,
+  // render it client-side (JsBarcode), and print a label. EAN-13 is only 13
+  // numeric digits, so the printed bars are far less dense than the old
+  // alphanumeric Code-128 "SKU-..." codes - which the camera struggled to
+  // resolve. The leading '2' is the GS1 in-store / restricted range, reserved
+  // for a shop's own internal product codes (never collides with real GTINs).
   genSku() {
-    const s = 'SKU-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 6).toUpperCase();
-    this.fSku = s;
+    let base = '2';
+    for (let i = 0; i < 11; i++) base += Math.floor(Math.random() * 10).toString();
+    this.fSku = base + this.ean13CheckDigit(base);
     this.renderSku();
+  }
+
+  // Standard EAN-13 check digit over the first 12 digits: odd positions (1st,
+  // 3rd, ... - 0-based even index) weight 1, even positions weight 3.
+  private ean13CheckDigit(first12: string): string {
+    let sum = 0;
+    for (let i = 0; i < 12; i++) {
+      const n = first12.charCodeAt(i) - 48;
+      sum += i % 2 === 0 ? n : n * 3;
+    }
+    return (((10 - (sum % 10)) % 10)).toString();
   }
 
   renderSku() {
@@ -129,7 +145,7 @@ export class AdminComponent implements OnInit {
     void import('jsbarcode').then((m: any) => {
       const JsBarcode = m.default ?? m;
       const cv = this.skuCanvasRef?.nativeElement;
-      if (cv) JsBarcode(cv, this.fSku, { format: 'CODE128', width: 2, height: 56, displayValue: true, background: '#ffffff', lineColor: '#111111', margin: 4 });
+      if (cv) JsBarcode(cv, this.fSku, { format: 'EAN13', width: 2, height: 56, displayValue: true, background: '#ffffff', lineColor: '#111111', margin: 4 });
     }).catch(() => { /* barcode lib unavailable */ });
   }
 
@@ -144,7 +160,7 @@ export class AdminComponent implements OnInit {
     void import('jsbarcode').then(async (m: any) => {
       const JsBarcode = m.default ?? m;
       const cv = document.createElement('canvas');
-      JsBarcode(cv, this.fSku, { format: 'CODE128', width: 3, height: 80, displayValue: true, background: '#ffffff', lineColor: '#111111' });
+      JsBarcode(cv, this.fSku, { format: 'EAN13', width: 3, height: 80, displayValue: true, background: '#ffffff', lineColor: '#111111' });
       const img = cv.toDataURL('image/png');
       const esc = (v: any) => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
       const html = `<div style="font-family:Arial,sans-serif;color:#111;text-align:center;padding:1rem">

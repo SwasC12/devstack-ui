@@ -1,33 +1,39 @@
 package za.co.coffeeshoppro.pos;
 
 import android.Manifest;
-import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.media.Image;
 import android.os.Bundle;
+import android.util.Log;
+import android.util.Size;
 import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
-import android.widget.LinearLayout;
+import android.widget.FrameLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.activity.ComponentActivity;
 import androidx.annotation.NonNull;
+import androidx.camera.core.Camera;
 import androidx.camera.core.CameraSelector;
+import androidx.camera.core.ExperimentalGetImage;
+import androidx.camera.core.FocusMeteringAction;
+import androidx.camera.core.MeteringPoint;
 import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.ImageProxy;
 import androidx.camera.core.Preview;
 import androidx.camera.lifecycle.ProcessCameraProvider;
 import androidx.camera.view.PreviewView;
+import androidx.camera.core.SurfaceOrientedMeteringPointFactory;
 import androidx.core.content.ContextCompat;
-import androidx.lifecycle.Lifecycle;
-import androidx.lifecycle.LifecycleOwner;
-import androidx.lifecycle.LifecycleRegistry;
+
+import java.util.concurrent.TimeUnit;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.mlkit.vision.barcode.BarcodeScanner;
@@ -36,78 +42,85 @@ import com.google.mlkit.vision.barcode.BarcodeScanning;
 import com.google.mlkit.vision.barcode.common.Barcode;
 import com.google.mlkit.vision.common.InputImage;
 
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 // Fast, native barcode scanner: CameraX preview + ML Kit real-time decoding
 // (bundled model - no Google Play Services needed). Returns the first decoded
-// value via setResult(); cancels on the button or back. This replaces the
-// slow third-party scanner plugin entirely. NOTE: extends plain Activity -
-// AppCompatActivity would require a Theme.AppCompat theme, and the app's
-// theme isn't one (that was a crash).
-public class FastBarcodeActivity extends Activity implements LifecycleOwner {
+// value via setResult() and finishes; cancels on the button or back.
+//
+// Extends androidx.activity.ComponentActivity: it IS a LifecycleOwner out of
+// the box (so bindToLifecycle() works reliably) and, unlike AppCompatActivity,
+// does NOT require a Theme.AppCompat. It runs under ScannerTheme - a plain,
+// opaque, fullscreen black theme with NO splash background, so the camera is
+// the only thing on screen (the previous splash theme leaked the app logo,
+// which is what showed as "a black screen with a broken logo").
+public class FastBarcodeActivity extends ComponentActivity {
 
     public static final String EXTRA_RESULT = "scan_result";
-    private static final int[] FORMATS = {
-        Barcode.FORMAT_CODE_128, Barcode.FORMAT_EAN_13, Barcode.FORMAT_EAN_8,
-        Barcode.FORMAT_UPC_A, Barcode.FORMAT_UPC_E, Barcode.FORMAT_QR_CODE
-    };
     private static final int PERMISSION_REQUEST = 100;
 
-    private final LifecycleRegistry lifecycleRegistry = new LifecycleRegistry(this);
     private PreviewView previewView;
     private TextView statusText;
     private ExecutorService analysisExecutor;
     private BarcodeScanner mlScanner;
-    private boolean finished = false;
-
-    @Override
-    public Lifecycle getLifecycle() { return lifecycleRegistry; }
+    private volatile boolean finished = false;
+    private static final String TAG = "FastBarcode";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Full-screen dark scanner UI with a scan frame.
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(Color.parseColor("#111111"));
+        // --- UI: full-bleed camera preview with a scan frame and controls on top.
+        FrameLayout root = new FrameLayout(this);
+        root.setBackgroundColor(Color.BLACK);
 
         previewView = new PreviewView(this);
+        // COMPATIBLE = TextureView-backed: composites inside the view hierarchy,
+        // which is far more predictable than the default SurfaceView here.
+        previewView.setImplementationMode(PreviewView.ImplementationMode.COMPATIBLE);
         previewView.setScaleType(PreviewView.ScaleType.FILL_CENTER);
-        root.addView(previewView, new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
+        root.addView(previewView, new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
         ScanFrameView frame = new ScanFrameView(this);
-        root.addView(frame, new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
+        root.addView(frame, new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
         statusText = new TextView(this);
         statusText.setText("Point the camera at the barcode");
         statusText.setTextColor(Color.WHITE);
-        statusText.setTextSize(15);
+        statusText.setTextSize(16);
         statusText.setGravity(Gravity.CENTER);
-        root.addView(statusText, new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, 90));
+        statusText.setShadowLayer(6, 0, 0, Color.BLACK);
+        FrameLayout.LayoutParams statusLp = new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        statusLp.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+        statusLp.topMargin = 48;
+        root.addView(statusText, statusLp);
 
         Button cancel = new Button(this);
         cancel.setText("Cancel");
         cancel.setTextSize(16);
         cancel.setOnClickListener(v -> finish());
-        root.addView(cancel, new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, 110));
+        FrameLayout.LayoutParams cancelLp = new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        cancelLp.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
+        cancelLp.bottomMargin = 56;
+        root.addView(cancel, cancelLp);
 
         setContentView(root);
 
         analysisExecutor = Executors.newSingleThreadExecutor();
         try {
+            // Products now use EAN-13. Restricting the format set makes ML Kit
+            // faster and less ambiguous; CODE_128 stays on so any legacy
+            // "SKU-..." labels still scan during the transition.
             BarcodeScannerOptions options = new BarcodeScannerOptions.Builder()
-                .setBarcodeFormats(FORMATS[0], FORMATS[1], FORMATS[2], FORMATS[3], FORMATS[4], FORMATS[5])
+                .setBarcodeFormats(Barcode.FORMAT_EAN_13, Barcode.FORMAT_CODE_128)
                 .build();
             mlScanner = BarcodeScanning.getClient(options);
         } catch (Throwable t) {
-            // Scanner init failed (e.g. no ML Kit model) - never crash the app.
             Toast.makeText(this, "Scanner unavailable: " + t.getMessage(), Toast.LENGTH_LONG).show();
             finish();
             return;
@@ -134,101 +147,119 @@ public class FastBarcodeActivity extends Activity implements LifecycleOwner {
         }
     }
 
-    @Override
-    protected void onStart() { super.onStart(); lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_START); }
-    @Override
-    protected void onResume() { super.onResume(); lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME); }
-    @Override
-    protected void onPause() { lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE); super.onPause(); }
-    @Override
-    protected void onStop() { lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_STOP); super.onStop(); }
-
     private void startCamera() {
-        ListenableFuture<ProcessCameraProvider> future =
-            ProcessCameraProvider.getInstance(this);
+        ListenableFuture<ProcessCameraProvider> future = ProcessCameraProvider.getInstance(this);
         future.addListener(() -> {
             try {
                 ProcessCameraProvider provider = future.get();
+
                 Preview preview = new Preview.Builder().build();
                 preview.setSurfaceProvider(previewView.getSurfaceProvider());
 
+                // Higher analysis resolution: a dense CODE-128 label needs enough
+                // pixels across the bars for ML Kit to resolve them. 1280x720 was
+                // too coarse for a small printed label.
                 ImageAnalysis analysis = new ImageAnalysis.Builder()
+                    .setTargetResolution(new Size(1920, 1080))
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                     .build();
                 analysis.setAnalyzer(analysisExecutor, this::analyze);
 
                 provider.unbindAll();
-                provider.bindToLifecycle(this, CameraSelector.DEFAULT_BACK_CAMERA,
-                    preview, analysis);
-            } catch (ExecutionException | InterruptedException e) {
-                runOnUiThread(() -> {
-                    Toast.makeText(this, "Could not start the camera", Toast.LENGTH_LONG).show();
-                    finish();
-                });
+                Camera camera = provider.bindToLifecycle(
+                    this, CameraSelector.DEFAULT_BACK_CAMERA, preview, analysis);
+
+                // Drive continuous autofocus on the centre of the frame. Tablet
+                // cameras often sit unfocused at close label distance, so ML Kit
+                // only ever sees a blur - which decodes to nothing, silently.
+                try {
+                    MeteringPoint center = new SurfaceOrientedMeteringPointFactory(1f, 1f)
+                        .createPoint(0.5f, 0.5f);
+                    FocusMeteringAction af = new FocusMeteringAction.Builder(center, FocusMeteringAction.FLAG_AF)
+                        .setAutoCancelDuration(2, TimeUnit.SECONDS)
+                        .build();
+                    camera.getCameraControl().startFocusAndMetering(af);
+                } catch (Throwable t) {
+                    Log.w(TAG, "focus/metering unavailable: " + t.getMessage());
+                }
+            } catch (Throwable e) {
+                Toast.makeText(this, "Could not start the camera: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                finish();
             }
         }, ContextCompat.getMainExecutor(this));
     }
 
+    @ExperimentalGetImage
     private void analyze(@NonNull ImageProxy imageProxy) {
         if (finished) { imageProxy.close(); return; }
-        InputImage image = InputImage.fromMediaImage(imageProxy.getImage(), imageProxy.getImageInfo().getRotationDegrees());
+        Image mediaImage = imageProxy.getImage();
+        // getImage() is null on the odd frame (camera warm-up, format churn).
+        // fromMediaImage(null, ...) throws, and because we use
+        // STRATEGY_KEEP_ONLY_LATEST a single un-closed ImageProxy stalls the
+        // whole real-time pipeline - the preview keeps rendering but no further
+        // frames arrive, so nothing decodes. Skip the frame instead.
+        if (mediaImage == null) { imageProxy.close(); return; }
+        int rot = imageProxy.getImageInfo().getRotationDegrees();
+        InputImage image = InputImage.fromMediaImage(mediaImage, rot);
         mlScanner.process(image)
             .addOnSuccessListener(barcodes -> {
                 for (Barcode barcode : barcodes) {
-                    if (barcode.getRawValue() != null && !barcode.getRawValue().isEmpty()) {
+                    String value = barcode.getRawValue();
+                    if (value != null && !value.isEmpty()) {
                         finished = true;
-                        String value = barcode.getRawValue();
-                        imageProxy.close();
                         runOnUiThread(() -> {
-                            setResult(RESULT_OK, new android.content.Intent().putExtra(EXTRA_RESULT, value));
+                            setResult(RESULT_OK, new Intent().putExtra(EXTRA_RESULT, value));
                             finish();
                         });
                         return;
                     }
                 }
-                imageProxy.close();
             })
-            .addOnFailureListener(e -> imageProxy.close());
+            .addOnFailureListener(e -> Log.e(TAG, "ML Kit process() failed: " + e.getMessage()))
+            // Always close after processing - exactly one close per frame keeps
+            // frames flowing so decoding stays real-time/instant.
+            .addOnCompleteListener(task -> imageProxy.close());
     }
 
     @Override
     protected void onDestroy() {
-        super.onDestroy();
         finished = true;
-        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY);
         if (analysisExecutor != null) analysisExecutor.shutdown();
         if (mlScanner != null) mlScanner.close();
+        super.onDestroy();
     }
 
-    // Simple scan-frame overlay (horizontal line + corners drawn over the preview).
+    // Scan-frame overlay: dims outside a central window and draws corner marks.
     static class ScanFrameView extends View {
-        private final Paint paint = new Paint();
+        private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         public ScanFrameView(android.content.Context context) { super(context); }
 
         @Override
         protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
             float w = getWidth(), h = getHeight();
-            float left = w * 0.12f, right = w * 0.88f;
-            float top = h * 0.28f, bottom = h * 0.72f;
+            float left = w * 0.20f, right = w * 0.80f;
+            float top = h * 0.30f, bottom = h * 0.70f;
 
-            paint.setColor(Color.parseColor("#22000000"));
+            paint.setStyle(Paint.Style.FILL);
+            paint.setColor(Color.parseColor("#66000000"));
             canvas.drawRect(0, 0, w, top, paint);
             canvas.drawRect(0, bottom, w, h, paint);
             canvas.drawRect(0, top, left, bottom, paint);
             canvas.drawRect(right, top, w, bottom, paint);
 
+            paint.setStyle(Paint.Style.STROKE);
             paint.setColor(Color.parseColor("#c88738"));
-            paint.setStrokeWidth(6);
-            canvas.drawLine(left, top, left + (right - left) * 0.25f, top, paint);
-            canvas.drawLine(left, top, left, top + (bottom - top) * 0.25f, paint);
-            canvas.drawLine(right, top, right - (right - left) * 0.25f, top, paint);
-            canvas.drawLine(right, top, right, top + (bottom - top) * 0.25f, paint);
-            canvas.drawLine(left, bottom, left + (right - left) * 0.25f, bottom, paint);
-            canvas.drawLine(left, bottom, left, bottom - (bottom - top) * 0.25f, paint);
-            canvas.drawLine(right, bottom, right - (right - left) * 0.25f, bottom, paint);
-            canvas.drawLine(right, bottom, right, bottom - (bottom - top) * 0.25f, paint);
+            paint.setStrokeWidth(8);
+            float cx = (right - left) * 0.22f, cy = (bottom - top) * 0.22f;
+            canvas.drawLine(left, top, left + cx, top, paint);
+            canvas.drawLine(left, top, left, top + cy, paint);
+            canvas.drawLine(right, top, right - cx, top, paint);
+            canvas.drawLine(right, top, right, top + cy, paint);
+            canvas.drawLine(left, bottom, left + cx, bottom, paint);
+            canvas.drawLine(left, bottom, left, bottom - cy, paint);
+            canvas.drawLine(right, bottom, right - cx, bottom, paint);
+            canvas.drawLine(right, bottom, right, bottom - cy, paint);
         }
     }
-
 }

@@ -1,4 +1,4 @@
-import { Component, inject, OnDestroy, signal } from '@angular/core';
+import { Component, inject, NgZone, OnDestroy, signal } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
 import { NavigationStart, NavigationEnd, NavigationError, NavigationCancel } from '@angular/router';
 import { filter } from 'rxjs';
@@ -23,6 +23,7 @@ export class AppComponent implements OnDestroy {
   auth = inject(AuthService);
   router = inject(Router);
   offline = inject(OfflineService);
+  private zone = inject(NgZone);
   private kioskTimer: any = null;
 
   constructor() {
@@ -39,7 +40,17 @@ export class AppComponent implements OnDestroy {
     // The kiosk pref lives in device storage and only the kitchen page changes
     // it - poll so the nav hides/shows instantly instead of waiting for the
     // next navigation (which the locked nav otherwise prevents).
-    this.kioskTimer = setInterval(() => void this.updateKioskLock(), 700);
+    // Run OUTSIDE the Angular zone: this used to fire a full app-wide change
+    // detection ~1.4x/second forever (on every page), which made the whole app
+    // - especially the POS grid - churn needlessly. Now the tick does nothing
+    // but a cheap URL check unless we're on /kitchen, and only re-enters the
+    // zone when the lock state actually changes.
+    this.zone.runOutsideAngular(() => {
+      this.kioskTimer = setInterval(() => {
+        if (!this.router.url.startsWith('/kitchen')) return;
+        void this.updateKioskLock();
+      }, 700);
+    });
   }
 
   ngOnDestroy() {
@@ -50,9 +61,14 @@ export class AppComponent implements OnDestroy {
   // display stays on the kitchen screen.
   kioskLocked = signal(false);
   private async updateKioskLock(): Promise<void> {
-    if (!this.router.url.startsWith('/kitchen')) { this.kioskLocked.set(false); return; }
+    if (!this.router.url.startsWith('/kitchen')) {
+      if (this.kioskLocked()) this.zone.run(() => this.kioskLocked.set(false));
+      return;
+    }
     const { value } = await Preferences.get({ key: 'kiosk' });
-    this.kioskLocked.set(value === '1');
+    const locked = value === '1';
+    // Only re-enter the zone (and trigger CD) when the state actually changes.
+    if (locked !== this.kioskLocked()) this.zone.run(() => this.kioskLocked.set(locked));
   }
 
   get isAdmin(): boolean {
