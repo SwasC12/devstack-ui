@@ -249,7 +249,7 @@
       @if (tab() === 'categories') {
         <div class="section-head">
           <h2 class="page-title">Categories</h2>
-          <input class="tbl-filter cashup-date" [(ngModel)]="catsQ" placeholder="Filter categories…" />
+          <input class="tbl-filter" [(ngModel)]="catsQ" placeholder="Filter categories…" />
           <app-btn variant="primary" (onClick)="openCatForm()">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             New category
@@ -307,7 +307,7 @@
       @if (tab() === 'users') {
         <div class="section-head">
           <h2 class="page-title">Users</h2>
-          <input class="tbl-filter cashup-date" [(ngModel)]="usersQ" placeholder="Filter users…" />
+          <input class="tbl-filter" [(ngModel)]="usersQ" placeholder="Filter users…" />
           <app-btn variant="primary" (onClick)="openUserForm()">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             New user
@@ -582,7 +582,7 @@
         @if (analytics(); as a) {
           <div class="metrics">
             <div class="metric"><div class="m-val">R{{ a.totals.revenue | number:'1.2-2' }}</div><div class="m-lbl">Revenue</div></div>
-            <div class="metric"><div class="m-val">R{{ a.totals.grossProfit | number:'1.2-2' }}</div><div class="m-lbl">Gross profit ({{ a.totals.grossMarginPct }}%)</div></div>
+            <div class="metric"><div class="m-val" [class.pos]="a.totals.grossProfit > 0" [class.neg]="a.totals.grossProfit < 0">R{{ a.totals.grossProfit | number:'1.2-2' }}</div><div class="m-lbl">Gross profit ({{ a.totals.grossMarginPct }}%)</div></div>
             <div class="metric"><div class="m-val">{{ a.totals.orders }}</div><div class="m-lbl">Orders</div></div>
             <div class="metric"><div class="m-val">{{ a.totals.items }}</div><div class="m-lbl">Items sold</div></div>
           </div>
@@ -623,7 +623,7 @@
                 <thead><tr><th>Category</th><th>Qty</th><th>Revenue</th><th>GP</th></tr></thead>
                 <tbody>
                   @for (c of a.categories; track c.name) {
-                    <tr><td><strong>{{ c.name }}</strong></td><td>{{ c.quantity }}</td><td class="num">R{{ c.revenue | number:'1.2-2' }}</td><td class="num">R{{ c.grossProfit | number:'1.2-2' }}</td></tr>
+                    <tr><td><strong>{{ c.name }}</strong></td><td>{{ c.quantity }}</td><td class="num">R{{ c.revenue | number:'1.2-2' }}</td><td class="num" [class.pos]="c.grossProfit > 0" [class.neg]="c.grossProfit < 0">R{{ c.grossProfit | number:'1.2-2' }}</td></tr>
                   } @empty {
                     <tr><td colspan="4" class="muted-td">No sales yet.</td></tr>
                   }
@@ -640,7 +640,7 @@
       @if (tab() === 'discounts') {
         <div class="section-head">
           <h2 class="page-title">Discounts &amp; specials</h2>
-          <input class="tbl-filter cashup-date" [(ngModel)]="discQ" placeholder="Filter discounts…" />
+          <input class="tbl-filter" [(ngModel)]="discQ" placeholder="Filter discounts…" />
           <app-btn variant="primary" (onClick)="openDiscForm()">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             New discount
@@ -795,7 +795,7 @@
             <h2 class="page-title">Transaction journal</h2>
             <input class="cashup-date" type="date" [ngModel]="journalFrom" (ngModelChange)="journalFrom = $event; loadJournal()" title="From" />
             <input class="cashup-date" type="date" [ngModel]="journalTo" (ngModelChange)="journalTo = $event; loadJournal()" title="To" />
-            <input class="tbl-filter cashup-date" [(ngModel)]="jQ" placeholder="Filter journal…" />
+            <input class="tbl-filter" [(ngModel)]="jQ" placeholder="Filter journal…" />
             <app-btn size="sm" (onClick)="loadJournal()" [loading]="journalBusy()">Refresh</app-btn>
           </div>
           @if (journal(); as j) {
@@ -832,7 +832,7 @@
             <h2 class="page-title">Audit trail</h2>
             <input class="cashup-date" type="date" [ngModel]="auditFrom" (ngModelChange)="auditFrom = $event; loadAudit()" title="From" />
             <input class="cashup-date" type="date" [ngModel]="auditTo" (ngModelChange)="auditTo = $event; loadAudit()" title="To" />
-            <input class="tbl-filter cashup-date" [(ngModel)]="aQ" placeholder="Filter audit…" />
+            <input class="tbl-filter" [(ngModel)]="aQ" placeholder="Filter audit…" />
             <app-btn size="sm" (onClick)="loadAudit()" [loading]="auditBusy()">Refresh</app-btn>
           </div>
           <div class="table-card">
@@ -911,7 +911,7 @@
         <div class="cashup">
           <div class="cashup-head">
             <h2 class="page-title">Suppliers &amp; purchase orders</h2>
-            <input class="tbl-filter cashup-date" [(ngModel)]="poQ" placeholder="Filter POs…" />
+            <input class="tbl-filter" [(ngModel)]="poQ" placeholder="Filter POs…" />
             <app-btn variant="primary" size="sm" (onClick)="openPoForm()">+ Purchase order</app-btn>
           </div>
           @if (showPoForm()) {
@@ -995,7 +995,7 @@
             <h2 class="page-title">Expenses &amp; petty cash</h2>
             <input class="cashup-date" type="date" [ngModel]="expFrom" (ngModelChange)="expFrom = $event; loadExpenses()" title="From" />
             <input class="cashup-date" type="date" [ngModel]="expTo" (ngModelChange)="expTo = $event; loadExpenses()" title="To" />
-            <input class="tbl-filter cashup-date" [(ngModel)]="expQ" placeholder="Filter expenses…" />
+            <input class="tbl-filter" [(ngModel)]="expQ" placeholder="Filter expenses…" />
             <app-btn variant="primary" size="sm" (onClick)="openExpForm()">+ Expense</app-btn>
           </div>
           @if (showExpForm()) {
