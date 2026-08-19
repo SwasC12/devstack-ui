@@ -33,6 +33,41 @@ export class AdminComponent implements OnInit {
   private sound = inject(SoundService);
   readonly tab = signal<'inventory' | 'categories' | 'users' | 'orders' | 'analytics' | 'cashup' | 'discounts' | 'settings' | 'timesheet' | 'journal' | 'audit' | 'customers' | 'purchasing' | 'expenses'>('inventory');
 
+  // Grouped navigation: a top row picks a group, the second row shows only that
+  // group's tabs. 14 flat tabs were too many to scan; this keeps the same
+  // underlying `tab` signal and per-tab loaders, just organizes them.
+  readonly adminGroup = signal<'catalog' | 'sales' | 'people' | 'finance' | 'system'>('catalog');
+  readonly tabGroups = [
+    { key: 'catalog', label: 'Catalog', tabs: [{ k: 'inventory', l: 'Inventory' }, { k: 'categories', l: 'Categories' }, { k: 'discounts', l: 'Discounts' }] },
+    { key: 'sales', label: 'Sales', tabs: [{ k: 'orders', l: 'Orders' }, { k: 'cashup', l: 'Cash-up' }, { k: 'customers', l: 'Customers' }] },
+    { key: 'people', label: 'People', tabs: [{ k: 'users', l: 'Users' }, { k: 'timesheet', l: 'Timesheet' }] },
+    { key: 'finance', label: 'Finance', tabs: [{ k: 'analytics', l: 'Analytics' }, { k: 'expenses', l: 'Expenses' }, { k: 'purchasing', l: 'Purchasing' }, { k: 'journal', l: 'Journal' }] },
+    { key: 'system', label: 'System', tabs: [{ k: 'audit', l: 'Audit' }, { k: 'settings', l: 'Settings' }] },
+  ] as const;
+
+  currentGroupTabs() { return this.tabGroups.find(g => g.key === this.adminGroup())?.tabs ?? []; }
+
+  selectGroup(key: 'catalog' | 'sales' | 'people' | 'finance' | 'system') {
+    this.adminGroup.set(key);
+    const first = this.tabGroups.find(g => g.key === key)?.tabs[0]?.k;
+    if (first) this.openTab(first);
+  }
+
+  // Switch tab, preserving each tab's original lazy-load side effect.
+  openTab(key: string) {
+    switch (key) {
+      case 'analytics': this.openAnalytics(); break;
+      case 'cashup': this.openCashup(); break;
+      case 'timesheet': this.openTimesheet(); break;
+      case 'journal': this.tab.set('journal'); this.loadJournal(); break;
+      case 'audit': this.tab.set('audit'); this.loadAudit(); break;
+      case 'customers': this.tab.set('customers'); this.loadCustomers(); break;
+      case 'purchasing': this.tab.set('purchasing'); this.loadPurchasing(); break;
+      case 'expenses': this.tab.set('expenses'); this.loadExpenses(); break;
+      default: this.tab.set(key as any);
+    }
+  }
+
   // Timesheet: hours worked + wage cost per employee over a date range.
   readonly tsData = signal<any | null>(null);
   readonly tsBusy = signal(false);

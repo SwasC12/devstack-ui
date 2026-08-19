@@ -1,22 +1,16 @@
 
     <div class="admin">
-      <!-- Tabs -->
+      <!-- Grouped tabs: top row picks a group, second row shows its tabs -->
+      <div class="tab-groups">
+        @for (g of tabGroups; track g.key) {
+          <button class="tgroup" [class.active]="adminGroup() === g.key" (click)="selectGroup(g.key)">{{ g.label }}</button>
+        }
+      </div>
       <div class="tabs">
         <div class="tabs-scroll">
-          <button class="tab" [class.active]="tab() === 'inventory'" (click)="tab.set('inventory')">Inventory</button>
-          <button class="tab" [class.active]="tab() === 'categories'" (click)="tab.set('categories')">Categories</button>
-          <button class="tab" [class.active]="tab() === 'users'" (click)="tab.set('users')">Users</button>
-          <button class="tab" [class.active]="tab() === 'orders'" (click)="tab.set('orders')">Orders</button>
-          <button class="tab" [class.active]="tab() === 'analytics'" (click)="openAnalytics()">Analytics</button>
-          <button class="tab" [class.active]="tab() === 'cashup'" (click)="openCashup()">Cash-up</button>
-          <button class="tab" [class.active]="tab() === 'timesheet'" (click)="openTimesheet()">Timesheet</button>
-          <button class="tab" [class.active]="tab() === 'discounts'" (click)="tab.set('discounts')">Discounts</button>
-          <button class="tab" [class.active]="tab() === 'journal'" (click)="tab.set('journal'); loadJournal()">Journal</button>
-          <button class="tab" [class.active]="tab() === 'audit'" (click)="tab.set('audit'); loadAudit()">Audit</button>
-          <button class="tab" [class.active]="tab() === 'customers'" (click)="tab.set('customers'); loadCustomers()">Customers</button>
-          <button class="tab" [class.active]="tab() === 'purchasing'" (click)="tab.set('purchasing'); loadPurchasing()">Purchasing</button>
-          <button class="tab" [class.active]="tab() === 'expenses'" (click)="tab.set('expenses'); loadExpenses()">Expenses</button>
-          <button class="tab" [class.active]="tab() === 'settings'" (click)="tab.set('settings')">Settings</button>
+          @for (t of currentGroupTabs(); track t.k) {
+            <button class="tab" [class.active]="tab() === t.k" (click)="openTab(t.k)">{{ t.l }}</button>
+          }
         </div>
         <!-- Notification bell: pinned to the right of the tab bar, always visible -->
         <div class="bell-wrap">
