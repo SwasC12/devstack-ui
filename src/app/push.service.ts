@@ -17,6 +17,7 @@ const TOKEN_KEY = 'pos_push_token';
 export class PushService {
   private http = inject(HttpClient);
   private deviceToken: string | null = null;
+  private listenersAdded = false;
 
   constructor() {
     try { this.deviceToken = sessionStorage.getItem(TOKEN_KEY); } catch { /* storage unavailable */ }
@@ -24,23 +25,41 @@ export class PushService {
 
   get isNative(): boolean { return Capacitor.isNativePlatform(); }
 
+  // Called after every login. Binds THIS device's FCM token to the signed-in
+  // user so broadcasts / alerts to that user reach the device.
   async init(): Promise<void> {
     if (!this.isNative) return;
     try {
+      // If we already hold a token (from a previous run/login), re-register it
+      // NOW against the just-signed-in user. Android doesn't always re-emit the
+      // 'registration' event on a subsequent register(), so relying on that
+      // alone left the token bound to whoever first logged in - and a fresh
+      // login (e.g. the shop admin) never got a token row. This closes that gap.
+      if (this.deviceToken) this.postToken(this.deviceToken);
+
+      // Add the plugin listeners once (not per-login, to avoid duplicates).
+      if (!this.listenersAdded) {
+        this.listenersAdded = true;
+        await PushNotifications.addListener('registration', (t) => {
+          this.deviceToken = t.value;
+          try { sessionStorage.setItem(TOKEN_KEY, t.value); } catch { /* ignore */ }
+          this.postToken(t.value);
+        });
+        await PushNotifications.addListener('registrationError', () => { /* no Play services / denied */ });
+      }
+
       let perm = await PushNotifications.checkPermissions();
       if (perm.receive === 'prompt') perm = await PushNotifications.requestPermissions();
       if (perm.receive !== 'granted') return;
-
-      await PushNotifications.addListener('registration', (t) => {
-        this.deviceToken = t.value;
-        try { sessionStorage.setItem(TOKEN_KEY, t.value); } catch { /* ignore */ }
-        // The auth interceptor adds the bearer token; not-logged-in => 401, ignored.
-        this.http.post(`${environment.apiBase}/push/register`, { token: t.value, platform: 'android' })
-          .subscribe({ error: () => { /* retry next login */ } });
-      });
-      await PushNotifications.addListener('registrationError', () => { /* no Play services / denied */ });
       await PushNotifications.register();
     } catch { /* push unavailable - never block the app */ }
+  }
+
+  // POST the token to the server. The auth interceptor adds the bearer token;
+  // if not logged in yet it 401s and is ignored (re-tried on the next login).
+  private postToken(token: string): void {
+    this.http.post(`${environment.apiBase}/push/register`, { token, platform: 'android' })
+      .subscribe({ error: () => { /* retry next login */ } });
   }
 
   // Called from AuthService.logout() while the session is still valid so the

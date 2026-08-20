@@ -479,7 +479,16 @@ export class ShopsComponent implements OnInit {
         this.bcBusy.set(false);
         this.sound.sent();
         this.loadOverview();
-        this.dialog.toast(`Sent to ${res.delivered} owner${res.delivered === 1 ? '' : 's'} (${res.pushed} device${res.pushed === 1 ? '' : 's'})`, 'success');
+        const owners = `${res.delivered} owner${res.delivered === 1 ? '' : 's'}`;
+        if (res.pushConfigured === false) {
+          // In-app notification saved, but the server can't send FCM (no Firebase
+          // service account configured) — tell the truth instead of "N devices".
+          this.dialog.toast(`Saved for ${owners}. Push is not configured on the server, so no device alerts were sent.`, 'info');
+        } else if ((res.devices ?? 0) === 0) {
+          this.dialog.toast(`Saved for ${owners}, but none of them have a registered device yet.`, 'info');
+        } else {
+          this.dialog.toast(`Sent to ${owners} — ${res.pushed} device${res.pushed === 1 ? '' : 's'} pushed${res.skipped ? `, ${res.skipped} skipped` : ''}${res.failed ? `, ${res.failed} failed` : ''}.`, 'success');
+        }
         this.bcTitle = ''; this.bcBody = '';
       },
       error: (e) => { this.bcBusy.set(false); this.dialog.toast(e.error?.error || 'Send failed', 'error'); }
