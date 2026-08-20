@@ -8,8 +8,8 @@
       @if (tab() === 'shops') {
       @if (!welcomeHidden()) {
       <div class="welcome" [class.warn]="welcomeIssues()">
-        <button class="welcome-close" (click)="dismissWelcome()" title="Hide for today">✕</button>
-        <div class="welcome-main">{{ greeting() }}, {{ auth.getUser()?.displayName || 'boss' }} 👋</div>
+        <button class="welcome-close" (click)="dismissWelcome()" title="Hide for today"><app-icon name="close" [size]="16" /></button>
+        <div class="welcome-main">{{ greeting() }}, {{ auth.getUser()?.displayName || 'boss' }}</div>
         <div class="welcome-line">{{ overview()?.stats?.activeShops ?? 0 }} shops active · {{ overview()?.stats?.ordersToday ?? 0 }} orders processed today.</div>
         @if (welcomeIssues(); as issues) {
           <div class="welcome-issues">{{ issues }}.</div>
@@ -32,7 +32,7 @@
       <div class="form-sheet announce">
         <div class="form-head collapsible" (click)="toggleAnnounce()">
           <h3>Notify owners</h3>
-          <span class="chev">{{ announceOpen() ? '▾' : '▸' }}</span>
+          <span class="chev"><app-icon [name]="announceOpen() ? 'chevron-down' : 'chevron-right'" [size]="16" /></span>
         </div>
         @if (announceOpen()) {
         <div class="form-grid">
@@ -57,7 +57,7 @@
         <div class="form-sheet">
           <div class="form-head">
             <h3>New shop</h3>
-            <app-btn size="sm" (onClick)="closeForm()">✕</app-btn>
+            <app-btn size="sm" (onClick)="closeForm()"><app-icon name="close" [size]="16" /></app-btn>
           </div>
           <div class="form-grid">
             <div class="field"><label>Shop name</label><input [(ngModel)]="fName" placeholder="e.g. Rosebank Coffee" /></div>
@@ -79,7 +79,7 @@
         <div class="form-sheet">
           <div class="form-head">
             <h3>Owner contact — {{ ownerEdit.name }}</h3>
-            <app-btn size="sm" (onClick)="closeOwnerEdit()">✕</app-btn>
+            <app-btn size="sm" (onClick)="closeOwnerEdit()"><app-icon name="close" [size]="16" /></app-btn>
           </div>
           <div class="form-grid">
             <div class="field"><label>Owner email</label><input [(ngModel)]="fOwnerEmail" type="email" placeholder="owner@shop.co.za" /></div>
@@ -95,7 +95,7 @@
       <div class="platform-grid">
         <div class="table-col" (click)="closeMenu()">
           <div class="search-row">
-            <span class="search-ic">🔎</span>
+            <span class="search-ic"><app-icon name="search" [size]="16" /></span>
             <input [(ngModel)]="search" placeholder="Search by shop name, code, owner or email…" />
             @if (search.trim()) { <span class="search-count">{{ filteredShops().length }} of {{ shops().length }}</span> }
           </div>
@@ -159,7 +159,7 @@
                     <span class="tmpl-desc">{{ t.desc }}</span>
                   </button>
                 }
-                <button class="menu-item" (click)="closeEmailPicker()">✕ Cancel</button>
+                <button class="menu-item" (click)="closeEmailPicker()"><app-icon name="close" [size]="14" /> Cancel</button>
               </div>
               </div>
             }
@@ -203,12 +203,12 @@
           </div>
 
           <div class="rail-card">
-            <h3 class="rail-head" (click)="toggleLive()">Live Activity <span class="chev">{{ liveOpen() ? '▾' : '▸' }}</span></h3>
+            <h3 class="rail-head" (click)="toggleLive()">Live Activity <span class="chev"><app-icon [name]="liveOpen() ? 'chevron-down' : 'chevron-right'" [size]="16" /></span></h3>
             @if (liveOpen()) {
               <div class="feed">
                 @for (ev of overview()?.events ?? []; track ev.id) {
                   <div class="feed-item">
-                    <span class="feed-ic">{{ eventIcon(ev.type) }}</span>
+                    <span class="feed-ic"><app-icon [name]="eventIcon(ev.type)" [size]="15" /></span>
                     <div class="feed-body">
                       <span class="feed-text">{{ ev.detail }}</span>
                       <span class="feed-time">{{ ev.createdAtUtc | date:'short' }}</span>

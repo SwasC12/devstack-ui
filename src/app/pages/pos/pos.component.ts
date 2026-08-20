@@ -1,5 +1,6 @@
 import { Component, effect, inject, signal, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
 import { DEFAULT_PRODUCT_IMAGE } from '../../default-product-image';
+import { IconComponent } from '../../icon.component';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -33,7 +34,7 @@ function compareVersions(a: string, b: string): number {
 @Component({
   selector: 'app-pos',
   standalone: true,
-  imports: [CommonModule, FormsModule, BtnComponent, ReceiptViewComponent, AppLogoComponent],
+  imports: [CommonModule, FormsModule, BtnComponent, ReceiptViewComponent, AppLogoComponent, IconComponent],
   templateUrl: './pos.component.html',
   styleUrl: './pos.component.scss',
 })

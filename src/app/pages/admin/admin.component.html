@@ -15,7 +15,7 @@
         <!-- Notification bell: pinned to the right of the tab bar, always visible -->
         <div class="bell-wrap">
           <button class="bell" (click)="toggleBell()" title="Notifications">
-            🔔
+            <app-icon name="bell" [size]="20" />
             @if (notifUnread() > 0) {
               <span class="bell-badge">{{ notifUnread() > 9 ? '9+' : notifUnread() }}</span>
             }
@@ -79,7 +79,7 @@
           <div class="form-sheet">
             <div class="form-head">
               <h3>{{ editing() ? 'Edit' : 'New' }} item</h3>
-              <app-btn size="sm" (onClick)="closeForm()">✕</app-btn>
+              <app-btn size="sm" (onClick)="closeForm()"><app-icon name="close" [size]="16" /></app-btn>
             </div>
             <div class="form-grid">
               <div class="form-section">Basics</div>
@@ -106,7 +106,7 @@
                   <div class="size-row">
                     <input class="size-name" [(ngModel)]="sz.name" placeholder="e.g. Small" />
                     <input class="size-price" type="number" step="0.01" [(ngModel)]="sz.price" placeholder="0.00" />
-                    <app-btn size="sm" variant="danger" (onClick)="removeSizeRow($index)">✕</app-btn>
+                    <app-btn size="sm" variant="danger" (onClick)="removeSizeRow($index)"><app-icon name="close" [size]="16" /></app-btn>
                   </div>
                 }
                 <app-btn size="sm" (onClick)="addSizeRow()">+ Add size</app-btn>
@@ -119,13 +119,13 @@
                     <div class="mod-group-head">
                       <input [(ngModel)]="g.name" placeholder="Group name e.g. Milk" />
                       <label class="checkbox"><input type="checkbox" [(ngModel)]="g.isMulti" /> <span>Multiple</span></label>
-                      <app-btn size="sm" variant="danger" (onClick)="removeGroup($index)">✕</app-btn>
+                      <app-btn size="sm" variant="danger" (onClick)="removeGroup($index)"><app-icon name="close" [size]="16" /></app-btn>
                     </div>
                     @for (m of g.modifiers; track $index) {
                       <div class="mod-row">
                         <input [(ngModel)]="m.name" placeholder="e.g. Oat" />
                         <input class="mod-delta" type="number" step="0.01" [(ngModel)]="m.priceDelta" placeholder="+0.00" />
-                        <app-btn size="sm" variant="danger" (onClick)="removeMod(g, $index)">✕</app-btn>
+                        <app-btn size="sm" variant="danger" (onClick)="removeMod(g, $index)"><app-icon name="close" [size]="16" /></app-btn>
                       </div>
                     }
                     <app-btn size="sm" (onClick)="addMod(g)">+ Option</app-btn>
@@ -141,7 +141,7 @@
                     <input [(ngModel)]="r.name" placeholder="Ingredient e.g. Coffee beans" />
                     <input class="mod-delta" type="number" step="0.01" [(ngModel)]="r.costPerUnit" placeholder="Cost/unit" />
                     <input class="mod-delta" type="number" step="0.001" [(ngModel)]="r.quantity" placeholder="Qty/serve" />
-                    <app-btn size="sm" variant="danger" (onClick)="removeRecipeRow($index)">✕</app-btn>
+                    <app-btn size="sm" variant="danger" (onClick)="removeRecipeRow($index)"><app-icon name="close" [size]="16" /></app-btn>
                   </div>
                 }
                 <app-btn size="sm" (onClick)="addRecipeRow()">+ Ingredient</app-btn>
@@ -260,7 +260,7 @@
           <div class="form-sheet">
             <div class="form-head">
               <h3>{{ editingCat() ? 'Rename' : 'New' }} category</h3>
-              <app-btn size="sm" (onClick)="closeCatForm()">✕</app-btn>
+              <app-btn size="sm" (onClick)="closeCatForm()"><app-icon name="close" [size]="16" /></app-btn>
             </div>
             <div class="form-grid">
               <div class="field"><label>Name</label><input [(ngModel)]="catName" placeholder="e.g. Hot Drinks" (keyup.enter)="saveCat()" /></div>
@@ -318,7 +318,7 @@
           <div class="form-sheet">
             <div class="form-head">
               <h3>New user</h3>
-              <app-btn size="sm" (onClick)="closeUserForm()">✕</app-btn>
+              <app-btn size="sm" (onClick)="closeUserForm()"><app-icon name="close" [size]="16" /></app-btn>
             </div>
             <div class="form-grid">
               <div class="field"><label>Username</label><input [(ngModel)]="uName" placeholder="e.g. cashier1" /></div>
@@ -343,7 +343,7 @@
                 <tr>
                   <td><strong>{{ u.username }}</strong></td>
                   <td>{{ u.displayName }}</td>
-                  <td><span class="pill">{{ u.role }}</span> @if (u.hasPin) { <span class="pill pin">PIN ✓</span> }</td>
+                  <td><span class="pill">{{ u.role }}</span> @if (u.hasPin) { <span class="pill pin">PIN <app-icon name="check" [size]="11" [strokeWidth]="3" /></span> }</td>
                   <td>{{ u.wageRate != null ? ('R' + u.wageRate + '/h') : '—' }}</td>
                   <td class="cell-acts">
                     <app-btn size="sm" (onClick)="editUser(u)">Edit</app-btn>
@@ -440,7 +440,7 @@
           <div class="form-sheet">
             <div class="form-head">
               <h3>Order #{{ o.id }} · {{ o.createdAt | date:'short' }}</h3>
-              <app-btn size="sm" (onClick)="selectedOrder.set(null)">✕</app-btn>
+              <app-btn size="sm" (onClick)="selectedOrder.set(null)"><app-icon name="close" [size]="16" /></app-btn>
             </div>
             <div class="order-meta">
               <span>Cashier: <strong>{{ o.cashierName || '—' }}</strong></span>
@@ -651,7 +651,7 @@
           <div class="form-sheet">
             <div class="form-head">
               <h3>{{ editingDisc() ? 'Edit' : 'New' }} discount</h3>
-              <app-btn size="sm" (onClick)="closeDiscForm()">✕</app-btn>
+              <app-btn size="sm" (onClick)="closeDiscForm()"><app-icon name="close" [size]="16" /></app-btn>
             </div>
             <div class="form-grid">
               <div class="field"><label>Name</label><input [(ngModel)]="dName" placeholder="e.g. Happy hour" /></div>
@@ -763,8 +763,8 @@
             <div class="field wide">
               <label>Appearance</label>
               <div class="theme-row" style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-                <app-btn size="sm" (onClick)="themeService.set('dark')">{{ themeService.theme() === 'dark' ? '✓ Dark' : 'Dark' }}</app-btn>
-                <app-btn size="sm" (onClick)="themeService.set('light')">{{ themeService.theme() === 'light' ? '✓ Light' : 'Light' }}</app-btn>
+                <app-btn size="sm" (onClick)="themeService.set('dark')">@if (themeService.theme() === 'dark') { <app-icon name="check" [size]="14" [strokeWidth]="3" /> } Dark</app-btn>
+                <app-btn size="sm" (onClick)="themeService.set('light')">@if (themeService.theme() === 'light') { <app-icon name="check" [size]="14" [strokeWidth]="3" /> } Light</app-btn>
               </div>
             </div>
             <div class="field wide">
@@ -866,7 +866,7 @@
           </div>
           @if (showCustForm()) {
             <div class="form-sheet">
-              <div class="form-head"><h3>{{ custEditId ? 'Edit' : 'New' }} customer</h3><app-btn size="sm" (onClick)="closeCustForm()">✕</app-btn></div>
+              <div class="form-head"><h3>{{ custEditId ? 'Edit' : 'New' }} customer</h3><app-btn size="sm" (onClick)="closeCustForm()"><app-icon name="close" [size]="16" /></app-btn></div>
               <div class="form-grid">
                 <div class="field"><label>Name</label><input [(ngModel)]="cfName" /></div>
                 <div class="field"><label>Phone</label><input [(ngModel)]="cfPhone" placeholder="+27..." /></div>
@@ -916,7 +916,7 @@
           </div>
           @if (showPoForm()) {
             <div class="form-sheet">
-              <div class="form-head"><h3>New purchase order</h3><app-btn size="sm" (onClick)="closePoForm()">✕</app-btn></div>
+              <div class="form-head"><h3>New purchase order</h3><app-btn size="sm" (onClick)="closePoForm()"><app-icon name="close" [size]="16" /></app-btn></div>
               <div class="form-grid">
                 <div class="field">
                   <label>Supplier</label>
@@ -939,7 +939,7 @@
                       </select>
                       <input type="number" [(ngModel)]="l.quantity" placeholder="Qty" style="width:70px" />
                       <input type="number" step="0.01" [(ngModel)]="l.unitCost" placeholder="Unit R" style="width:90px" />
-                      <app-btn size="sm" variant="danger" (onClick)="removePoLine($index)">✕</app-btn>
+                      <app-btn size="sm" variant="danger" (onClick)="removePoLine($index)"><app-icon name="close" [size]="16" /></app-btn>
                     </div>
                   }
                   <app-btn size="sm" (onClick)="addPoLine()">+ Line</app-btn>
@@ -953,7 +953,7 @@
           }
           @if (showSupplierForm()) {
             <div class="form-sheet">
-              <div class="form-head"><h3>{{ supEditId ? 'Edit' : 'New' }} supplier</h3><app-btn size="sm" (onClick)="closeSupplierForm()">✕</app-btn></div>
+              <div class="form-head"><h3>{{ supEditId ? 'Edit' : 'New' }} supplier</h3><app-btn size="sm" (onClick)="closeSupplierForm()"><app-icon name="close" [size]="16" /></app-btn></div>
               <div class="form-grid">
                 <div class="field"><label>Name</label><input [(ngModel)]="sfName" /></div>
                 <div class="field"><label>Phone</label><input [(ngModel)]="sfPhone" /></div>
@@ -1000,7 +1000,7 @@
           </div>
           @if (showExpForm()) {
             <div class="form-sheet">
-              <div class="form-head"><h3>Add expense</h3><app-btn size="sm" (onClick)="closeExpForm()">✕</app-btn></div>
+              <div class="form-head"><h3>Add expense</h3><app-btn size="sm" (onClick)="closeExpForm()"><app-icon name="close" [size]="16" /></app-btn></div>
               <div class="form-grid">
                 <div class="field"><label>Category</label><input [(ngModel)]="efCategory" placeholder="e.g. Milk, Supplies" /></div>
                 <div class="field"><label>Amount (R)</label><input type="number" step="0.01" [(ngModel)]="efAmount" /></div>

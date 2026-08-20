@@ -8,13 +8,14 @@ import { AuthService } from '../../auth.service';
 import { DialogService } from '../../dialog.service';
 import { SoundService } from '../../sound.service';
 import { SortableDirective } from '../../sortable.directive';
+import { IconComponent } from '../../icon.component';
 import { Capacitor } from '@capacitor/core';
 import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-shops',
   standalone: true,
-  imports: [CommonModule, FormsModule, BtnComponent, PasswordInputComponent, SortableDirective],
+  imports: [CommonModule, FormsModule, BtnComponent, PasswordInputComponent, SortableDirective, IconComponent],
   templateUrl: './shops.component.html',
   styleUrl: './shops.component.scss',
 })
@@ -212,15 +213,16 @@ export class ShopsComponent implements OnInit {
   closeMenu() { this.menuFor.set(null); this.menuPos.set(null); }
   shopById(id: number): any { return this.shops().find(s => s.id === id) ?? null; }
 
+  // Icon name (for <app-icon>) per platform-event type.
   eventIcon(t: string): string {
     switch (t) {
-      case 'shop_created': return '🏪';
-      case 'shop_activated': return '✅';
-      case 'shop_suspended': return '⏸️';
-      case 'password_reset': return '🔑';
-      case 'broadcast_sent': return '📣';
-      case 'push_failed': return '⚠️';
-      default: return '•';
+      case 'shop_created': return 'store';
+      case 'shop_activated': return 'check';
+      case 'shop_suspended': return 'warning';
+      case 'password_reset': return 'key';
+      case 'broadcast_sent': return 'megaphone';
+      case 'push_failed': return 'warning';
+      default: return 'chevron-right';
     }
   }
 
@@ -244,7 +246,7 @@ export class ShopsComponent implements OnInit {
   // Each builds a subject + body personalised with the shop's details.
   readonly emailTemplates: { key: string; label: string; desc: string; subject: (s: any) => string; body: (s: any) => string }[] = [
     {
-      key: 'welcome', label: '🎉 Welcome / onboarding', desc: 'New shop: logins, install, printer',
+      key: 'welcome', label: 'Welcome / onboarding', desc: 'New shop: logins, install, printer',
       subject: (s) => `Welcome to CoffeeShop Pro — ${s.name} ☕`,
       body: (s) => [
         `Hi ${s.name} team,`,
@@ -264,7 +266,7 @@ export class ShopsComponent implements OnInit {
       ].join('\n')
     },
     {
-      key: 'update', label: '📦 Update available', desc: 'New version released — install now',
+      key: 'update', label: 'Update available', desc: 'New version released — install now',
       subject: (s) => `CoffeeShop Pro update available — ${s.name}`,
       body: (s) => [
         `Hi ${s.name} team,`,
@@ -281,7 +283,7 @@ export class ShopsComponent implements OnInit {
       ].join('\n')
     },
     {
-      key: 'maintenance', label: '🔧 Maintenance notice', desc: 'Planned downtime — heads up',
+      key: 'maintenance', label: 'Maintenance notice', desc: 'Planned downtime — heads up',
       subject: (s) => `Planned maintenance — ${s.name}`,
       body: (s) => [
         `Hi ${s.name} team,`,
@@ -299,7 +301,7 @@ export class ShopsComponent implements OnInit {
       ].join('\n')
     },
     {
-      key: 'suspended', label: '⚠️ Action needed', desc: 'Shop suspended / account issue',
+      key: 'suspended', label: 'Action needed', desc: 'Shop suspended / account issue',
       subject: (s) => `Action needed — ${s.name}`,
       body: (s) => [
         `Hi ${s.name} team,`,
@@ -316,7 +318,7 @@ export class ShopsComponent implements OnInit {
       ].join('\n')
     },
     {
-      key: 'tip', label: '💡 Feature tip', desc: 'A handy feature you might have missed',
+      key: 'tip', label: 'Feature tip', desc: 'A handy feature you might have missed',
       subject: (s) => `A handy CoffeeShop Pro tip — ${s.name}`,
       body: (s) => [
         `Hi ${s.name} team,`,

@@ -1,13 +1,14 @@
 import { Component, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DialogService, DialogState } from './dialog.service';
+import { IconComponent } from './icon.component';
 
 // Themed native-style dialogs: snackbar toasts + modal alert/confirm/prompt.
 // Mounted once in the app shell; driven entirely by DialogService.
 @Component({
   selector: 'app-dialog',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, IconComponent],
   templateUrl: './app-dialog.component.html',
   styleUrl: './app-dialog.component.scss',
 })

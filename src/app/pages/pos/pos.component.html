@@ -121,8 +121,8 @@
         <div class="pos-bar-right">
           <app-btn size="sm" (onClick)="scanBarcode()" [loading]="scanning()" title="Scan a barcode to add the item">Scan</app-btn>
           @if (appVersion()) { <span class="app-ver">{{ appVersion() }}</span> }
-          <button class="pos-reprint upd-btn" [class.has-update]="!!updateInfo()" (click)="forceCheckForUpdate()" title="Check for updates">📦</button>
-          <button class="pos-reprint" (click)="reprintLast()" [disabled]="!lastReceipt()" title="Reprint last receipt">🖨</button>
+          <button class="pos-reprint upd-btn" [class.has-update]="!!updateInfo()" (click)="forceCheckForUpdate()" title="Check for updates"><app-icon name="package" [size]="18" /></button>
+          <button class="pos-reprint" (click)="reprintLast()" [disabled]="!lastReceipt()" title="Reprint last receipt"><app-icon name="printer" [size]="18" /></button>
           <app-btn size="sm" (onClick)="endShift()">End shift</app-btn>
         </div>
       </div>
@@ -131,7 +131,7 @@
       @if (complete()) {
         <div class="complete">
           <div class="complete-card">
-            <span class="complete-check">✓</span>
+            <span class="complete-check"><app-icon name="check" [size]="40" [strokeWidth]="3" /></span>
             <strong>Order Complete</strong>
           </div>
         </div>
@@ -180,7 +180,7 @@
               </button>
             } @empty {
               <div class="items-empty">
-                <span class="empty-ic">☕</span>
+                <span class="empty-ic"><app-icon name="coffee" [size]="40" /></span>
                 <p>No products here</p>
                 <p class="sub">Add products in the admin panel.</p>
               </div>
@@ -196,12 +196,12 @@
             <h2 class="cart-title">Current order</h2>
             <span class="cart-head-total">R{{ total() | number:'1.2-2' }}</span>
             @if (cart().length) { <span class="cart-count">{{ cart().length }} item{{ cart().length !== 1 ? 's' : '' }}</span> }
-            <span class="cart-chev">{{ cartOpen() ? '▾' : '▴' }}</span>
+            <span class="cart-chev"><app-icon [name]="cartOpen() ? 'chevron-down' : 'chevron-up'" [size]="16" /></span>
           </div>
           <div class="cart-items">
             @if (cart().length === 0) {
               <div class="cart-empty">
-                <span class="empty-ic">🛒</span>
+                <span class="empty-ic"><app-icon name="cart" [size]="40" /></span>
                 <p>No items yet</p>
                 <p class="sub">Tap a drink to begin.</p>
               </div>
@@ -265,7 +265,7 @@
       <div class="complete">
         <div class="complete-card summary-card">
           <div class="sum-scroll">
-            <span class="complete-check">✓</span>
+            <span class="complete-check"><app-icon name="check" [size]="40" [strokeWidth]="3" /></span>
             <strong>Shift over — well done!</strong>
             <div class="sum-grid">
               <div class="sum-cell"><span class="sum-val">{{ s.orderCount }}</span><span class="sum-lbl">Orders</span></div>
@@ -342,7 +342,7 @@
     @if (discountOpen()) {
       <div class="complete">
         <div class="complete-card pick-card">
-          <div class="pay-head"><h3>Discounts &amp; specials</h3><app-btn size="sm" (onClick)="discountOpen.set(false)">✕</app-btn></div>
+          <div class="pay-head"><h3>Discounts &amp; specials</h3><app-btn size="sm" (onClick)="discountOpen.set(false)"><app-icon name="close" [size]="16" /></app-btn></div>
           @for (d of liveDiscounts(); track d.id) {
             <button class="pick-row" (click)="applyDiscount(d)">
               <span class="pick-name">{{ d.name }}</span>
@@ -361,7 +361,7 @@
         <div class="complete-card pay-card">
           <div class="pay-head">
             <h3>Payment</h3>
-            <app-btn size="sm" (onClick)="paymentOpen.set(false)">✕</app-btn>
+            <app-btn size="sm" (onClick)="paymentOpen.set(false)"><app-icon name="close" [size]="16" /></app-btn>
           </div>
           <div class="pay-total">
             <span class="pay-total-lbl">Total due</span>
@@ -389,7 +389,7 @@
           @if (accountMode()) {
             <div class="pay-table">
               @if (accountCustomerName()) {
-                <div class="acct-picked">Charging to <strong>{{ accountCustomerName() }}</strong> <app-btn size="sm" (onClick)="accountCustomerId.set(null); accountCustomerName.set('')">✕</app-btn></div>
+                <div class="acct-picked">Charging to <strong>{{ accountCustomerName() }}</strong> <app-btn size="sm" (onClick)="accountCustomerId.set(null); accountCustomerName.set('')"><app-icon name="close" [size]="16" /></app-btn></div>
               } @else {
                 <span class="pay-received-lbl">Find customer</span>
                 <input class="tbl-input" type="text" placeholder="Type name or phone…" [ngModel]="custSearch()" (ngModelChange)="custSearch.set($event); searchCustomers()" />
@@ -417,7 +417,7 @@
                     <option value="card">Card</option>
                   </select>
                   <input class="tbl-input" type="number" step="0.01" placeholder="R0.00" [ngModel]="r.amount" (ngModelChange)="r.amount = toNum($event)" />
-                  <app-btn size="sm" variant="danger" (onClick)="removeSplitRow($index)">✕</app-btn>
+                  <app-btn size="sm" variant="danger" (onClick)="removeSplitRow($index)"><app-icon name="close" [size]="16" /></app-btn>
                 </div>
               }
               <app-btn size="sm" (onClick)="addSplitRow()">+ Payment</app-btn>
@@ -468,7 +468,7 @@
         <div class="scan-card">
           <div class="scan-head">
             <h3>Scan barcode</h3>
-            <app-btn size="sm" (onClick)="cancelScan()">✕</app-btn>
+            <app-btn size="sm" (onClick)="cancelScan()"><app-icon name="close" [size]="16" /></app-btn>
           </div>
           <div id="pos-scanner-region" class="scan-region"></div>
           <p class="scan-hint">Point the camera at the label barcode - it adds the item automatically.</p>

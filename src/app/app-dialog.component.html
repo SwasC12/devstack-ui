@@ -21,7 +21,7 @@
               @if (s.kind === 'reveal') {
                 <div class="reveal-row">
                   <input class="panel-input reveal" [value]="s.value" readonly (focus)="onRevealFocus($event)" />
-                  <button type="button" class="btn ghost copy" (click)="copyReveal(s.value)">{{ copied() ? 'Copied ✓' : 'Copy' }}</button>
+                  <button type="button" class="btn ghost copy" (click)="copyReveal(s.value)">@if (copied()) { <app-icon name="check" [size]="14" [strokeWidth]="3" /> Copied } @else { Copy }</button>
                 </div>
               }
               <div class="panel-actions">

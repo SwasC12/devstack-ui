@@ -18,11 +18,12 @@ import { SortableDirective } from '../../sortable.directive';
 import { environment } from '../../../environments/environment';
 import { Capacitor } from '@capacitor/core';
 import { DEFAULT_PRODUCT_IMAGE } from '../../default-product-image';
+import { IconComponent } from '../../icon.component';
 
 @Component({
   selector: 'app-admin',
   standalone: true,
-  imports: [CommonModule, FormsModule, BtnComponent, PasswordInputComponent, ReceiptViewComponent, SortableDirective],
+  imports: [CommonModule, FormsModule, BtnComponent, PasswordInputComponent, ReceiptViewComponent, SortableDirective, IconComponent],
   templateUrl: './admin.component.html',
   styleUrl: './admin.component.scss',
 })
