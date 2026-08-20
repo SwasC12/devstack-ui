@@ -2,7 +2,7 @@
     <div class="admin">
       <!-- Grouped tabs: top row picks a group, second row shows its tabs -->
       <div class="tab-groups">
-        @for (g of tabGroups; track g.key) {
+        @for (g of visibleGroups(); track g.key) {
           <button class="tgroup" [class.active]="adminGroup() === g.key" (click)="selectGroup(g.key)">{{ g.label }}</button>
         }
       </div>
@@ -324,7 +324,7 @@
               <div class="field"><label>Username</label><input [(ngModel)]="uName" placeholder="e.g. cashier1" /></div>
               <div class="field"><label>Password</label><app-password [(ngModel)]="uPass" placeholder="Min 10 · upper + lower + digit" autocomplete="new-password" /></div>
               <div class="field"><label>Display name</label><input [(ngModel)]="uDisplay" placeholder="e.g. Jane" /></div>
-              <div class="field"><label>Role</label><select [(ngModel)]="uRole" class="sel"><option value="cashier">Cashier</option><option value="admin">Admin</option></select></div>
+              <div class="field"><label>Role</label><select [(ngModel)]="uRole" class="sel"><option value="cashier">Cashier</option><option value="manager">Manager</option><option value="admin">Admin</option></select></div>
               <div class="field"><label>Wage (R/hour, optional)</label><input [(ngModel)]="uWage" inputmode="decimal" placeholder="e.g. 25" /></div>
               <div class="field"><label>PIN (optional)</label><app-password [pin]="true" [maxlength]="6" inputmode="numeric" [(ngModel)]="uPin" placeholder="4–6 digits" /></div>
             </div>

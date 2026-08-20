@@ -46,6 +46,16 @@ export class AdminComponent implements OnInit {
     { key: 'system', label: 'System', tabs: [{ k: 'audit', l: 'Audit' }, { k: 'settings', l: 'Settings' }] },
   ] as const;
 
+  // Managers get an operational subset of Admin: Catalog, Sales and Finance.
+  // People (staff + payroll) and System (audit + shop settings) stay admin-only.
+  private static readonly MANAGER_GROUPS = new Set(['catalog', 'sales', 'finance']);
+  get isManager(): boolean { return this.auth.getUser()?.role === 'manager'; }
+  visibleGroups() {
+    return this.isManager
+      ? this.tabGroups.filter(g => AdminComponent.MANAGER_GROUPS.has(g.key))
+      : this.tabGroups;
+  }
+
   currentGroupTabs() { return this.tabGroups.find(g => g.key === this.adminGroup())?.tabs ?? []; }
 
   selectGroup(key: 'catalog' | 'sales' | 'people' | 'finance' | 'system') {
@@ -229,7 +239,7 @@ export class AdminComponent implements OnInit {
       `${u.username} ${u.displayName ?? ''} ${u.role}`.toLowerCase().includes(q));
   }
   readonly showUserForm = signal(false);
-  uName = ''; uPass = ''; uDisplay = ''; uRole: 'cashier' | 'admin' = 'cashier'; uPin = ''; uWage = '';
+  uName = ''; uPass = ''; uDisplay = ''; uRole: 'cashier' | 'manager' | 'admin' = 'cashier'; uPin = ''; uWage = '';
   uEditId: number | null = null; // null = creating a new user, else editing
 
   // Categories
@@ -624,7 +634,7 @@ export class AdminComponent implements OnInit {
     this.resetUser();
     this.uEditId = u.id;
     this.uDisplay = u.displayName ?? '';
-    this.uRole = u.role === 'admin' ? 'admin' : 'cashier';
+    this.uRole = u.role === 'admin' || u.role === 'manager' ? u.role : 'cashier';
     this.uWage = u.wageRate != null ? String(u.wageRate) : '';
     this.showUserForm.set(true);
   }

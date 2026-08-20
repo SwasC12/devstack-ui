@@ -12,7 +12,7 @@
         @if (shop) { <span class="shop-badge">{{ shop.name }}</span> }
         <a routerLink="/pos" routerLinkActive="active">POS</a>
         <a routerLink="/kitchen" routerLinkActive="active">Kitchen</a>
-        @if (isAdmin) {
+        @if (canAccessAdmin) {
           <a routerLink="/admin" routerLinkActive="active">Admin</a>
         }
         @if (isSuperAdmin) {

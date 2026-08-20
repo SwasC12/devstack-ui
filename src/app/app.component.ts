@@ -108,13 +108,23 @@ export class AppComponent implements OnDestroy {
     return this.auth.getUser()?.role === 'superadmin';
   }
 
+  get isManager(): boolean {
+    return this.auth.getUser()?.role === 'manager';
+  }
+
+  // Who sees the Admin nav link / can reach /admin: admins and managers.
+  get canAccessAdmin(): boolean {
+    return this.isAdmin || this.isManager;
+  }
+
   // The offline ORDER queue belongs to a POS (shop) session. A superadmin on
   // the platform pages has no shop scope, so a queued shop order can't sync
   // under their auth — don't show them the "awaiting sync" banner (and don't
-  // try to flush it under a superadmin session). Shop admins + cashiers do.
+  // try to flush it under a superadmin session). Shop admins, managers +
+  // cashiers do.
   get isPosSession(): boolean {
     const role = this.auth.getUser()?.role;
-    return role === 'admin' || role === 'cashier';
+    return role === 'admin' || role === 'manager' || role === 'cashier';
   }
 
   get shop() {

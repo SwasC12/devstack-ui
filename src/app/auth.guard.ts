@@ -6,12 +6,14 @@ import { AuthService } from './auth.service';
 // cookie (no-op once initialized), so a hard reload keeps you where you were.
 // Denied users go to the login page (there is no public menu anymore).
 
-// Admin only → /admin
+// Admin + manager → /admin (managers get an operational subset; the admin-only
+// sections — Users, Settings, Audit, Timesheet — are hidden inside the page).
 export const authGuard = async () => {
   const auth = inject(AuthService);
   const router = inject(Router);
   await auth.ensureReady();
-  if (auth.getUser()?.role === 'admin') return true;
+  const role = auth.getUser()?.role;
+  if (role === 'admin' || role === 'manager') return true;
   return router.parseUrl('/login');
 };
 
