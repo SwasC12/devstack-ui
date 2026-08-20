@@ -92,6 +92,51 @@
         </div>
       }
 
+      <!-- Platform revenue trend + at-risk shops -->
+      <div class="dash-row">
+        <div class="dash-card trend-card">
+          <div class="dash-head">
+            <h3>Platform revenue</h3>
+            <div class="periods">
+              @for (d of [7, 30, 90]; track d) {
+                <button class="chip" [class.on]="revDays() === d" (click)="loadRevenue(d)">{{ d }}d</button>
+              }
+            </div>
+          </div>
+          @if (revSeries(); as rev) {
+            <div class="trend-totals">
+              <div><span class="tt-val">R{{ rev.totalRevenue | number:'1.2-2' }}</span><span class="tt-lbl">Revenue · {{ rev.days }}d</span></div>
+              <div><span class="tt-val">{{ rev.totalOrders }}</span><span class="tt-lbl">Orders</span></div>
+            </div>
+            <div class="trend-chart">
+              @for (d of rev.series; track d.date) {
+                <div class="trend-col" [title]="d.date + ' · R' + (d.revenue | number:'1.2-2') + ' · ' + d.orders + ' orders'">
+                  <div class="trend-bar" [style.height.%]="revBarPct(d.revenue)"></div>
+                </div>
+              }
+            </div>
+          } @else {
+            <p class="rail-empty">Loading revenue…</p>
+          }
+        </div>
+
+        <div class="dash-card attention-card">
+          <div class="dash-head"><h3>Needs attention</h3></div>
+          @if (atRiskShops().length) {
+            <div class="attention-list">
+              @for (a of atRiskShops(); track a.shop.id) {
+                <button class="attention-item" (click)="openDetail(a.shop)">
+                  <span class="att-name">{{ a.shop.name }}</span>
+                  <span class="att-badges">@for (r of a.risks; track r) { <span class="risk-badge">{{ r }}</span> }</span>
+                </button>
+              }
+            </div>
+          } @else {
+            <div class="attention-ok"><app-icon name="check" [size]="18" /> All shops healthy</div>
+          }
+        </div>
+      </div>
+
       <div class="platform-grid">
         <div class="table-col" (click)="closeMenu()">
           <div class="search-row">
@@ -101,12 +146,13 @@
           </div>
           <div class="table-card">
             <table appSort [data]="filteredShops()" (dataChange)="shops.set($event)">
-              <thead><tr><th data-sort="name">Name</th><th data-sort="code">Code</th><th data-sort="isActive">Status</th><th data-sort="userCount">Users</th><th data-sort="orderCount">Orders</th><th data-sort="lastOrderAt">Last order</th><th data-sort="createdAt">Created</th><th class="no-sort"></th></tr></thead>
+              <thead><tr><th data-sort="name">Name</th><th data-sort="code">Code</th><th data-sort="isActive">Status</th><th data-sort="userCount">Users</th><th data-sort="orderCount">Orders</th><th data-sort="revenue">Revenue</th><th data-sort="lastOrderAt">Last order</th><th data-sort="appVersion">Version</th><th class="no-sort"></th></tr></thead>
               <tbody>
                 @for (s of filteredShops(); track s.id) {
-                  <tr [class.row-suspended]="!s.isActive">
+                  <tr [class.row-suspended]="!s.isActive" class="shop-row" (click)="openDetail(s)">
                     <td>
                       <strong>{{ s.name }}</strong>
+                      @for (r of shopRisks(s); track r) { <span class="risk-badge">{{ r }}</span> }
                       @if (s.ownerEmail || s.ownerPhone) {
                         <div class="owner-line">{{ s.ownerEmail || '—' }}@if (s.ownerPhone) { · {{ s.ownerPhone }} }</div>
                       }
@@ -115,16 +161,17 @@
                     <td><span class="status" [class.on]="s.isActive">{{ s.isActive ? 'Active' : 'Suspended' }}</span></td>
                     <td>{{ s.userCount }}</td>
                     <td>{{ s.orderCount }}</td>
+                    <td class="num">R{{ (s.revenue ?? 0) | number:'1.2-2' }}</td>
                     <td class="muted">{{ s.lastOrderAt ? (s.lastOrderAt | date:'short') : '—' }}</td>
-                    <td class="muted">{{ s.createdAt | date:'mediumDate' }}</td>
+                    <td class="muted">{{ s.appVersion ? 'v' + s.appVersion : '—' }}</td>
                     <td>
                       <div class="row-menu">
-                        <button class="menu-btn" (click)="toggleMenu(s.id, $event)">⋮</button>
+                        <button class="menu-btn" (click)="toggleMenu(s.id, $event); $event.stopPropagation()">⋮</button>
                       </div>
                     </td>
                   </tr>
                 } @empty {
-                  <tr><td colspan="8" style="color:var(--muted);text-align:center;padding:1.5rem;">No shops yet — create one.</td></tr>
+                  <tr><td colspan="9" style="color:var(--muted);text-align:center;padding:1.5rem;">No shops yet — create one.</td></tr>
                 }
               </tbody>
             </table>
@@ -134,6 +181,7 @@
           @if (menuFor(); as id) {
             @if (shopById(id); as s) {
               <div class="menu-drop" [style.left.px]="menuPos()?.x ?? 0" [style.top.px]="menuPos()?.y ?? 0" (click)="$event.stopPropagation()">
+                <button class="menu-item" (click)="openDetail(s); closeMenu()">View details</button>
                 @if (s.ownerEmail) {
                   <button class="menu-item" (click)="emailOwner(s); closeMenu()">Email owner</button>
                 }
@@ -229,6 +277,73 @@
           </div>
         </aside>
       </div>
+
+      <!-- Per-shop detail drawer (slide-over) -->
+      @if (drawerShop(); as s) {
+        <div class="drawer-scrim" (click)="closeDrawer()">
+          <div class="drawer" (click)="$event.stopPropagation()">
+            <div class="drawer-head">
+              <div>
+                <h3>{{ s.name }}</h3>
+                <span class="pill">{{ s.code }}</span>
+                <span class="status" [class.on]="s.isActive">{{ s.isActive ? 'Active' : 'Suspended' }}</span>
+              </div>
+              <button class="welcome-close" (click)="closeDrawer()" title="Close"><app-icon name="close" [size]="18" /></button>
+            </div>
+
+            @if (drawerBusy()) {
+              <p class="rail-empty">Loading…</p>
+            } @else if (drawerDetail()) {
+              @if (drawerDetail(); as d) {
+              <div class="drawer-stats">
+                <div class="dstat"><span class="ds-val">R{{ d.stats.revenue | number:'1.2-2' }}</span><span class="ds-lbl">Lifetime revenue</span></div>
+                <div class="dstat"><span class="ds-val">{{ d.stats.orderCount }}</span><span class="ds-lbl">Orders</span></div>
+                <div class="dstat"><span class="ds-val">R{{ d.stats.revenueToday | number:'1.2-2' }}</span><span class="ds-lbl">Today</span></div>
+                <div class="dstat"><span class="ds-val">R{{ d.stats.avgOrder | number:'1.2-2' }}</span><span class="ds-lbl">Avg order</span></div>
+                <div class="dstat"><span class="ds-val">{{ d.stats.userCount }}</span><span class="ds-lbl">Staff</span></div>
+                <div class="dstat"><span class="ds-val">{{ d.appVersion ? 'v' + d.appVersion : '—' }}</span><span class="ds-lbl">App version</span></div>
+              </div>
+
+              @for (r of shopRisks(s); track r) { <span class="risk-badge">{{ r }}</span> }
+
+              <div class="drawer-acts">
+                @if (s.ownerEmail) { <app-btn size="sm" (onClick)="emailOwner(s); closeDrawer()">Email owner</app-btn> }
+                <app-btn size="sm" (onClick)="openOwnerEdit(s); closeDrawer()">Owner contact</app-btn>
+                <app-btn size="sm" (onClick)="resetPassword(s)">Reset password</app-btn>
+                <app-btn size="sm" [variant]="s.isActive ? 'danger' : 'primary'" (onClick)="toggleStatus(s); closeDrawer()">{{ s.isActive ? 'Suspend' : 'Activate' }}</app-btn>
+              </div>
+
+              <h4 class="drawer-sub">Staff ({{ d.users.length }})</h4>
+              @if (d.users.length) {
+                <table class="drawer-table">
+                  <tbody>
+                    @for (u of d.users; track u.id) {
+                      <tr><td>{{ u.displayName || u.username }}</td><td class="muted">{{ u.username }}</td><td><span class="pill">{{ u.role }}</span></td></tr>
+                    }
+                  </tbody>
+                </table>
+              } @else { <p class="rail-empty">No staff yet.</p> }
+
+              <h4 class="drawer-sub">Recent orders</h4>
+              @if (d.recentOrders.length) {
+                <table class="drawer-table">
+                  <tbody>
+                    @for (o of d.recentOrders; track o.id) {
+                      <tr [class.row-suspended]="o.isVoided">
+                        <td class="muted">#{{ o.id }}</td>
+                        <td class="muted">{{ o.createdAt | date:'short' }}</td>
+                        <td>{{ o.paymentMethod }}</td>
+                        <td class="num">R{{ o.total | number:'1.2-2' }}@if (o.isVoided) { <span class="risk-badge">void</span> }</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              } @else { <p class="rail-empty">No orders yet.</p> }
+              }
+            }
+          </div>
+        </div>
+      }
       }
 
       @if (tab() === 'releases') {

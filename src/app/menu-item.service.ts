@@ -255,9 +255,32 @@ export class MenuItemService {
 
   // ── Shops ────────────────────────────────────────────
 
-  // Superadmin: all shops with lifecycle status + usage stats.
+  // Superadmin: all shops with lifecycle status + usage stats. The API now
+  // returns { currentVersion, shops }; unwrap to the shops array (tolerating the
+  // old bare-array shape during a rolling deploy).
   getShops(): Observable<any[]> {
-    return this.http.get<any[]>(`${API}/shops`);
+    return this.http.get<any>(`${API}/shops`).pipe(
+      map(r => Array.isArray(r) ? r : (r?.shops ?? []))
+    );
+  }
+
+  // The single current published app version, for the "old version" at-risk
+  // flag. Same endpoint as getShops; returned separately for convenience.
+  getShopsMeta(): Observable<{ currentVersion: string | null; shops: any[] }> {
+    return this.http.get<any>(`${API}/shops`).pipe(
+      map(r => Array.isArray(r) ? { currentVersion: null, shops: r } : { currentVersion: r?.currentVersion ?? null, shops: r?.shops ?? [] })
+    );
+  }
+
+  // Superadmin: full detail for one shop (drawer): stats, users, recent orders.
+  getShopDetail(id: number): Observable<any> {
+    return this.http.get(`${API}/shops/${id}/detail`);
+  }
+
+  // Superadmin: platform (or per-shop) daily revenue + order series for the chart.
+  getRevenueSeries(days = 30, shopId?: number): Observable<any> {
+    const q = shopId != null ? `?days=${days}&shopId=${shopId}` : `?days=${days}`;
+    return this.http.get(`${API}/platform/revenue-series${q}`);
   }
 
   // Superadmin: platform dashboard counters + recent activity feed.

@@ -84,9 +84,73 @@ export class ShopsComponent implements OnInit {
   rVersion = ''; rNotes = ''; rRequired = false; rApk: File | null = null;
   readonly rBusy = signal(false);
 
-  ngOnInit() { this.load(); this.loadOverview(); this.loadHealth(); this.loadReleases(); }
+  ngOnInit() { this.load(); this.loadOverview(); this.loadHealth(); this.loadReleases(); this.loadRevenue(); }
 
-  private load() { this.service.getShops().subscribe(s => this.shops.set(s)); }
+  private load() {
+    this.service.getShopsMeta().subscribe(r => {
+      this.currentVersion.set(r.currentVersion);
+      this.shops.set(r.shops);
+    });
+  }
+
+  // ── Current published version (for the "old version" at-risk flag) ────────
+  readonly currentVersion = signal<string | null>(null);
+
+  // ── At-risk detection ─────────────────────────────────────────────────────
+  // Returns the risk flags for a shop: suspended, idle (no orders in 14 days
+  // despite having some history), and running an app version older than the
+  // current release. Empty array = healthy.
+  private static readonly IDLE_DAYS = 14;
+  shopRisks(s: any): string[] {
+    const risks: string[] = [];
+    if (!s.isActive) risks.push('Suspended');
+    const cur = this.currentVersion();
+    if (cur && s.appVersion && s.appVersion !== cur) risks.push('Old app');
+    if (s.orderCount > 0 && s.lastOrderAt) {
+      const days = (Date.now() - new Date(s.lastOrderAt).getTime()) / 86400000;
+      if (days > ShopsComponent.IDLE_DAYS) risks.push(`Idle ${Math.floor(days)}d`);
+    }
+    return risks;
+  }
+  // Shops with any risk flag, for the "Needs attention" dashboard card.
+  atRiskShops(): { shop: any; risks: string[] }[] {
+    return this.shops()
+      .map(s => ({ shop: s, risks: this.shopRisks(s) }))
+      .filter(x => x.risks.length > 0);
+  }
+
+  // ── Per-shop detail drawer ────────────────────────────────────────────────
+  readonly drawerShop = signal<any | null>(null);
+  readonly drawerDetail = signal<any | null>(null);
+  readonly drawerBusy = signal(false);
+  openDetail(s: any) {
+    this.drawerShop.set(s);
+    this.drawerDetail.set(null);
+    this.drawerBusy.set(true);
+    this.service.getShopDetail(s.id).subscribe({
+      next: d => { this.drawerDetail.set(d); this.drawerBusy.set(false); },
+      error: () => { this.drawerBusy.set(false); this.dialog.toast('Could not load shop detail', 'error'); },
+    });
+  }
+  closeDrawer() { this.drawerShop.set(null); this.drawerDetail.set(null); }
+
+  // ── Platform revenue trend ────────────────────────────────────────────────
+  readonly revSeries = signal<any | null>(null);
+  readonly revDays = signal(30);
+  loadRevenue(days = this.revDays()) {
+    this.revDays.set(days);
+    this.service.getRevenueSeries(days).subscribe({
+      next: r => this.revSeries.set(r),
+      error: () => { /* leave the previous series */ },
+    });
+  }
+  // Bar height % for a day's revenue against the series max (min 2% so a
+  // non-zero day is always visible).
+  revBarPct(revenue: number): number {
+    const series = this.revSeries()?.series ?? [];
+    const max = Math.max(...series.map((d: any) => Number(d.revenue)), 1);
+    return revenue > 0 ? Math.max(2, (Number(revenue) / max) * 100) : 0;
+  }
 
   private loadOverview() { this.service.getPlatformOverview().subscribe(o => this.overview.set(o)); }
 
