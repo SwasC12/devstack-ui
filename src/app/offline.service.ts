@@ -127,6 +127,11 @@ export class OfflineService {
         } catch (e: any) {
           const status = e?.status;
           if (!status) break; // still offline - stop and retry later
+          // 401/403 are TRANSIENT here, not a real rejection: the access token
+          // may not be ready yet, or a non-shop (superadmin) session is active
+          // that can't post this shop's order. Stop and retry when a proper
+          // shop session is online - never poison the queue into "failed".
+          if (status === 401 || status === 403) break;
           if (status >= 400 && status < 500) {
             // Server rejected it (bad request etc.) - keep it visible so the
             // cashier can act (stock/price changed), don't drop it silently.

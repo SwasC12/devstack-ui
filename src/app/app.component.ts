@@ -66,6 +66,20 @@ export class AppComponent implements OnDestroy {
         void this.updateKioskLock();
       }, 700);
     });
+
+    // Retry any queued offline orders when a POS session opens the app and when
+    // it returns to the foreground. The OfflineService only auto-flushed on an
+    // offline->online transition, so an order queued in a previous run could sit
+    // "awaiting sync" forever on a cold start that was already online. Gated on a
+    // POS (shop) session so a superadmin never tries to post a shop's order.
+    this.maybeFlushQueue();
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') this.maybeFlushQueue();
+    });
+  }
+
+  private maybeFlushQueue(): void {
+    if (this.isPosSession && navigator.onLine) void this.offline.flush();
   }
 
   ngOnDestroy() {
@@ -92,6 +106,15 @@ export class AppComponent implements OnDestroy {
 
   get isSuperAdmin(): boolean {
     return this.auth.getUser()?.role === 'superadmin';
+  }
+
+  // The offline ORDER queue belongs to a POS (shop) session. A superadmin on
+  // the platform pages has no shop scope, so a queued shop order can't sync
+  // under their auth — don't show them the "awaiting sync" banner (and don't
+  // try to flush it under a superadmin session). Shop admins + cashiers do.
+  get isPosSession(): boolean {
+    const role = this.auth.getUser()?.role;
+    return role === 'admin' || role === 'cashier';
   }
 
   get shop() {
