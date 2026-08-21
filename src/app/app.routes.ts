@@ -6,7 +6,7 @@ export const routes: Routes = [
   { path: '', redirectTo: '/pos', pathMatch: 'full' },
 
   // Public customer loyalty signup — scanned from a shop's join QR. No guard
-  // (shoppers aren't logged in).
+  // (shoppers aren't logged in). URL: /join/<storeCode>.
   { path: 'join/:code', loadComponent: () => import('./pages/signup/signup.component').then(m => m.SignupComponent) },
 
   // Login — only when logged out

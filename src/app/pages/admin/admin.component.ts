@@ -340,6 +340,52 @@ export class AdminComponent implements OnInit {
       this.joinQr.set(await QRCode.toDataURL(this.joinUrl(), { width: 512, margin: 1 }));
     } catch { /* qr lib unavailable */ }
   }
+
+  // Print a customer-facing sign-up poster (shop name + big QR + instructions)
+  // the admin can put on the counter/table. Uses the shared PrintService, so it
+  // works on the tablet and the web admin alike.
+  printJoinPoster() {
+    const qr = this.joinQr();
+    if (!qr) { this.dialog.toast('QR not ready yet', 'error'); return; }
+    const shopName = this.escapeHtml(this.shopInfo?.name ?? 'Our shop');
+    const reward = this.escapeHtml(this.loyReward?.trim() || 'a free item');
+    const required = Math.min(100, Math.max(2, Math.round(Number(this.loyRequired) || 10)));
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Join our loyalty programme</title>
+<style>
+  @page { margin: 18mm; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; text-align: center;
+         color: #1a1a1a; margin: 0; padding: 0; }
+  .poster { display: flex; flex-direction: column; align-items: center; justify-content: center;
+            min-height: 90vh; padding: 24px; }
+  h1 { font-size: 34px; margin: 0 0 4px; }
+  .sub { font-size: 20px; color: #555; margin: 0 0 24px; }
+  .qr { width: 62vw; max-width: 460px; height: auto; border: 1px solid #eee; border-radius: 16px; padding: 12px; }
+  .scan { font-size: 26px; font-weight: 700; margin: 24px 0 6px; }
+  .steps { font-size: 18px; color: #444; line-height: 1.6; max-width: 520px; }
+  .reward { margin-top: 20px; font-size: 20px; font-weight: 700; color: #b45309; }
+  .url { margin-top: 22px; font-size: 14px; color: #888; word-break: break-all; }
+</style></head><body>
+  <div class="poster">
+    <h1>${shopName}</h1>
+    <p class="sub">Join our loyalty programme</p>
+    <img class="qr" src="${qr}" alt="Sign-up QR code" />
+    <p class="scan">📱 Scan to sign up</p>
+    <p class="steps">Point your phone camera at the code, fill in your details,
+       and you'll get your own loyalty QR to show at the till.</p>
+    <p class="reward">Collect ${required} stamps → ${reward}</p>
+    <p class="url">${this.escapeHtml(this.joinUrl())}</p>
+  </div>
+</body></html>`;
+    void this.printer.printHtml(html, `${this.shopInfo?.name ?? 'Loyalty'} sign-up poster`).then(ok => {
+      if (!ok) { this.dialog.toast('Could not open print', 'error'); }
+    });
+  }
+
+  private escapeHtml(s: string): string {
+    return String(s).replace(/[&<>"']/g, c =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
+  }
   pendingLogo: File | null = null;
   pendingLogoUrl: string | null = null;
   readonly logoUploading = signal(false);

@@ -796,8 +796,9 @@
               <div class="join-qr-box">
                 <img [src]="joinQr()" alt="Customer join QR" class="join-qr-img" />
                 <div>
-                  <p class="field-hint">Print this and put it on the counter or table. Customers scan it to sign up and get their own loyalty QR — no app needed.</p>
+                  <p class="field-hint">Put this on the counter or table. Customers scan it to sign up and get their own loyalty QR — no app needed.</p>
                   <p class="join-qr-url">{{ joinUrl() }}</p>
+                  <app-btn size="sm" (onClick)="printJoinPoster()">Print sign-up poster</app-btn>
                 </div>
               </div>
             </div>
