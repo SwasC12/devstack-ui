@@ -5,6 +5,10 @@ export const routes: Routes = [
   // No public menu — the app is a shop tool. Signed-in users land on the POS.
   { path: '', redirectTo: '/pos', pathMatch: 'full' },
 
+  // Public customer loyalty signup — scanned from a shop's join QR. No guard
+  // (shoppers aren't logged in).
+  { path: 'join/:code', loadComponent: () => import('./pages/signup/signup.component').then(m => m.SignupComponent) },
+
   // Login — only when logged out
   { path: 'login', loadComponent: () => import('./pages/login/login.component').then(m => m.LoginComponent), canActivate: [loginGuard] },
 

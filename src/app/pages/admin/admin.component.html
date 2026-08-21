@@ -790,6 +790,18 @@
           <div class="form-acts">
             <app-btn variant="primary" size="sm" (onClick)="saveLoyalty()" [loading]="loyBusy()">Save loyalty</app-btn>
           </div>
+          @if (loyEnabled && joinQr()) {
+            <div class="field wide" style="margin-top:0.5rem">
+              <label>Customer sign-up QR</label>
+              <div class="join-qr-box">
+                <img [src]="joinQr()" alt="Customer join QR" class="join-qr-img" />
+                <div>
+                  <p class="field-hint">Print this and put it on the counter or table. Customers scan it to sign up and get their own loyalty QR — no app needed.</p>
+                  <p class="join-qr-url">{{ joinUrl() }}</p>
+                </div>
+              </div>
+            </div>
+          }
         </div>
         <div class="form-sheet">
           <div class="form-head"><h3>Backup</h3></div>

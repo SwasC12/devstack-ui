@@ -401,6 +401,20 @@ export class MenuItemService {
     return this.http.get<any[]>(`${API}/customers${q ? `?q=${encodeURIComponent(q)}` : ''}`);
   }
 
+  // Minimal loyalty lookup usable by cashiers (phone substring or exact scanned
+  // loyalty code). Returns { id, name, phone, loyaltyStamps }.
+  loyaltyLookup(q: string): Observable<any[]> {
+    return this.http.get<any[]>(`${API}/customers/loyalty-lookup?q=${encodeURIComponent(q)}`);
+  }
+
+  // ── Public customer self-signup (no auth) ─────────────
+  getPublicShop(code: string): Observable<any> {
+    return this.http.get<any>(`${API}/public/shop/${encodeURIComponent(code)}`);
+  }
+  publicSignup(code: string, data: { name: string; phone?: string | null; email?: string | null; consent: boolean }): Observable<any> {
+    return this.http.post<any>(`${API}/public/signup/${encodeURIComponent(code)}`, data);
+  }
+
   createCustomer(data: { name: string; phone?: string | null; email?: string | null; creditLimit: number; notes?: string | null }): Observable<any> {
     return this.http.post(`${API}/customers`, data);
   }

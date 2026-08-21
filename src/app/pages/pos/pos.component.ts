@@ -500,6 +500,9 @@ export class PosComponent implements OnInit, OnDestroy {
   private handleScanValue(text: string) {
     const sku = (text ?? '').trim();
     if (!sku) { this.dialog.toast('No barcode detected', 'info'); return; }
+    // A customer's loyalty QR encodes "LOY:<code>" — attach them for stamps
+    // instead of treating it as a product barcode.
+    if (/^LOY:/i.test(sku)) { this.attachLoyaltyByCode(sku.replace(/^LOY:/i, '')); return; }
     const item = this.findBySku(sku);
     if (item) { this.addToCart(item); this.dialog.toast(`${item.name} added`, 'success'); return; }
     // Miss on the in-memory catalog: the POS list is loaded once in ngOnInit
@@ -692,7 +695,9 @@ export class PosComponent implements OnInit, OnDestroy {
   searchLoyalty() {
     const q = this.loySearch().trim();
     if (q.length < 2) { this.loyResults.set([]); return; }
-    this.service.getCustomers(q).subscribe(c => this.loyResults.set(c.slice(0, 6)));
+    // Cashier-accessible minimal lookup (phone / name), unlike the admin-only
+    // customer directory.
+    this.service.loyaltyLookup(q).subscribe(c => this.loyResults.set((c ?? []).slice(0, 6)));
   }
   pickLoyaltyCust(c: any) {
     this.loyaltyCust.set(c);
@@ -703,6 +708,18 @@ export class PosComponent implements OnInit, OnDestroy {
   clearLoyaltyCust() {
     this.loyaltyCust.set(null);
     this.loyaltyRedeem.set(false);
+  }
+  // Attach a loyalty customer from a scanned personal QR (LOY:<code>).
+  private attachLoyaltyByCode(code: string) {
+    this.service.loyaltyLookup(code.trim()).subscribe({
+      next: list => {
+        const c = (list ?? [])[0];
+        if (!c) { this.dialog.toast('No loyalty customer for that code', 'error'); return; }
+        this.loyaltyCust.set(c);
+        this.dialog.toast(`Loyalty: ${c.name} attached — ${c.loyaltyStamps} stamp${c.loyaltyStamps === 1 ? '' : 's'}`, 'success');
+      },
+      error: () => this.dialog.toast('Could not look up that loyalty code', 'error'),
+    });
   }
 
   // Checkout button: open the payment sheet instead of charging blindly.

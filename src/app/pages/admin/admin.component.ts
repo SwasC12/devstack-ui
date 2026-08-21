@@ -268,6 +268,22 @@ export class AdminComponent implements OnInit {
   // Loyalty programme settings (Settings tab)
   loyEnabled = false; loyRequired = 10; loyReward = 'Free item';
   readonly loyMsg = signal(''); readonly loyErr = signal(false); readonly loyBusy = signal(false);
+  readonly joinQr = signal(''); // data-URI QR of the customer join URL
+
+  // Public join URL customers scan to self-enrol. On the web admin we can use
+  // the live origin; the native app falls back to the configured webBase.
+  joinUrl(): string {
+    const base = Capacitor.isNativePlatform() ? environment.webBase : window.location.origin;
+    return `${base}/join/${this.shopInfo?.code ?? ''}`;
+  }
+  private async genJoinQr() {
+    if (!this.shopInfo?.code) return;
+    try {
+      const mod: any = await import('qrcode');
+      const QRCode = mod.default ?? mod;
+      this.joinQr.set(await QRCode.toDataURL(this.joinUrl(), { width: 512, margin: 1 }));
+    } catch { /* qr lib unavailable */ }
+  }
   pendingLogo: File | null = null;
   pendingLogoUrl: string | null = null;
   readonly logoUploading = signal(false);
@@ -1157,6 +1173,7 @@ export class AdminComponent implements OnInit {
       this.loyEnabled = !!shop.loyaltyEnabled;
       this.loyRequired = shop.loyaltyStampsRequired ?? 10;
       this.loyReward = shop.loyaltyReward ?? 'Free item';
+      void this.genJoinQr();
     });
   }
 
