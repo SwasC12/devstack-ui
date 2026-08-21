@@ -18,6 +18,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(InstallApkPlugin.class);
         registerPlugin(KitchenServerPlugin.class);
         registerPlugin(FastBarcodeScannerPlugin.class);
+        registerPlugin(BtPrinterPlugin.class);
         super.onCreate(savedInstanceState);
         // Fullscreen kiosk-style: hide the Android status bar (clock/battery)
         // and navigation bar. Swiping from an edge reveals them briefly, then

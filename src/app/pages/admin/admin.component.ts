@@ -9,7 +9,7 @@ import { AuthService } from '../../auth.service';
 import { BtnComponent } from '../../btn.component';
 import { PasswordInputComponent } from '../../password-input.component';
 import { ReceiptViewComponent } from '../../receipt-view.component';
-import { PrintService } from '../../print.service';
+import { PrintService, BtDevice } from '../../print.service';
 import { DialogService } from '../../dialog.service';
 import { SoundService } from '../../sound.service';
 import { firstValueFrom } from 'rxjs';
@@ -269,6 +269,62 @@ export class AdminComponent implements OnInit {
   loyEnabled = false; loyRequired = 10; loyReward = 'Free item';
   readonly loyMsg = signal(''); readonly loyErr = signal(false); readonly loyBusy = signal(false);
   readonly joinQr = signal(''); // data-URI QR of the customer join URL
+  // Receipt customisation (Settings tab)
+  rcHeader = ''; rcFooter = ''; rcShowVat = true; rcShowQr = true; rcShowCashier = true;
+  readonly rcMsg = signal(''); readonly rcErr = signal(false); readonly rcBusy = signal(false);
+  saveReceipt() {
+    this.rcBusy.set(true); this.rcErr.set(false); this.rcMsg.set('');
+    this.service.updateShopInfo({
+      name: this.brName,
+      receiptHeader: this.rcHeader,
+      receiptFooter: this.rcFooter,
+      receiptShowVat: this.rcShowVat,
+      receiptShowQr: this.rcShowQr,
+      receiptShowCashier: this.rcShowCashier,
+    }).subscribe({
+      next: (shop) => { this.rcBusy.set(false); this.shopInfo = shop; this.rcMsg.set('Receipt settings saved.'); },
+      error: (e) => { this.rcBusy.set(false); this.rcErr.set(true); this.rcMsg.set(e.error?.error || 'Could not save receipt settings.'); },
+    });
+  }
+
+  // ── Bluetooth thermal printer (POS tablet only) ──────────────────────────
+  readonly btSupported = signal(false);
+  readonly btPrinter = signal<BtDevice | null>(null);
+  readonly btDevices = signal<BtDevice[]>([]);
+  readonly btMsg = signal(''); readonly btErr = signal(false);
+  readonly btBusy = signal(false); readonly btTesting = signal(false);
+
+  private async initBtPrinter() {
+    this.btSupported.set(this.printer.btAvailable);
+    if (this.printer.btAvailable) this.btPrinter.set(await this.printer.getBtPrinter());
+  }
+  async scanBtPrinters() {
+    this.btBusy.set(true); this.btErr.set(false); this.btMsg.set('');
+    try {
+      const list = await this.printer.listBtPrinters();
+      this.btDevices.set(list);
+      if (!list.length) this.btMsg.set('No paired devices found. Pair your printer in Android Settings → Bluetooth first.');
+    } catch (e: any) {
+      this.btErr.set(true); this.btMsg.set(e?.message || 'Could not list Bluetooth devices.');
+    } finally { this.btBusy.set(false); }
+  }
+  async pickBtPrinter(d: BtDevice) {
+    await this.printer.saveBtPrinter(d);
+    this.btPrinter.set(d);
+    this.btErr.set(false); this.btMsg.set(`Saved “${d.name}” as the receipt printer.`);
+  }
+  async clearBtPrinter() {
+    await this.printer.saveBtPrinter(null);
+    this.btPrinter.set(null);
+    this.btMsg.set('Bluetooth printer removed.'); this.btErr.set(false);
+  }
+  async testBtPrinter() {
+    const p = this.btPrinter(); if (!p) return;
+    this.btTesting.set(true); this.btErr.set(false); this.btMsg.set('');
+    try { await this.printer.testPrint(p.address); this.btMsg.set('Test sent — check the printer.'); }
+    catch (e: any) { this.btErr.set(true); this.btMsg.set(e?.message || 'Test print failed — is the printer on and in range?'); }
+    finally { this.btTesting.set(false); }
+  }
 
   // Public join URL customers scan to self-enrol. On the web admin we can use
   // the live origin; the native app falls back to the configured webBase.
@@ -507,7 +563,7 @@ export class AdminComponent implements OnInit {
   dName = ''; dType: 'percent' | 'fixed' = 'percent'; dValue: number | null = null;
   dDay: number | null = null; dStart = ''; dEnd = ''; dActive = true;
 
-  ngOnInit() { this.loadInv(); this.loadSum(); this.loadUsers(); this.loadCategories(); this.loadSettings(); this.loadOrders(); this.loadDiscounts(); this.loadNotifications(); this.startNotifPoll(); }
+  ngOnInit() { this.loadInv(); this.loadSum(); this.loadUsers(); this.loadCategories(); this.loadSettings(); this.loadOrders(); this.loadDiscounts(); this.loadNotifications(); this.startNotifPoll(); void this.initBtPrinter(); }
 
   // Auto-scroll the tab bar so the active tab is always visible (14+ tabs,
   // horizontal scroll). inline:nearest keeps already-visible tabs still.
@@ -986,7 +1042,12 @@ export class AdminComponent implements OnInit {
 
   // Reprint a receipt from the order detail: native uses the Android print
   // framework, web falls back to the system print dialog.
-  printReceipt() {
+  async printReceipt() {
+    const order = this.receiptOrder();
+    // Prefer a paired Bluetooth thermal printer; fall back to system/HTML print.
+    const bt = await this.printer.printReceiptToBt(order, this.shopInfo, order?.cashierName ?? '');
+    if (bt === 'ok') { this.dialog.toast('Printing…', 'success'); return; }
+    if (bt === 'error') { this.dialog.toast('Bluetooth printer didn\'t respond — check it\'s on. Opening system print.', 'error'); }
     const el = this.receiptBox?.nativeElement?.querySelector('.receipt-print') as HTMLElement | null;
     if (!el) { this.dialog.toast('Receipt not ready', 'error'); return; }
     void this.printer.printReceiptHtml(el.outerHTML).then(ok => {
@@ -1171,8 +1232,13 @@ export class AdminComponent implements OnInit {
       this.brQrUrl = shop.receiptQrUrl ?? '';
       this.brKitchenUrl = shop.kitchenUrl ?? '';
       this.loyEnabled = !!shop.loyaltyEnabled;
-      this.loyRequired = shop.loyaltyStampsRequired ?? 10;
-      this.loyReward = shop.loyaltyReward ?? 'Free item';
+      this.loyRequired = shop.loyaltyStampsRequired || 10;
+      this.loyReward = shop.loyaltyReward || 'Free item';
+      this.rcHeader = shop.receiptHeader ?? '';
+      this.rcFooter = shop.receiptFooter ?? '';
+      this.rcShowVat = shop.receiptShowVat !== false;
+      this.rcShowQr = shop.receiptShowQr !== false;
+      this.rcShowCashier = shop.receiptShowCashier !== false;
       void this.genJoinQr();
     });
   }

@@ -804,6 +804,55 @@
           }
         </div>
         <div class="form-sheet">
+          <div class="form-head"><h3>Receipt</h3></div>
+          <p class="hint">Customise what prints on receipts for this shop. Leave the header/footer empty and keep the defaults for the standard layout.</p>
+          <div class="form-grid">
+            <div class="field wide"><label>Header line (under the shop name)</label><input [(ngModel)]="rcHeader" placeholder="e.g. 12 Main Rd, Durban · 031 555 0000 · VAT 4123456789" /><span class="field-hint">Address, phone, VAT number — whatever should appear at the top.</span></div>
+            <div class="field wide"><label>Footer message</label><input [(ngModel)]="rcFooter" placeholder="e.g. Thank you! Follow us @yourshop" /><span class="field-hint">Prints at the bottom. Empty = "Thank you!".</span></div>
+            <div class="field wide">
+              <label>Show on the receipt</label>
+              <div class="rc-toggles">
+                <label class="check-label"><input type="checkbox" [(ngModel)]="rcShowVat" /> VAT line</label>
+                <label class="check-label"><input type="checkbox" [(ngModel)]="rcShowCashier" /> Cashier name</label>
+                <label class="check-label"><input type="checkbox" [(ngModel)]="rcShowQr" /> QR code</label>
+              </div>
+            </div>
+          </div>
+          @if (rcMsg()) { <p class="form-msg" [class.err]="rcErr()">{{ rcMsg() }}</p> }
+          <div class="form-acts">
+            <app-btn variant="primary" size="sm" (onClick)="saveReceipt()" [loading]="rcBusy()">Save receipt</app-btn>
+          </div>
+        </div>
+        @if (btSupported()) {
+        <div class="form-sheet">
+          <div class="form-head"><h3>Bluetooth printer</h3></div>
+          <p class="hint">Print receipts straight to a Bluetooth thermal printer (Epson TM or a generic 58/80mm). First pair the printer in Android Settings → Bluetooth, then pick it here. This runs only on the POS tablet.</p>
+          @if (btPrinter(); as p) {
+            <p class="bt-current">Current printer: <strong>{{ p.name }}</strong> <span class="bt-addr">{{ p.address }}</span></p>
+          } @else {
+            <p class="bt-current bt-none">No Bluetooth printer selected — receipts use the normal system print.</p>
+          }
+          @if (btDevices().length) {
+            <div class="bt-list">
+              @for (d of btDevices(); track d.address) {
+                <button type="button" class="bt-item" [class.sel]="d.address === btPrinter()?.address" (click)="pickBtPrinter(d)">
+                  <span class="bt-item-name">{{ d.name }}</span>
+                  <span class="bt-item-addr">{{ d.address }}</span>
+                </button>
+              }
+            </div>
+          }
+          @if (btMsg()) { <p class="form-msg" [class.err]="btErr()">{{ btMsg() }}</p> }
+          <div class="form-acts">
+            <app-btn size="sm" (onClick)="scanBtPrinters()" [loading]="btBusy()">Find paired printers</app-btn>
+            @if (btPrinter()) {
+              <app-btn size="sm" (onClick)="testBtPrinter()" [loading]="btTesting()">Test print</app-btn>
+              <app-btn size="sm" variant="danger" (onClick)="clearBtPrinter()">Remove</app-btn>
+            }
+          </div>
+        </div>
+        }
+        <div class="form-sheet">
           <div class="form-head"><h3>Backup</h3></div>
           <p class="hint">Download this shop's full data (menu, sizes, modifiers, discounts, orders, users, shifts) as a JSON file. Keep it somewhere safe — it does not include APKs.</p>
           @if (backupMsg()) { <p class="form-msg">{{ backupMsg() }}</p> }

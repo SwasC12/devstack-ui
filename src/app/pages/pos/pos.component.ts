@@ -852,7 +852,12 @@ export class PosComponent implements OnInit, OnDestroy {
   // Print the current receipt: native app uses the Android print framework
   // (any printer the device can reach, incl. Bluetooth thermal with a print
   // service); web falls back to the system print dialog.
-  printReceipt() {
+  async printReceipt() {
+    // Prefer a paired Bluetooth thermal printer (ESC/POS); fall back to the
+    // system/HTML print when none is configured.
+    const bt = await this.printer.printReceiptToBt(this.lastReceipt(), this.shopInfo(), this.auth.getUser()?.displayName ?? '');
+    if (bt === 'ok') { this.dialog.toast('Printing…', 'success'); return; }
+    if (bt === 'error') { this.dialog.toast('Bluetooth printer didn\'t respond — check it\'s on. Opening system print.', 'error'); }
     const el = this.receiptBox?.nativeElement?.querySelector('.receipt-print') as HTMLElement | null;
     if (!el) { this.dialog.toast('Receipt not ready', 'error'); return; }
     void this.printer.printReceiptHtml(el.outerHTML).then(ok => {

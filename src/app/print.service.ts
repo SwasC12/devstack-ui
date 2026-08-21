@@ -1,5 +1,9 @@
 import { Injectable } from '@angular/core';
 import { Capacitor } from '@capacitor/core';
+import { Preferences } from '@capacitor/preferences';
+
+export interface BtDevice { name: string; address: string; }
+const BT_PRINTER_KEY = 'pos_bt_printer';
 
 // Central printing service. Handles anything the app prints - receipts, kitchen
 // tickets, barcode labels, and the admin analytics report - through one path.
@@ -62,4 +66,152 @@ export class PrintService {
       return false;
     }
   }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // Bluetooth thermal (ESC/POS) printing — Epson TM (ESC/POS mode) + generic
+  // 58/80mm SPP printers. The printer is paired once in Android settings; we
+  // list bonded devices, save the chosen one, and send ESC/POS bytes.
+  // ══════════════════════════════════════════════════════════════════════════
+
+  private get bt(): any { return (Capacitor as any).Plugins?.BtPrinter; }
+  get btAvailable(): boolean { return Capacitor.isNativePlatform() && !!this.bt; }
+
+  async getBtPrinter(): Promise<BtDevice | null> {
+    try { const { value } = await Preferences.get({ key: BT_PRINTER_KEY }); return value ? JSON.parse(value) : null; }
+    catch { return null; }
+  }
+  async saveBtPrinter(d: BtDevice | null): Promise<void> {
+    if (d) await Preferences.set({ key: BT_PRINTER_KEY, value: JSON.stringify(d) });
+    else await Preferences.remove({ key: BT_PRINTER_KEY });
+  }
+  // Paired Bluetooth devices to choose the printer from. Throws with a message
+  // (permission / BT off) the caller can surface.
+  async listBtPrinters(): Promise<BtDevice[]> {
+    if (!this.btAvailable) throw new Error('Bluetooth printing is only available in the app.');
+    const res = await this.bt.listDevices();
+    return (res?.devices ?? []) as BtDevice[];
+  }
+
+  // Print a receipt to the configured BT printer. Returns 'no-printer' when
+  // none is set (caller should fall back to the normal print), 'ok', or 'error'.
+  async printReceiptToBt(order: any, shop: any, cashierName: string): Promise<'ok' | 'error' | 'no-printer'> {
+    if (!this.btAvailable) return 'no-printer';
+    const printer = await this.getBtPrinter();
+    if (!printer?.address) return 'no-printer';
+    try {
+      const bytes = this.buildReceiptEscPos(order, shop, cashierName);
+      await this.bt.print({ address: printer.address, data: this.toBase64(bytes) });
+      return 'ok';
+    } catch { return 'error'; }
+  }
+
+  // Small self-test print so the user can confirm a newly-paired printer works.
+  async testPrint(address: string): Promise<void> {
+    const e = new EscPos();
+    e.init().align('center').bold(true).size(2).text('Test print').size(1).bold(false).feed()
+      .text('CoffeeShop Pro').feed()
+      .text('Your printer is connected.')
+      .feed(3).cut();
+    await this.bt.print({ address, data: this.toBase64(e.bytes()) });
+  }
+
+  // Build the receipt as ESC/POS bytes, honouring the shop's receipt settings
+  // (header/footer + show VAT/cashier/QR). 32-column layout (58mm; also fine on
+  // 80mm). Currency + item math mirror the on-screen receipt.
+  private buildReceiptEscPos(order: any, shop: any, cashierName: string): number[] {
+    const W = 32;
+    const money = (v: any) => 'R' + (Number(v) || 0).toFixed(2);
+    const e = new EscPos();
+    e.init().align('center').bold(true).size(2).text(shop?.name || 'CoffeeShop Pro').size(1).bold(false);
+    if (shop?.code) e.text(shop.code);
+    if (shop?.receiptHeader) e.text(shop.receiptHeader);
+    e.feed().align('left');
+    e.text(`Order #${order.id}`);
+    e.text(this.fmtDate(order.createdAt));
+    if (shop?.receiptShowCashier !== false) e.text(`Cashier: ${cashierName || '-'}`);
+    if (order.dineMode === 'dinein' || order.tableNumber) {
+      e.text((order.dineMode === 'dinein' ? 'Dine-in' : 'Takeaway') + (order.tableNumber ? ` - Table ${order.tableNumber}` : ''));
+    }
+    e.rule(W);
+    for (const line of (order.items ?? [])) {
+      const name = `${line.quantity} x ${line.name}${line.sizeName ? ' (' + line.sizeName + ')' : ''}`;
+      e.row(name, money(line.price * line.quantity), W);
+      if (line.note) e.text('  ' + line.note);
+    }
+    e.rule(W);
+    if (order.discountAmount > 0) e.row(`Discount`, '-' + money(order.discountAmount), W);
+    e.bold(true).row('Total', money(order.total), W).bold(false);
+    if (order.serviceChargeAmount > 0) e.row('Service charge', money(order.serviceChargeAmount), W);
+    if (order.tipAmount > 0) e.row('Tip', money(order.tipAmount), W);
+    const extras = (order.serviceChargeAmount ?? 0) + (order.tipAmount ?? 0);
+    if (extras > 0) e.bold(true).row('Grand total', money((order.total || 0) + extras), W).bold(false);
+    if (shop?.receiptShowVat !== false) {
+      const vat = Math.round((Number(order.total) || 0) * 15 / 115 * 100) / 100;
+      if (vat > 0) e.row('VAT (15% incl.)', money(vat), W);
+    }
+    // Payment summary
+    if ((order.payments?.length ?? 0) > 1) {
+      e.text('Paid: ' + order.payments.map((p: any) => `${p.method} ${money(p.amount)}`).join(' + '));
+    } else {
+      const m = order.paymentMethod === 'account' ? 'Account' : (order.paymentMethod === 'cash' ? 'Cash' : 'Card');
+      e.text('Paid: ' + m);
+    }
+    if (order.amountReceived != null) e.row('Received', money(order.amountReceived), W);
+    if (order.changeGiven != null) e.row('Change', money(order.changeGiven), W);
+    e.feed().align('center').text(shop?.receiptFooter || 'Thank you!');
+    if (shop?.receiptShowQr !== false && shop?.receiptQrUrl) {
+      const url = /^https?:\/\//i.test(shop.receiptQrUrl) ? shop.receiptQrUrl : 'https://' + shop.receiptQrUrl;
+      e.feed().qr(url);
+    }
+    e.feed(3).cut();
+    return e.bytes();
+  }
+
+  private fmtDate(v: any): string { try { return new Date(v).toLocaleString(); } catch { return ''; } }
+
+  private toBase64(bytes: number[]): string {
+    let bin = '';
+    for (const b of bytes) bin += String.fromCharCode(b & 0xff);
+    return btoa(bin);
+  }
+}
+
+// Minimal ESC/POS command builder (bytes). Chainable. Text is encoded as
+// Latin-1 (thermal printers use CP437/CP1252 for the ASCII range we emit).
+class EscPos {
+  private buf: number[] = [];
+  private push(...b: number[]) { for (const x of b) this.buf.push(x & 0xff); return this; }
+  private raw(s: string) { for (let i = 0; i < s.length; i++) { const c = s.charCodeAt(i); this.buf.push(c > 255 ? 0x3f : c); } return this; }
+  init() { return this.push(0x1b, 0x40); }
+  align(a: 'left' | 'center' | 'right') { return this.push(0x1b, 0x61, a === 'center' ? 1 : a === 'right' ? 2 : 0); }
+  bold(on: boolean) { return this.push(0x1b, 0x45, on ? 1 : 0); }
+  size(n: 1 | 2) { return this.push(0x1d, 0x21, n === 2 ? 0x11 : 0x00); } // double or normal
+  text(s: string) { return this.raw(s).push(0x0a); }
+  feed(n = 1) { for (let i = 0; i < n; i++) this.push(0x0a); return this; }
+  rule(w: number) { return this.text('-'.repeat(w)); }
+  // Left text + right-aligned value on one W-char line (truncates a long left).
+  row(left: string, right: string, w: number) {
+    const r = right ?? '';
+    const maxLeft = Math.max(0, w - r.length - 1);
+    let l = left ?? '';
+    if (l.length > maxLeft) l = l.slice(0, maxLeft);
+    const pad = Math.max(1, w - l.length - r.length);
+    return this.text(l + ' '.repeat(pad) + r);
+  }
+  // QR code via the standard GS ( k command set (Epson + most modern generics).
+  qr(data: string) {
+    const store = (s: string) => {
+      const bytes: number[] = []; for (let i = 0; i < s.length; i++) bytes.push(s.charCodeAt(i) & 0xff);
+      const len = bytes.length + 3; this.push(0x1d, 0x28, 0x6b, len & 0xff, (len >> 8) & 0xff, 0x31, 0x50, 0x30, ...bytes);
+    };
+    this.align('center');
+    this.push(0x1d, 0x28, 0x6b, 0x04, 0x00, 0x31, 0x41, 0x32, 0x00); // model 2
+    this.push(0x1d, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x43, 0x06);       // module size 6
+    this.push(0x1d, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x45, 0x31);       // error correction M
+    store(data);
+    this.push(0x1d, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x51, 0x30);       // print
+    return this;
+  }
+  cut() { return this.push(0x1d, 0x56, 0x01); } // partial cut (ignored by cutterless printers)
+  bytes(): number[] { return this.buf; }
 }

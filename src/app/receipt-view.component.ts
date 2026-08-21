@@ -39,6 +39,7 @@ export class ReceiptViewComponent implements OnInit {
   // text is noise.
   private renderQr() {
     if (!this.order) return;
+    if (this.shop?.receiptShowQr === false) { this.qrDataUrl = null; return; }
     const url = this.shop?.receiptQrUrl?.trim();
     if (!url) { this.qrDataUrl = null; return; }
     // Be forgiving: "wa.me/2782..." without a scheme still scans as a link.

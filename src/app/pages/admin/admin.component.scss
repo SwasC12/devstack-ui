@@ -200,6 +200,7 @@
 .join-qr-box { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
 .join-qr-img { width: 160px; height: 160px; background: #fff; padding: 8px; border-radius: 12px; }
 .join-qr-url { font-size: 0.72rem; color: var(--accent-2); word-break: break-all; margin: 0.4rem 0 0; }
+.rc-toggles { display: flex; gap: 1.25rem; flex-wrap: wrap; }
 .orders-filters { display: flex; align-items: center; gap: 0.5rem; }
 .orders-more { display: flex; align-items: center; justify-content: flex-end; gap: 0.75rem; padding-top: 0.6rem; font-size: 0.75rem; color: var(--muted); }
 .cashup-totals { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.6rem; }
@@ -236,3 +237,16 @@
     .report-panel { width: min(860px, 100%); max-height: calc(100dvh - 4rem); overflow-y: auto; align-items: stretch; padding: 1.25rem 1.5rem; }
     .report-viewer { background: #fff; border-radius: 0.75em; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.25); }
     .report-frame { width: 100%; height: min(70dvh, 900px); border: 0; background: #fff; display: block; }
+
+/* Bluetooth printer settings card */
+.bt-current { margin: 0 0 0.5rem; font-size: 0.9rem; }
+.bt-current .bt-addr { opacity: 0.6; font-size: 0.8rem; margin-left: 0.4rem; }
+.bt-current.bt-none { opacity: 0.7; }
+.bt-list { display: flex; flex-direction: column; gap: 0.4rem; margin: 0.5rem 0 0.75rem; }
+.bt-item { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem;
+  padding: 0.55rem 0.75rem; border: 1px solid rgba(0,0,0,0.15); border-radius: 0.5em;
+  background: rgba(0,0,0,0.02); cursor: pointer; text-align: left; font: inherit; }
+.bt-item:hover { border-color: rgba(0,0,0,0.3); }
+.bt-item.sel { border-color: var(--accent, #2563eb); background: rgba(37,99,235,0.08); }
+.bt-item-name { font-weight: 600; }
+.bt-item-addr { opacity: 0.55; font-size: 0.78rem; }

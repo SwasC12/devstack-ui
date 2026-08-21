@@ -4,11 +4,12 @@
         @if (shop?.logoUrl) { <img [src]="shop.logoUrl" alt="" class="r-logo" /> }
         <strong class="r-shop">{{ shop?.name || 'CoffeeShop Pro' }}</strong>
         @if (shop?.code) { <span class="r-sub">{{ shop.code }}</span> }
+        @if (shop?.receiptHeader) { <span class="r-header">{{ shop.receiptHeader }}</span> }
       </div>
       <div class="r-meta">
         <span>Order #{{ order.id }}</span>
         <span>{{ order.createdAt | date:'medium' }}</span>
-        <span>Cashier: {{ cashierName || '—' }}</span>
+        @if (shop?.receiptShowCashier !== false) { <span>Cashier: {{ cashierName || '—' }}</span> }
       </div>
       @if (order.dineMode === 'dinein' || order.tableNumber) {
         <div class="r-meta">
@@ -37,7 +38,7 @@
       @if ((order.serviceChargeAmount ?? 0) + (order.tipAmount ?? 0) > 0) {
         <div class="r-total"><span>Grand total</span><strong>R{{ (order.total + (order.serviceChargeAmount ?? 0) + (order.tipAmount ?? 0)) | number:'1.2-2' }}</strong></div>
       }
-      @if (vatOf(order) > 0) {
+      @if (shop?.receiptShowVat !== false && vatOf(order) > 0) {
         <div class="r-vat"><span>VAT (15% incl.)</span><span>R{{ vatOf(order) | number:'1.2-2' }}</span></div>
       }
       <div class="r-pay">
@@ -55,8 +56,8 @@
           }
         }
       </div>
-      <p class="r-thanks">Thank you! ☕</p>
-      @if (qrDataUrl) {
+      <p class="r-thanks">{{ shop?.receiptFooter || 'Thank you!' }}</p>
+      @if (shop?.receiptShowQr !== false && qrDataUrl) {
         <div class="r-qr">
           <img [src]="qrDataUrl" alt="Receipt QR" />
           <span class="r-qr-sub">Scan me</span>
