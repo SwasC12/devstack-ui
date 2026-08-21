@@ -7,13 +7,13 @@
        scrolls. The bell sits OUTSIDE the scroll area so it's always visible. */
     /* Group selector row (Catalog / Sales / People / Finance / System) */
     .tab-groups { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.85rem; }
-    .tgroup { padding: 0.5rem 1.15rem; border: 1px solid var(--border-hover); border-radius: var(--radius-pill); background: var(--surface-2); color: var(--text-2); font-family: inherit; font-size: 0.8rem; font-weight: 700; cursor: pointer; transition: all 200ms cubic-bezier(.23,1,.32,1); white-space: nowrap; }
+    .tgroup { padding: 0.7rem 1.5rem; min-height: 44px; border: 1px solid var(--border-hover); border-radius: var(--radius-pill); background: var(--surface-2); color: var(--text-2); font-family: inherit; font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: all 200ms cubic-bezier(.23,1,.32,1); white-space: nowrap; }
     .tgroup:hover { border-color: var(--accent); color: var(--text); }
     .tgroup.active { background: var(--accent); border-color: var(--accent); color: #fff; }
     .tabs { display: flex; align-items: center; gap: 0; margin-bottom: 1.5rem; border-bottom: 0.125em solid var(--border); position: sticky; top: 0; z-index: 30; background: var(--surface); }
     .tabs-scroll { display: flex; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; flex: 1; min-width: 0; }
     .tabs-scroll::-webkit-scrollbar { display: none; }
-    .tab { padding: 0.65em 1.5em; border: 0; background: transparent; font-size: 0.8125rem; font-weight: 600; color: var(--muted); cursor: pointer; border-bottom: 0.125em solid transparent; margin-bottom: -0.125em; transition: all 300ms cubic-bezier(.23,1,0.32,1); font-family: inherit; white-space: nowrap; flex-shrink: 0; }
+    .tab { padding: 0.8em 1.6em; min-height: 46px; border: 0; background: transparent; font-size: 0.95rem; font-weight: 600; color: var(--muted); cursor: pointer; border-bottom: 0.125em solid transparent; margin-bottom: -0.125em; transition: all 300ms cubic-bezier(.23,1,0.32,1); font-family: inherit; white-space: nowrap; flex-shrink: 0; }
     .tab:hover { color: var(--accent-2); }
     .tab.active { color: var(--accent-2); border-color: var(--accent-2); }
 

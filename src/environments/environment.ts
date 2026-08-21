@@ -9,7 +9,7 @@ export const environment = {
   // falls back to window.location.origin, so this only needs to be right for
   // the QR generated inside the NATIVE admin app. CONFIRM this matches your
   // Vercel domain.
-  webBase: 'https://devstack-ui.vercel.app',
+  webBase: 'https://devstack-one.vercel.app',
   cloudinary: {
     // Same Cloudinary account as development — uploads are unsigned and
     // client-side, so the cloud name + preset are public by design.
