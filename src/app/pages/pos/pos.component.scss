@@ -87,7 +87,6 @@
     .item.sold { opacity: 0.45; }
     .item:disabled { cursor: default; }
     .item-img { width: 100%; height: 180px; object-fit: cover; display: block; background: var(--surface-2); transition: transform 0.3s ease; }
-    .item-img.placeholder { display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--surface-2), var(--surface-3)); color: var(--muted); }
     .item:hover .item-img { transform: scale(1.045); }
     .item-body { padding: 0.75rem; display: flex; flex-direction: column; gap: 0.25rem; }
     .item-name { font-size: 0.9375rem; font-weight: 700; line-height: 1.3; color: var(--text); }
@@ -264,6 +263,9 @@
     .acct-result { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.55rem 0.7rem; border: 1px solid var(--border-hover); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text); font-family: inherit; font-size: 0.875rem; cursor: pointer; transition: background 0.15s; }
     .acct-result:hover { background: var(--accent-light); }
     .acct-result span { font-size: 0.75rem; color: var(--muted); }
+    .pay-loyalty { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; width: 100%; margin: 0.35rem 0; }
+    .loy-redeem { display: flex; align-items: center; gap: 0.5rem; width: 100%; font-size: 0.85rem; font-weight: 600; color: var(--accent-2); cursor: pointer; padding: 0.3rem 0; }
+    .loy-redeem input { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
 
     .split-rows { display: flex; flex-direction: column; gap: 0.4rem; width: 100%; padding: 0.5rem 0; border-top: 1px dashed var(--border); margin-top: 0.25rem; }
     .split-row { display: flex; align-items: center; gap: 0.4rem; width: 100%; min-width: 0; }

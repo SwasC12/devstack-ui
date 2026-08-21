@@ -101,6 +101,12 @@ export class PosComponent implements OnInit, OnDestroy {
   readonly accountCustomerName = signal('');
   readonly custSearch = signal('');
   readonly custResults = signal<any[]>([]);
+  // Loyalty: an optional customer attached to a (non-account) sale to earn/redeem
+  // stamps. Separate search state from the house-account picker above.
+  readonly loyaltyCust = signal<any | null>(null);
+  readonly loySearch = signal('');
+  readonly loyResults = signal<any[]>([]);
+  readonly loyaltyRedeem = signal(false);
   readonly receivedText = signal('');
   readonly lastOrder = signal<any | null>(null);
 
@@ -682,6 +688,23 @@ export class PosComponent implements OnInit, OnDestroy {
     this.custSearch.set('');
   }
 
+  // Loyalty customer attach (optional, non-account sales).
+  searchLoyalty() {
+    const q = this.loySearch().trim();
+    if (q.length < 2) { this.loyResults.set([]); return; }
+    this.service.getCustomers(q).subscribe(c => this.loyResults.set(c.slice(0, 6)));
+  }
+  pickLoyaltyCust(c: any) {
+    this.loyaltyCust.set(c);
+    this.loyResults.set([]);
+    this.loySearch.set('');
+    this.loyaltyRedeem.set(false);
+  }
+  clearLoyaltyCust() {
+    this.loyaltyCust.set(null);
+    this.loyaltyRedeem.set(false);
+  }
+
   // Checkout button: open the payment sheet instead of charging blindly.
   checkout() {
     if (this.cart().length === 0) return;
@@ -722,6 +745,10 @@ export class PosComponent implements OnInit, OnDestroy {
       amountReceived: this.payMethod() === 'cash' && !this.accountMode() ? this.received() : null,
       payments,
       accountCustomerId: this.accountMode() ? this.accountCustomerId() : null,
+      // Loyalty: the account customer (if any) earns; otherwise the optionally
+      // attached loyalty customer earns/redeems. Redeem only on the loyalty path.
+      loyaltyCustomerId: this.accountMode() ? this.accountCustomerId() : (this.loyaltyCust()?.id ?? null),
+      redeemLoyalty: !this.accountMode() && this.loyaltyRedeem(),
       dineMode: this.dineMode(),
       tableNumber: this.tableNumber().trim() || null
     }, this.selectedDiscount()?.id ?? null, {
@@ -746,6 +773,18 @@ export class PosComponent implements OnInit, OnDestroy {
         this.lastOrder.set(order);
         this.lastReceipt.set(order);
         this.sound.orderComplete();
+        // Loyalty feedback for the cashier (server already updated the balance).
+        const lc = this.loyaltyCust();
+        if (this.shopInfo()?.loyaltyEnabled && lc && !this.accountMode()) {
+          const req = this.shopInfo()?.loyaltyStampsRequired ?? 10;
+          if (this.loyaltyRedeem() && (lc.loyaltyStamps ?? 0) >= req) {
+            this.dialog.toast(`Reward redeemed for ${lc.name} — ${this.shopInfo()?.loyaltyReward ?? 'reward'}`, 'success');
+          } else {
+            const now = (lc.loyaltyStamps ?? 0) + 1;
+            this.dialog.toast(`Loyalty: ${lc.name} now has ${now}/${req} stamp${now === 1 ? '' : 's'}${now >= req ? ' — reward ready!' : ''}`, 'success');
+          }
+        }
+        this.clearLoyaltyCust();
         this.pingKitchen(order.id, order.items);
       },
       error: (e) => {

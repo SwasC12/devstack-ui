@@ -130,7 +130,7 @@ export class MenuItemService {
     );
   }
 
-  placeOrder(cart: { id: number; name: string; price: number; quantity: number; sizeId?: number; note?: string; modifierIds?: number[] }[], payment?: { method: 'cash' | 'card'; amountReceived?: number | null; dineMode?: string | null; tableNumber?: string | null; payments?: { method: string; amount: number }[]; tip?: number | null; serviceChargePct?: number | null; accountCustomerId?: number | null }, discountId?: number | null, offlineSnapshot?: any): Observable<any> {
+  placeOrder(cart: { id: number; name: string; price: number; quantity: number; sizeId?: number; note?: string; modifierIds?: number[] }[], payment?: { method: 'cash' | 'card'; amountReceived?: number | null; dineMode?: string | null; tableNumber?: string | null; payments?: { method: string; amount: number }[]; tip?: number | null; serviceChargePct?: number | null; accountCustomerId?: number | null; loyaltyCustomerId?: number | null; redeemLoyalty?: boolean }, discountId?: number | null, offlineSnapshot?: any): Observable<any> {
     const body: any = {
       items: cart.map(i => ({ menuItemId: i.id, name: i.name, price: i.price, quantity: i.quantity, sizeId: i.sizeId ?? null, note: i.note ?? null, modifierIds: i.modifierIds?.length ? i.modifierIds : null }))
     };
@@ -141,6 +141,8 @@ export class MenuItemService {
       if (payment.tip) body.tip = payment.tip;
       if (payment.serviceChargePct) body.serviceChargePct = payment.serviceChargePct;
       if (payment.accountCustomerId) body.accountCustomerId = payment.accountCustomerId;
+      if (payment.loyaltyCustomerId) body.loyaltyCustomerId = payment.loyaltyCustomerId;
+      if (payment.redeemLoyalty) body.redeemLoyalty = true;
     }
     if (discountId) body.discountId = discountId;
     if (payment?.dineMode) body.dineMode = payment.dineMode;
@@ -471,15 +473,16 @@ export class MenuItemService {
     return this.http.get<any[]>(`${API}/audit?${q.join('&')}`);
   }
 
-  // Current shop (any logged-in shop user): branding + kitchen webhook shown in the POS.
-  getShopInfo(bg = false): Observable<{ id: number; name: string; code: string; logoUrl?: string | null; receiptQrUrl?: string | null; kitchenUrl?: string | null }> {
-    return this.http.get<{ id: number; name: string; code: string; logoUrl?: string | null; receiptQrUrl?: string | null; kitchenUrl?: string | null }>(
-      `${API}/shops/me`, bg ? { headers: { 'X-Background': '1' } } : undefined);
+  // Current shop (any logged-in shop user): branding, loyalty + receipt config
+  // shown in the POS. Typed loosely (any) since it now carries many settings.
+  getShopInfo(bg = false): Observable<any> {
+    return this.http.get<any>(`${API}/shops/me`, bg ? { headers: { 'X-Background': '1' } } : undefined);
   }
 
-  // Owner (admin): update the current shop's branding + kitchen webhook.
-  updateShopInfo(data: { name: string; logoUrl?: string | null; receiptQrUrl?: string | null; kitchenUrl?: string | null }): Observable<{ id: number; name: string; code: string; logoUrl?: string | null; receiptQrUrl?: string | null; kitchenUrl?: string | null }> {
-    return this.http.put<{ id: number; name: string; code: string; logoUrl?: string | null; receiptQrUrl?: string | null; kitchenUrl?: string | null }>(`${API}/shops/me`, data);
+  // Owner (admin): update the current shop's branding / loyalty / receipt config.
+  // Only the fields provided are changed (server applies partial updates).
+  updateShopInfo(data: any): Observable<any> {
+    return this.http.put<any>(`${API}/shops/me`, data);
   }
 
   // Superadmin: set a shop's owner contact details (for future owner emails).

@@ -265,6 +265,9 @@ export class AdminComponent implements OnInit {
   readonly kitchenFound = signal<string | null>(null);
   readonly kitchenMsg = signal('');
   readonly brMsg = signal(''); readonly brErr = signal(false); readonly brBusy = signal(false);
+  // Loyalty programme settings (Settings tab)
+  loyEnabled = false; loyRequired = 10; loyReward = 'Free item';
+  readonly loyMsg = signal(''); readonly loyErr = signal(false); readonly loyBusy = signal(false);
   pendingLogo: File | null = null;
   pendingLogoUrl: string | null = null;
   readonly logoUploading = signal(false);
@@ -1151,6 +1154,24 @@ export class AdminComponent implements OnInit {
       this.brLogoUrl = shop.logoUrl ?? '';
       this.brQrUrl = shop.receiptQrUrl ?? '';
       this.brKitchenUrl = shop.kitchenUrl ?? '';
+      this.loyEnabled = !!shop.loyaltyEnabled;
+      this.loyRequired = shop.loyaltyStampsRequired ?? 10;
+      this.loyReward = shop.loyaltyReward ?? 'Free item';
+    });
+  }
+
+  // Save loyalty settings (name is required by the shop PUT, so include it).
+  saveLoyalty() {
+    this.loyBusy.set(true); this.loyErr.set(false); this.loyMsg.set('');
+    const required = Math.min(100, Math.max(2, Math.round(Number(this.loyRequired) || 10)));
+    this.service.updateShopInfo({
+      name: this.brName,
+      loyaltyEnabled: this.loyEnabled,
+      loyaltyStampsRequired: required,
+      loyaltyReward: this.loyReward.trim() || 'Free item',
+    }).subscribe({
+      next: (shop) => { this.loyBusy.set(false); this.shopInfo = shop; this.loyMsg.set('Loyalty settings saved.'); },
+      error: (e) => { this.loyBusy.set(false); this.loyErr.set(true); this.loyMsg.set(e.error?.error || 'Could not save loyalty settings.'); },
     });
   }
 

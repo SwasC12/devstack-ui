@@ -425,6 +425,34 @@
             </div>
           }
 
+          <!-- Loyalty: attach a customer to earn/redeem stamps (non-account sales) -->
+          @if (shopInfo()?.loyaltyEnabled && !accountMode()) {
+            <div class="pay-loyalty">
+              @if (loyaltyCust(); as lc) {
+                <div class="acct-picked">
+                  <app-icon name="check" [size]="14" /> <strong>{{ lc.name }}</strong> · {{ lc.loyaltyStamps ?? 0 }}/{{ shopInfo()?.loyaltyStampsRequired }} stamps
+                  <app-btn size="sm" (onClick)="clearLoyaltyCust()"><app-icon name="close" [size]="16" /></app-btn>
+                </div>
+                @if ((lc.loyaltyStamps ?? 0) >= (shopInfo()?.loyaltyStampsRequired ?? 9999)) {
+                  <label class="loy-redeem"><input type="checkbox" [ngModel]="loyaltyRedeem()" (ngModelChange)="loyaltyRedeem.set($event)" /> Redeem reward — {{ shopInfo()?.loyaltyReward }}</label>
+                }
+              } @else {
+                <span class="pay-received-lbl">Loyalty customer (optional)</span>
+                <input class="tbl-input" type="text" placeholder="Name or phone for stamps…" [ngModel]="loySearch()" (ngModelChange)="loySearch.set($event); searchLoyalty()" />
+                @if (loyResults().length) {
+                  <div class="acct-results">
+                    @for (c of loyResults(); track c.id) {
+                      <button class="acct-result" (click)="pickLoyaltyCust(c)">
+                        <strong>{{ c.name }}</strong>
+                        <span>{{ c.loyaltyStamps ?? 0 }}/{{ shopInfo()?.loyaltyStampsRequired }} stamps</span>
+                      </button>
+                    }
+                  </div>
+                }
+              }
+            </div>
+          }
+
           <!-- Method toggle -->
           <div class="pay-methods">
             <button class="pay-method" [class.on]="payMethod() === 'cash'" (click)="payMethod.set('cash')">Cash</button>

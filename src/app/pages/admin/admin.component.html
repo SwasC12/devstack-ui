@@ -779,6 +779,19 @@
           </div>
         </div>
         <div class="form-sheet">
+          <div class="form-head"><h3>Loyalty programme</h3></div>
+          <p class="hint">A stamp card: each purchase with a customer attached earns one stamp; at the target they get the reward. Turn it on and the POS shows a customer's stamp count at checkout.</p>
+          <div class="form-grid">
+            <div class="field"><label class="check-label"><input type="checkbox" [(ngModel)]="loyEnabled" /> Enable loyalty stamps</label></div>
+            <div class="field"><label>Stamps for a reward</label><input type="number" min="2" max="100" [(ngModel)]="loyRequired" placeholder="10" /></div>
+            <div class="field wide"><label>Reward</label><input [(ngModel)]="loyReward" placeholder="e.g. Free coffee" /><span class="field-hint">Shown to the cashier when a customer is eligible. Staff comp the item and tap Redeem.</span></div>
+          </div>
+          @if (loyMsg()) { <p class="form-msg" [class.err]="loyErr()">{{ loyMsg() }}</p> }
+          <div class="form-acts">
+            <app-btn variant="primary" size="sm" (onClick)="saveLoyalty()" [loading]="loyBusy()">Save loyalty</app-btn>
+          </div>
+        </div>
+        <div class="form-sheet">
           <div class="form-head"><h3>Backup</h3></div>
           <p class="hint">Download this shop's full data (menu, sizes, modifiers, discounts, orders, users, shifts) as a JSON file. Keep it somewhere safe — it does not include APKs.</p>
           @if (backupMsg()) { <p class="form-msg">{{ backupMsg() }}</p> }
@@ -888,6 +901,7 @@
                   <tr>
                     <td>
                       <strong>{{ c.name }}</strong>
+                      @if (loyEnabled && c.loyaltyStamps > 0) { <span class="pill">{{ c.loyaltyStamps }}<app-icon name="check" [size]="10" [strokeWidth]="3" /> stamps</span> }
                       <span class="cust-sub">{{ c.phone || 'no phone' }}{{ c.email ? ' · ' + c.email : '' }} · {{ c.orderCount }} order(s) · R{{ c.orderTotal | number:'1.2-2' }} spent</span>
                     </td>
                     <td class="num"><strong [class.bal-owes]="c.balance > 0" [class.bal-ok]="c.balance === 0">{{ c.balance > 0 ? 'R' + (c.balance | number:'1.2-2') + ' owing' : 'Settled' }}</strong></td>
