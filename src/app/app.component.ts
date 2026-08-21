@@ -50,8 +50,9 @@ export class AppComponent implements OnDestroy {
       if (e instanceof NavigationStart) loading.show();
       else loading.hide();
     });
-    this.router.events.pipe(filter(e => e instanceof NavigationEnd)).subscribe(() => void this.updateKioskLock());
+    this.router.events.pipe(filter(e => e instanceof NavigationEnd)).subscribe(() => { void this.updateKioskLock(); this.updatePublicPage(); });
     void this.updateKioskLock();
+    this.updatePublicPage();
     // The kiosk pref lives in device storage and only the kitchen page changes
     // it - poll so the nav hides/shows instantly instead of waiting for the
     // next navigation (which the locked nav otherwise prevents).
@@ -89,6 +90,15 @@ export class AppComponent implements OnDestroy {
   // Kitchen kiosk: when the kitchen tablet is locked, hide the nav so the wall
   // display stays on the kitchen screen.
   kioskLocked = signal(false);
+
+  // Public customer loyalty page (/join/:token) is a fully ISOLATED page: no
+  // top bar, brand, POS/Kitchen/Admin nav or sign-in link — nothing that could
+  // let a shopper reach the actual POS. Just the signup/points card.
+  publicPage = signal(false);
+  private updatePublicPage(): void {
+    const isPublic = this.router.url.startsWith('/join');
+    if (isPublic !== this.publicPage()) this.publicPage.set(isPublic);
+  }
   private async updateKioskLock(): Promise<void> {
     if (!this.router.url.startsWith('/kitchen')) {
       if (this.kioskLocked()) this.zone.run(() => this.kioskLocked.set(false));

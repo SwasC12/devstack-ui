@@ -798,7 +798,11 @@
                 <div>
                   <p class="field-hint">Put this on the counter or table. Customers scan it to sign up and get their own loyalty QR — no app needed.</p>
                   <p class="join-qr-url">{{ joinUrl() }}</p>
-                  <app-btn size="sm" (onClick)="printJoinPoster()">Print sign-up poster</app-btn>
+                  <div class="join-qr-acts">
+                    <app-btn size="sm" (onClick)="printJoinPoster()">Print sign-up poster</app-btn>
+                    <app-btn size="sm" variant="danger" (onClick)="regenerateJoinCode()" [loading]="joinBusy()">New code</app-btn>
+                  </div>
+                  <span class="field-hint">The link uses a private code, not your shop login code. Tap “New code” to reset it if a poster is misused.</span>
                 </div>
               </div>
             </div>

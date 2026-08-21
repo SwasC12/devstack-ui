@@ -414,6 +414,14 @@ export class MenuItemService {
   publicSignup(code: string, data: { name: string; phone?: string | null; email?: string | null; consent: boolean }): Observable<any> {
     return this.http.post<any>(`${API}/public/signup/${encodeURIComponent(code)}`, data);
   }
+  // Returning customer checks their loyalty card by phone number or personal code.
+  publicMemberLookup(code: string, phoneOrCode: string): Observable<any> {
+    return this.http.post<any>(`${API}/public/member/${encodeURIComponent(code)}`, { phoneOrCode });
+  }
+  // Admin rotates the shop's public join token (invalidates old printed posters).
+  regenerateJoinToken(): Observable<any> {
+    return this.http.post<any>(`${API}/shops/me/regenerate-join-token`, {});
+  }
 
   createCustomer(data: { name: string; phone?: string | null; email?: string | null; creditLimit: number; notes?: string | null }): Observable<any> {
     return this.http.post(`${API}/customers`, data);

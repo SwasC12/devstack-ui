@@ -330,7 +330,22 @@ export class AdminComponent implements OnInit {
   // the live origin; the native app falls back to the configured webBase.
   joinUrl(): string {
     const base = Capacitor.isNativePlatform() ? environment.webBase : window.location.origin;
-    return `${base}/join/${this.shopInfo?.code ?? ''}`;
+    // Uses the random JOIN TOKEN, never the shop's login code.
+    return `${base}/join/${this.shopInfo?.joinToken ?? ''}`;
+  }
+
+  // Rotate the public join token — invalidates any previously printed poster.
+  readonly joinBusy = signal(false);
+  async regenerateJoinCode() {
+    const ok = await this.dialog.confirm(
+      'New sign-up code',
+      'Generate a new sign-up code? Any poster or QR you have already printed will stop working and you\'ll need to reprint it.');
+    if (!ok) return;
+    this.joinBusy.set(true);
+    this.service.regenerateJoinToken().subscribe({
+      next: (shop) => { this.joinBusy.set(false); this.shopInfo = shop; void this.genJoinQr(); this.dialog.toast('New sign-up code generated.', 'success'); },
+      error: (e) => { this.joinBusy.set(false); this.dialog.toast(e.error?.error || 'Could not regenerate the code.', 'error'); },
+    });
   }
   private async genJoinQr() {
     if (!this.shopInfo?.code) return;

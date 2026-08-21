@@ -1,4 +1,5 @@
-<div class="shell">
+<div class="shell" [class.public-shell]="publicPage()">
+  @if (!publicPage()) {
   <header class="top-bar">
     @if (!kioskLocked()) {
     <a class="brand" routerLink="/">
@@ -40,6 +41,7 @@
         {{ offline.pendingOrders() }} order{{ offline.pendingOrders() === 1 ? '' : 's' }} awaiting sync{{ offline.isOffline() ? '' : ' — syncing…' }}
       }
     </div>
+  }
   }
   <main class="main">
     <router-outlet />

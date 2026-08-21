@@ -4,9 +4,11 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { MenuItemService } from '../../menu-item.service';
 
-// PUBLIC customer self-signup page. Reached by scanning a shop's join QR, which
-// opens /join/<SHOPCODE>. No login. The shopper enters their details + consent,
-// and gets their personal loyalty QR (encodes LOY:<code>) to show at the till.
+// PUBLIC, fully ISOLATED customer loyalty page. Reached by scanning a shop's
+// join QR, which opens /join/<JOIN-TOKEN> (a random per-shop token, never the
+// staff login code). No nav, no link back to the POS. A shopper can sign up
+// (get their personal loyalty QR, encodes LOY:<code>) OR sign in with their
+// phone / code to view their existing card + stamp balance.
 @Component({
   selector: 'app-signup',
   standalone: true,
@@ -15,39 +17,55 @@ import { MenuItemService } from '../../menu-item.service';
   <div class="join-wrap">
     <div class="join-card">
       @if (done(); as d) {
-        <!-- Success: show the personal loyalty QR -->
+        <!-- Loyalty card: personal QR + stamp balance (fresh signup or sign-in) -->
         <div class="j-brand">
           @if (shop()?.logoUrl) { <img [src]="shop()!.logoUrl" alt="" class="j-logo" /> }
-          <h1>You're in{{ d.name ? ', ' + d.name : '' }}! 🎉</h1>
+          <h1>{{ welcomeBack() ? 'Welcome back' : "You're in" }}{{ d.name ? ', ' + d.name : '' }}! 🎉</h1>
         </div>
         <p class="j-muted">{{ shop()?.name }} loyalty — collect {{ d.stampsRequired }} stamps for: <strong>{{ d.reward }}</strong></p>
+        <div class="j-stamps">{{ d.stamps }} / {{ d.stampsRequired }} stamps</div>
         @if (qr()) {
           <div class="j-qr"><img [src]="qr()" alt="Your loyalty QR" /></div>
         }
         <p class="j-code">Your code: <strong>{{ d.loyaltyCode }}</strong></p>
-        <p class="j-muted">Show this QR (screenshot it!) or give your phone number at the till to collect stamps. You have {{ d.stamps }} so far.</p>
+        <p class="j-muted">Show this QR (screenshot it!) or give your phone number at the till to collect stamps.</p>
+        <button class="j-link" (click)="reset()">Back</button>
       } @else if (loading()) {
         <p class="j-muted">Loading…</p>
       } @else if (notFound()) {
         <h1>Shop not found</h1>
         <p class="j-muted">This join link doesn't match an active shop. Check the QR code with the shop.</p>
+      } @else if (!shop()?.loyaltyEnabled) {
+        <div class="j-brand">
+          @if (shop()?.logoUrl) { <img [src]="shop()!.logoUrl" alt="" class="j-logo" /> }
+          <h1>{{ shop()?.name }}</h1>
+        </div>
+        <p class="j-muted">This shop doesn't have a loyalty programme running right now.</p>
+      } @else if (mode() === 'member') {
+        <!-- Returning customer: view my card -->
+        <div class="j-brand">
+          @if (shop()?.logoUrl) { <img [src]="shop()!.logoUrl" alt="" class="j-logo" /> }
+          <h1>My loyalty card</h1>
+        </div>
+        <p class="j-muted">Enter the phone number or code you signed up with at {{ shop()?.name }}.</p>
+        <div class="j-field"><label>Phone number or code</label><input [(ngModel)]="lookup" placeholder="082 123 4567 or ABCD1234" autocomplete="tel" /></div>
+        @if (err()) { <p class="j-err">{{ err() }}</p> }
+        <button class="j-btn" [disabled]="busy()" (click)="checkPoints()">{{ busy() ? 'Checking…' : 'View my points' }}</button>
+        <button class="j-link" (click)="setMode('signup')">New here? Sign up</button>
       } @else {
         <!-- Signup form -->
         <div class="j-brand">
           @if (shop()?.logoUrl) { <img [src]="shop()!.logoUrl" alt="" class="j-logo" /> }
           <h1>Join {{ shop()?.name }}</h1>
         </div>
-        @if (shop()?.loyaltyEnabled) {
-          <p class="j-muted">Collect {{ shop()?.loyaltyStampsRequired }} stamps and get: <strong>{{ shop()?.loyaltyReward }}</strong>.</p>
-          <div class="j-field"><label>Your name</label><input [(ngModel)]="name" placeholder="e.g. Thabo M." autocomplete="name" /></div>
-          <div class="j-field"><label>Phone number</label><input [(ngModel)]="phone" type="tel" inputmode="tel" placeholder="e.g. 082 123 4567" autocomplete="tel" /></div>
-          <div class="j-field"><label>Email (optional)</label><input [(ngModel)]="email" type="email" inputmode="email" placeholder="you@example.com" autocomplete="email" /></div>
-          <label class="j-consent"><input type="checkbox" [(ngModel)]="consent" /> <span>I agree to {{ shop()?.name }} storing my details for their loyalty programme and contacting me about it. I can ask them to remove my details anytime.</span></label>
-          @if (err()) { <p class="j-err">{{ err() }}</p> }
-          <button class="j-btn" [disabled]="busy()" (click)="submit()">{{ busy() ? 'Joining…' : 'Join now' }}</button>
-        } @else {
-          <p class="j-muted">This shop doesn't have a loyalty programme running right now.</p>
-        }
+        <p class="j-muted">Collect {{ shop()?.loyaltyStampsRequired }} stamps and get: <strong>{{ shop()?.loyaltyReward }}</strong>.</p>
+        <div class="j-field"><label>Your name</label><input [(ngModel)]="name" placeholder="e.g. Thabo M." autocomplete="name" /></div>
+        <div class="j-field"><label>Phone number</label><input [(ngModel)]="phone" type="tel" inputmode="tel" placeholder="e.g. 082 123 4567" autocomplete="tel" /></div>
+        <div class="j-field"><label>Email (optional)</label><input [(ngModel)]="email" type="email" inputmode="email" placeholder="you@example.com" autocomplete="email" /></div>
+        <label class="j-consent"><input type="checkbox" [(ngModel)]="consent" /> <span>I agree to {{ shop()?.name }} storing my details for their loyalty programme and contacting me about it. I can ask them to remove my details anytime.</span></label>
+        @if (err()) { <p class="j-err">{{ err() }}</p> }
+        <button class="j-btn" [disabled]="busy()" (click)="submit()">{{ busy() ? 'Joining…' : 'Join now' }}</button>
+        <button class="j-link" (click)="setMode('member')">Already a member? Check my points</button>
       }
     </div>
     <p class="j-foot">Powered by CoffeeShop Pro</p>
@@ -73,6 +91,8 @@ import { MenuItemService } from '../../menu-item.service';
     .j-qr { display:flex; justify-content:center; margin:1.25rem 0; }
     .j-qr img { width:220px; height:220px; background:#fff; padding:12px; border-radius:14px; }
     .j-code { text-align:center; font-size:1.05rem; letter-spacing:.08em; }
+    .j-stamps { text-align:center; font-size:1.35rem; font-weight:800; color:var(--accent, #c88738); margin:.75rem 0; }
+    .j-link { display:block; width:100%; margin-top:.9rem; background:none; border:0; color:var(--muted, #999); font-family:inherit; font-size:.9rem; text-decoration:underline; cursor:pointer; }
     .j-foot { color:var(--muted, #777); font-size:.72rem; }
   `],
 })
@@ -88,8 +108,10 @@ export class SignupComponent implements OnInit {
   readonly err = signal('');
   readonly done = signal<any | null>(null);
   readonly qr = signal<string>('');
+  readonly mode = signal<'signup' | 'member'>('signup');
+  readonly welcomeBack = signal(false);
 
-  name = ''; phone = ''; email = ''; consent = false;
+  name = ''; phone = ''; email = ''; consent = false; lookup = '';
 
   ngOnInit() {
     this.code = this.route.snapshot.paramMap.get('code') ?? '';
@@ -100,6 +122,22 @@ export class SignupComponent implements OnInit {
     });
   }
 
+  setMode(m: 'signup' | 'member') { this.err.set(''); this.mode.set(m); }
+
+  // Back to the start (from a shown card): clear the result and inputs.
+  reset() {
+    this.done.set(null); this.qr.set(''); this.err.set(''); this.welcomeBack.set(false);
+    this.lookup = ''; this.mode.set('signup');
+  }
+
+  private async showCard(res: any) {
+    this.done.set(res);
+    try {
+      const QRCode = (await import('qrcode')).default ?? (await import('qrcode'));
+      this.qr.set(await (QRCode as any).toDataURL(`LOY:${res.loyaltyCode}`, { width: 440, margin: 1 }));
+    } catch { /* QR lib unavailable - the code text is still shown */ }
+  }
+
   submit() {
     this.err.set('');
     if (!this.name.trim()) { this.err.set('Please enter your name.'); return; }
@@ -107,15 +145,18 @@ export class SignupComponent implements OnInit {
     if (!this.consent) { this.err.set('Please tick the box to join.'); return; }
     this.busy.set(true);
     this.service.publicSignup(this.code, { name: this.name.trim(), phone: this.phone.trim() || null, email: this.email.trim() || null, consent: this.consent }).subscribe({
-      next: async (res) => {
-        this.busy.set(false);
-        this.done.set(res);
-        try {
-          const QRCode = (await import('qrcode')).default ?? (await import('qrcode'));
-          this.qr.set(await (QRCode as any).toDataURL(`LOY:${res.loyaltyCode}`, { width: 440, margin: 1 }));
-        } catch { /* QR lib unavailable - the code text is still shown */ }
-      },
+      next: (res) => { this.busy.set(false); this.welcomeBack.set(false); void this.showCard(res); },
       error: (e) => { this.busy.set(false); this.err.set(e.error?.error || 'Could not sign you up. Please try again.'); },
+    });
+  }
+
+  checkPoints() {
+    this.err.set('');
+    if (!this.lookup.trim()) { this.err.set('Enter your phone number or code.'); return; }
+    this.busy.set(true);
+    this.service.publicMemberLookup(this.code, this.lookup.trim()).subscribe({
+      next: (res) => { this.busy.set(false); this.welcomeBack.set(true); void this.showCard(res); },
+      error: (e) => { this.busy.set(false); this.err.set(e.error?.error || 'No card found. Please sign up.'); },
     });
   }
 }
