@@ -709,6 +709,37 @@ export class PosComponent implements OnInit, OnDestroy {
     this.loyaltyCust.set(null);
     this.loyaltyRedeem.set(false);
   }
+  // Scan loyalty QR from the payment sheet
+  scanLoyaltyQR() {
+    if (Capacitor.isNativePlatform()) {
+      const fast = (Capacitor as any).Plugins?.FastBarcodeScanner;
+      if (!fast) { this.dialog.toast('Scanner is unavailable on this build', 'error'); return; }
+      fast.scan().then((res: any) => {
+        const code = res?.ScanResult ?? '';
+        this.handleLoyaltyScan(code);
+      }).catch((e: any) => {
+        const msg = (e?.message ?? e?.code ?? '').toString();
+        if (!/cancel/i.test(msg)) {
+          this.dialog.toast('Could not open the camera', 'error');
+        }
+      });
+    } else {
+      this.dialog.toast('QR scanner only works in the native app', 'info');
+    }
+  }
+  private handleLoyaltyScan(text: string) {
+    const code = (text ?? '').trim().replace(/^LOY:/i, '');
+    if (!code) { this.dialog.toast('No QR code detected', 'info'); return; }
+    this.service.loyaltyLookup(code).subscribe({
+      next: list => {
+        const c = (list ?? [])[0];
+        if (!c) { this.dialog.toast('No loyalty customer for that code', 'error'); return; }
+        this.pickLoyaltyCust(c);
+        this.dialog.toast(`${c.name} attached — ${c.loyaltyStamps ?? 0} stamps`, 'success');
+      },
+      error: () => this.dialog.toast('Could not look up that code', 'error'),
+    });
+  }
   // Attach a loyalty customer from a scanned personal QR (LOY:<code>).
   private attachLoyaltyByCode(code: string) {
     this.service.loyaltyLookup(code.trim()).subscribe({
@@ -795,9 +826,14 @@ export class PosComponent implements OnInit, OnDestroy {
         if (this.shopInfo()?.loyaltyEnabled && lc && !this.accountMode()) {
           const req = this.shopInfo()?.loyaltyStampsRequired ?? 10;
           if (this.loyaltyRedeem() && (lc.loyaltyStamps ?? 0) >= req) {
+            // Reward was redeemed: stamps were decremented server-side
+            const updatedStamps = Math.max(0, (lc.loyaltyStamps ?? 0) - req);
+            this.loyaltyCust.set({ ...lc, loyaltyStamps: updatedStamps });
             this.dialog.toast(`Reward redeemed for ${lc.name} — ${this.shopInfo()?.loyaltyReward ?? 'reward'}`, 'success');
           } else {
+            // Stamp was earned: increment locally to match server state
             const now = (lc.loyaltyStamps ?? 0) + 1;
+            this.loyaltyCust.set({ ...lc, loyaltyStamps: now });
             this.dialog.toast(`Loyalty: ${lc.name} now has ${now}/${req} stamp${now === 1 ? '' : 's'}${now >= req ? ' — reward ready!' : ''}`, 'success');
           }
         }

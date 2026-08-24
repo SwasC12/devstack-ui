@@ -437,8 +437,11 @@
                   <label class="loy-redeem"><input type="checkbox" [ngModel]="loyaltyRedeem()" (ngModelChange)="loyaltyRedeem.set($event)" /> Redeem reward — {{ shopInfo()?.loyaltyReward }}</label>
                 }
               } @else {
-                <span class="pay-received-lbl">Loyalty customer (optional)</span>
-                <input class="tbl-input" type="text" placeholder="Name or phone for stamps…" [ngModel]="loySearch()" (ngModelChange)="loySearch.set($event); searchLoyalty()" />
+                <span class="pay-received-lbl">Loyalty customer</span>
+                <div class="loy-search-row">
+                  <input class="tbl-input" type="tel" inputmode="tel" placeholder="Phone number…" [ngModel]="loySearch()" (ngModelChange)="loySearch.set($event); searchLoyalty()" />
+                  <app-btn size="sm" (onClick)="scanLoyaltyQR()" title="Scan customer QR code"><app-icon name="qr-code" [size]="16" /></app-btn>
+                </div>
                 @if (loyResults().length) {
                   <div class="acct-results">
                     @for (c of loyResults(); track c.id) {
