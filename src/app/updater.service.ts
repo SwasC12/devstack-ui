@@ -7,32 +7,74 @@ import { environment } from '../environments/environment';
 // In-app updater downloader. Streams the current APK from the API (JWT
 // attached), saves it to the app cache, and hands it to the native
 // InstallApk plugin, which opens Android's package installer via FileProvider.
+// Downloads continue in the background even when the app is backgrounded or
+// the user switches tabs (uses CapacitorHttp for native downloads).
 // Web builds have no installer - download() still works, install() returns
 // false.
 @Injectable({ providedIn: 'root' })
 export class UpdaterService {
   private auth = inject(AuthService);
   private readonly fileName = 'coffeeshoppro-update.apk';
+  private downloadInProgress = false;
 
   private installer(): any {
     return (Capacitor as any).Plugins?.InstallApk ?? null;
   }
 
   // Download the current APK with progress (0..1). Returns 'ready' once the
-  // file is saved, 'failed' on any error.
+  // file is saved, 'failed' on any error. Uses CapacitorHttp on native for
+  // background-resilient downloads (continues even when app is backgrounded).
   async download(onProgress: (fraction: number) => void): Promise<'ready' | 'failed'> {
+    if (this.downloadInProgress) return 'failed';
+    this.downloadInProgress = true;
+
     try {
       const token = this.auth.token;
-      if (!token) return 'failed';
+      if (!token) {
+        this.downloadInProgress = false;
+        return 'failed';
+      }
 
+      // Native: use CapacitorHttp which continues downloads in the background
+      if (Capacitor.isNativePlatform()) {
+        const { CapacitorHttp } = await import('@capacitor/core');
+        const result = await CapacitorHttp.downloadFile({
+          url: `${environment.apiBase}/app/download`,
+          filePath: this.fileName,
+          fileDirectory: Directory.Cache,
+          headers: { Authorization: `Bearer ${token}` },
+          progress: true,
+          // Progress callback - survives app backgrounding on native
+          progressListener: (progressEvent) => {
+            if (progressEvent.total > 0) {
+              onProgress(progressEvent.loaded / progressEvent.total);
+            }
+          }
+        });
+
+        this.downloadInProgress = false;
+        if (result.path) {
+          onProgress(1);
+          return 'ready';
+        }
+        return 'failed';
+      }
+
+      // Web fallback: standard fetch (no background support, but web doesn't need it)
       const res = await fetch(`${environment.apiBase}/app/download`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (!res.ok) return 'failed';
+      if (!res.ok) {
+        this.downloadInProgress = false;
+        return 'failed';
+      }
 
       const total = Number(res.headers.get('content-length') ?? 0);
       const reader = res.body?.getReader();
-      if (!reader) return 'failed';
+      if (!reader) {
+        this.downloadInProgress = false;
+        return 'failed';
+      }
 
       const chunks: Uint8Array[] = [];
       let received = 0;
@@ -45,14 +87,19 @@ export class UpdaterService {
       }
       // A short read means the connection dropped mid-file: a truncated APK
       // would "download fine" but fail to parse in the installer.
-      if (total > 0 && received !== total) return 'failed';
+      if (total > 0 && received !== total) {
+        this.downloadInProgress = false;
+        return 'failed';
+      }
       onProgress(1);
 
       const blob = new Blob(chunks, { type: 'application/vnd.android.package-archive' });
       const base64 = await blobToBase64(blob);
       await Filesystem.writeFile({ path: this.fileName, data: base64, directory: Directory.Cache });
+      this.downloadInProgress = false;
       return 'ready';
     } catch {
+      this.downloadInProgress = false;
       return 'failed';
     }
   }
