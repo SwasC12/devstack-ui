@@ -264,8 +264,8 @@
     .acct-result:hover { background: var(--accent-light); }
     .acct-result span { font-size: 0.75rem; color: var(--muted); }
     .pay-loyalty { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; width: 100%; margin: 0.35rem 0; }
-    .loy-search-row { display: flex; align-items: center; gap: 0.4rem; width: 100%; }
-    .loy-search-row .tbl-input { flex: 1; min-width: 0; }
+    .loy-search-row { display: flex; gap: 0.4rem; width: 100%; }
+    .loy-search-row .tbl-input { flex: 1; }
     .loy-redeem { display: flex; align-items: center; gap: 0.5rem; width: 100%; font-size: 0.85rem; font-weight: 600; color: var(--accent-2); cursor: pointer; padding: 0.3rem 0; }
     .loy-redeem input { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
 
