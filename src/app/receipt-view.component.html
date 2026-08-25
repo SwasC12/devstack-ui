@@ -1,67 +1,87 @@
 
     <div class="receipt-print receipt">
       <div class="r-head">
-        @if (shop?.logoUrl) { <img [src]="shop.logoUrl" alt="" class="r-logo" /> }
+        @if (shop?.receiptShowLogo !== false && shop?.logoUrl) { <img [src]="shop.logoUrl" alt="" class="r-logo" /> }
         <strong class="r-shop">{{ shop?.name || 'CoffeeShop Pro' }}</strong>
-        @if (shop?.code) { <span class="r-sub">{{ shop.code }}</span> }
         @if (shop?.receiptHeader) { <span class="r-header">{{ shop.receiptHeader }}</span> }
       </div>
+
+      <div class="r-rule"></div>
+
       <div class="r-meta">
-        <span>Order #{{ order.id }}</span>
-        <span>{{ order.createdAt | date:'medium' }}</span>
-        @if (shop?.receiptShowCashier !== false) { <span>Cashier: {{ cashierName || '—' }}</span> }
+        <div><span>Order</span><span>#{{ order.id }}</span></div>
+        <div><span>Date</span><span>{{ order.createdAt | date:'medium' }}</span></div>
+        @if (shop?.receiptShowCashier !== false) { <div><span>Served by</span><span>{{ cashierName || '—' }}</span></div> }
+        @if (order.dineMode === 'dinein' || order.tableNumber) {
+          <div><span>Type</span><span>{{ order.dineMode === 'dinein' ? 'Dine-in' : 'Takeaway' }}{{ order.tableNumber ? ' · Table ' + order.tableNumber : '' }}</span></div>
+        }
       </div>
-      @if (order.dineMode === 'dinein' || order.tableNumber) {
-        <div class="r-meta">
-          <span>{{ order.dineMode === 'dinein' ? 'Dine-in' : 'Takeaway' }}{{ order.tableNumber ? ' — Table ' + order.tableNumber : '' }}</span>
-        </div>
-      }
+
+      <div class="r-rule dashed"></div>
+
       <div class="r-items">
         @for (line of order.items; track line.id) {
           <div class="r-line">
-            <span>{{ line.quantity }} × {{ line.name }}{{ line.sizeName ? ' (' + line.sizeName + ')' : '' }}{{ modText(line) ? ' (' + modText(line) + ')' : '' }}</span>
-            <span>R{{ (line.price * line.quantity) | number:'1.2-2' }}</span>
+            <span class="r-qty">{{ line.quantity }}</span>
+            <span class="r-name">{{ line.name }}</span>
+            <span class="r-amt">R{{ (line.price * line.quantity) | number:'1.2-2' }}</span>
           </div>
-          @if (line.note) { <div class="r-note">{{ line.note }}</div> }
+          @if (line.sizeName || modText(line)) {
+            <div class="r-sub">{{ line.sizeName ? line.sizeName : '' }}{{ line.sizeName && modText(line) ? ' · ' : '' }}{{ modText(line) }}</div>
+          }
+          @if (line.note) { <div class="r-sub r-note">Note: {{ line.note }}</div> }
         }
       </div>
-      @if (order.discountAmount > 0) {
-        <div class="r-disc"><span>Discount ({{ order.discountName }})</span><span>−R{{ order.discountAmount | number:'1.2-2' }}</span></div>
-      }
-      <div class="r-total"><span>Total</span><strong>R{{ order.total | number:'1.2-2' }}</strong></div>
-      @if (order.serviceChargeAmount > 0) {
-        <div class="r-disc"><span>Service charge</span><span>R{{ order.serviceChargeAmount | number:'1.2-2' }}</span></div>
-      }
-      @if (order.tipAmount > 0) {
-        <div class="r-disc"><span>Tip</span><span>R{{ order.tipAmount | number:'1.2-2' }}</span></div>
-      }
-      @if ((order.serviceChargeAmount ?? 0) + (order.tipAmount ?? 0) > 0) {
-        <div class="r-total"><span>Grand total</span><strong>R{{ (order.total + (order.serviceChargeAmount ?? 0) + (order.tipAmount ?? 0)) | number:'1.2-2' }}</strong></div>
-      }
-      @if (shop?.receiptShowVat !== false && vatOf(order) > 0) {
-        <div class="r-vat"><span>VAT (15% incl.)</span><span>R{{ vatOf(order) | number:'1.2-2' }}</span></div>
-      }
+
+      <div class="r-rule dashed"></div>
+
+      <div class="r-totals">
+        <div class="r-row"><span>Subtotal ({{ itemCount() }} item{{ itemCount() === 1 ? '' : 's' }})</span><span>R{{ subtotal() | number:'1.2-2' }}</span></div>
+        @if (order.discountAmount > 0) {
+          <div class="r-row"><span>Discount{{ order.discountName ? ' (' + order.discountName + ')' : '' }}</span><span>−R{{ order.discountAmount | number:'1.2-2' }}</span></div>
+        }
+        @if (order.serviceChargeAmount > 0) {
+          <div class="r-row"><span>Service charge</span><span>R{{ order.serviceChargeAmount | number:'1.2-2' }}</span></div>
+        }
+        @if (order.tipAmount > 0) {
+          <div class="r-row"><span>Tip</span><span>R{{ order.tipAmount | number:'1.2-2' }}</span></div>
+        }
+        <div class="r-row r-grand"><span>TOTAL</span><strong>R{{ grandTotal() | number:'1.2-2' }}</strong></div>
+        @if (shop?.receiptShowVat !== false && vatOf(order) > 0) {
+          <div class="r-row r-muted"><span>Incl. VAT (15%)</span><span>R{{ vatOf(order) | number:'1.2-2' }}</span></div>
+        }
+      </div>
+
+      <div class="r-rule dashed"></div>
+
       <div class="r-pay">
         @if (order.payments?.length > 1) {
-          <span>Paid: @for (p of order.payments; track $index) { {{ p.method }} R{{ p.amount | number:'1.2-2' }}{{ $index < order.payments.length - 1 ? ' + ' : '' }} }</span>
+          <div><span>Payment</span><span>@for (p of order.payments; track $index) {{{ titlecase(p.method) }} R{{ p.amount | number:'1.2-2' }}{{ $index < order.payments.length - 1 ? ' + ' : '' }} }</span></div>
         } @else {
-          <span>Paid: {{ order.paymentMethod === 'account' ? 'Account' : (order.paymentMethod === 'cash' ? 'Cash' : 'Card') }}</span>
+          <div><span>Payment</span><span>{{ order.paymentMethod === 'account' ? 'Account' : (order.paymentMethod === 'cash' ? 'Cash' : 'Card') }}</span></div>
         }
         @if (order.paymentMethod === 'cash' || hasCashPayment(order)) {
-          @if (order.amountReceived != null) {
-            <span>Received: R{{ order.amountReceived | number:'1.2-2' }}</span>
-          }
-          @if (order.changeGiven != null) {
-            <span>Change: R{{ order.changeGiven | number:'1.2-2' }}</span>
-          }
+          @if (order.amountReceived != null) { <div><span>Cash received</span><span>R{{ order.amountReceived | number:'1.2-2' }}</span></div> }
+          @if (order.changeGiven != null) { <div><span>Change</span><span>R{{ order.changeGiven | number:'1.2-2' }}</span></div> }
         }
       </div>
-      <p class="r-thanks">{{ shop?.receiptFooter || 'Thank you!' }}</p>
+
+      <div class="r-rule"></div>
+
+      <div class="r-collect">
+        <span class="r-collect-lbl">Order number</span>
+        <span class="r-collect-no">#{{ order.id }}</span>
+      </div>
+
+      <p class="r-thanks">{{ shop?.receiptFooter || 'Thank you — see you again soon!' }}</p>
+      @if (shop?.receiptShowVat !== false && vatOf(order) > 0 && !shop?.receiptHeader) {
+        <p class="r-fineprint">This is a tax invoice. Prices include 15% VAT.</p>
+      }
       @if (shop?.receiptShowQr !== false && qrDataUrl) {
         <div class="r-qr">
           <img [src]="qrDataUrl" alt="Receipt QR" />
-          <span class="r-qr-sub">Scan me</span>
+          <span class="r-qr-sub">Scan for more</span>
         </div>
       }
+      <p class="r-powered">Powered by CoffeeShop Pro</p>
     </div>
-  

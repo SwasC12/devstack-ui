@@ -270,7 +270,7 @@ export class AdminComponent implements OnInit {
   readonly loyMsg = signal(''); readonly loyErr = signal(false); readonly loyBusy = signal(false);
   readonly joinQr = signal(''); // data-URI QR of the customer join URL
   // Receipt customisation (Settings tab)
-  rcHeader = ''; rcFooter = ''; rcShowVat = true; rcShowQr = true; rcShowCashier = true;
+  rcHeader = ''; rcFooter = ''; rcShowVat = true; rcShowQr = true; rcShowCashier = true; rcShowLogo = true;
   readonly rcMsg = signal(''); readonly rcErr = signal(false); readonly rcBusy = signal(false);
   saveReceipt() {
     this.rcBusy.set(true); this.rcErr.set(false); this.rcMsg.set('');
@@ -281,6 +281,7 @@ export class AdminComponent implements OnInit {
       receiptShowVat: this.rcShowVat,
       receiptShowQr: this.rcShowQr,
       receiptShowCashier: this.rcShowCashier,
+      receiptShowLogo: this.rcShowLogo,
     }).subscribe({
       next: (shop) => { this.rcBusy.set(false); this.shopInfo = shop; this.rcMsg.set('Receipt settings saved.'); },
       error: (e) => { this.rcBusy.set(false); this.rcErr.set(true); this.rcMsg.set(e.error?.error || 'Could not save receipt settings.'); },
@@ -1300,6 +1301,7 @@ export class AdminComponent implements OnInit {
       this.rcShowVat = shop.receiptShowVat !== false;
       this.rcShowQr = shop.receiptShowQr !== false;
       this.rcShowCashier = shop.receiptShowCashier !== false;
+      this.rcShowLogo = shop.receiptShowLogo !== false;
       void this.genJoinQr();
     });
   }

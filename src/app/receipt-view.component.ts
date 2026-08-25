@@ -25,8 +25,29 @@ export class ReceiptViewComponent implements OnInit {
     return (line.modifiers ?? []).map((m: any) => m.priceDelta > 0 ? `${m.name} +R${m.priceDelta}` : m.name).join(', ');
   }
 
+  titlecase(s: string): string {
+    return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+  }
+
+  // Total quantity across all lines (for the "N items" subtotal label).
+  itemCount(): number {
+    return (this.order?.items ?? []).reduce((n: number, l: any) => n + (l.quantity ?? 0), 0);
+  }
+
+  // Items subtotal BEFORE discount (order.total is already net of discount).
+  subtotal(): number {
+    return Math.round(((Number(this.order?.total) || 0) + (Number(this.order?.discountAmount) || 0)) * 100) / 100;
+  }
+
+  // Grand total actually charged: net items + service charge + tip.
+  grandTotal(): number {
+    const o = this.order ?? {};
+    return Math.round(((Number(o.total) || 0) + (Number(o.serviceChargeAmount) || 0) + (Number(o.tipAmount) || 0)) * 100) / 100;
+  }
+
+  // VAT is computed on the grand total (VAT-inclusive pricing).
   vatOf(order: any): number {
-    return Math.round(Number(order.total) * 15 / 115 * 100) / 100;
+    return Math.round(this.grandTotal() * 15 / 115 * 100) / 100;
   }
 
   hasCashPayment(order: any): boolean {

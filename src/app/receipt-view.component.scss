@@ -10,22 +10,46 @@
       font-family: 'Courier New', monospace;
       box-shadow: var(--shadow-md);
     }
-    .r-head { text-align: center; margin-bottom: 0.9rem; }
-    .r-logo { width: 48px; height: 48px; border-radius: 10px; object-fit: cover; display: block; margin: 0 auto 0.4rem; }
-    .r-shop { display: block; font-size: 1.05rem; }
-    .r-sub { font-size: 0.7rem; opacity: 0.6; }
-    .r-header { display: block; font-size: 0.72rem; opacity: 0.8; margin-top: 0.2rem; white-space: pre-line; }
-    .r-meta { display: flex; flex-direction: column; gap: 0.15rem; font-size: 0.72rem; opacity: 0.75; border-top: 1px dashed #999; border-bottom: 1px dashed #999; padding: 0.5rem 0; margin-bottom: 0.5rem; }
+    .r-head { text-align: center; margin-bottom: 0.6rem; }
+    .r-logo { max-width: 120px; max-height: 72px; width: auto; height: auto; object-fit: contain; display: block; margin: 0 auto 0.5rem; }
+    .r-shop { display: block; font-size: 1.25rem; font-weight: 800; letter-spacing: 0.02em; text-transform: uppercase; }
+    .r-header { display: block; font-size: 0.72rem; opacity: 0.8; margin-top: 0.3rem; white-space: pre-line; line-height: 1.4; }
+
+    /* Dividers: a solid rule for section breaks, dashed for the "torn" look */
+    .r-rule { border-top: 1px solid #111; margin: 0.55rem 0; }
+    .r-rule.dashed { border-top: 1px dashed #999; }
+
+    .r-meta { display: flex; flex-direction: column; gap: 0.15rem; font-size: 0.72rem; opacity: 0.85; }
+    .r-meta > div { display: flex; justify-content: space-between; gap: 1rem; }
+    .r-meta > div span:first-child { opacity: 0.65; }
+
     .r-items { font-size: 0.8rem; }
-    .r-line { display: flex; justify-content: space-between; gap: 1rem; padding: 0.18rem 0; }
-    .r-line span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .r-note { font-size: 0.72rem; opacity: 0.7; padding: 0.1rem 0 0.3rem; }
-    .r-vat { display: flex; justify-content: space-between; font-size: 0.72rem; opacity: 0.7; padding: 0.2rem 0; }
-    .r-total { display: flex; justify-content: space-between; border-top: 1px dashed #999; margin-top: 0.4rem; padding-top: 0.5rem; font-size: 0.95rem; }
-    .r-disc { display: flex; justify-content: space-between; font-size: 0.78rem; padding: 0.2rem 0; }
+    .r-line { display: flex; gap: 0.5rem; padding: 0.18rem 0 0; }
+    .r-qty { flex: 0 0 auto; min-width: 1.4em; font-weight: 700; }
+    .r-name { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; }
+    .r-amt { flex: 0 0 auto; text-align: right; }
+    .r-sub { font-size: 0.7rem; opacity: 0.7; padding: 0 0 0.15rem 1.9em; line-height: 1.35; }
+    .r-note { font-style: italic; }
+
+    .r-totals { font-size: 0.78rem; }
+    .r-row { display: flex; justify-content: space-between; gap: 1rem; padding: 0.12rem 0; }
+    .r-row.r-muted { opacity: 0.7; font-size: 0.72rem; }
+    .r-row.r-grand { font-size: 1.05rem; font-weight: 800; margin-top: 0.35rem; padding-top: 0.35rem; border-top: 1px solid #111; }
+    .r-row.r-grand strong { font-weight: 800; }
+
+    .r-pay { display: flex; flex-direction: column; gap: 0.15rem; font-size: 0.74rem; opacity: 0.9; }
+    .r-pay > div { display: flex; justify-content: space-between; gap: 1rem; }
+    .r-pay > div span:first-child { opacity: 0.65; }
+
+    .r-collect { text-align: center; margin: 0.2rem 0 0.4rem; }
+    .r-collect-lbl { display: block; font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.15em; opacity: 0.6; }
+    .r-collect-no { display: block; font-size: 1.8rem; font-weight: 800; letter-spacing: 0.05em; }
+
+    .r-thanks { text-align: center; margin: 0.7rem 0 0; font-size: 0.8rem; font-weight: 700; }
+    .r-fineprint { text-align: center; margin: 0.35rem 0 0; font-size: 0.62rem; opacity: 0.6; }
+
     .r-qr { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; margin-top: 0.9rem; padding-top: 0.7rem; border-top: 1px dashed #999; }
     .r-qr img { width: 132px; height: 132px; border-radius: 6px; }
     .r-qr-sub { font-size: 0.65rem; opacity: 0.6; }
-    .r-pay { display: flex; flex-direction: column; gap: 0.15rem; font-size: 0.72rem; opacity: 0.8; margin-top: 0.5rem; }
-    .r-thanks { text-align: center; margin: 0.8rem 0 0; font-size: 0.75rem; }
-  
+
+    .r-powered { text-align: center; margin: 0.8rem 0 0; font-size: 0.6rem; opacity: 0.45; letter-spacing: 0.05em; }

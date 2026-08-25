@@ -133,36 +133,49 @@ export class PrintService {
       e.text((order.dineMode === 'dinein' ? 'Dine-in' : 'Takeaway') + (order.tableNumber ? ` - Table ${order.tableNumber}` : ''));
     }
     e.rule(W);
+    let itemCount = 0;
     for (const line of (order.items ?? [])) {
-      const name = `${line.quantity} x ${line.name}${line.sizeName ? ' (' + line.sizeName + ')' : ''}`;
-      e.row(name, money(line.price * line.quantity), W);
-      if (line.note) e.text('  ' + line.note);
+      itemCount += line.quantity ?? 0;
+      e.row(`${line.quantity} x ${line.name}`, money(line.price * line.quantity), W);
+      const mods = (line.modifiers ?? []).map((m: any) => m.priceDelta > 0 ? `${m.name} +R${m.priceDelta}` : m.name).join(', ');
+      const sub = [line.sizeName, mods].filter(Boolean).join(' · ');
+      if (sub) e.text('   ' + sub);
+      if (line.note) e.text('   Note: ' + line.note);
     }
     e.rule(W);
-    if (order.discountAmount > 0) e.row(`Discount`, '-' + money(order.discountAmount), W);
-    e.bold(true).row('Total', money(order.total), W).bold(false);
-    if (order.serviceChargeAmount > 0) e.row('Service charge', money(order.serviceChargeAmount), W);
-    if (order.tipAmount > 0) e.row('Tip', money(order.tipAmount), W);
-    const extras = (order.serviceChargeAmount ?? 0) + (order.tipAmount ?? 0);
-    if (extras > 0) e.bold(true).row('Grand total', money((order.total || 0) + extras), W).bold(false);
+    // Totals: subtotal (before discount) → adjustments → TOTAL → incl. VAT.
+    const discount = order.discountAmount || 0;
+    const svc = order.serviceChargeAmount || 0;
+    const tip = order.tipAmount || 0;
+    const grand = (order.total || 0) + svc + tip;
+    e.row(`Subtotal (${itemCount} item${itemCount === 1 ? '' : 's'})`, money((order.total || 0) + discount), W);
+    if (discount > 0) e.row('Discount', '-' + money(discount), W);
+    if (svc > 0) e.row('Service charge', money(svc), W);
+    if (tip > 0) e.row('Tip', money(tip), W);
+    e.bold(true).row('TOTAL', money(grand), W).bold(false);
     if (shop?.receiptShowVat !== false) {
-      const vat = Math.round((Number(order.total) || 0) * 15 / 115 * 100) / 100;
-      if (vat > 0) e.row('VAT (15% incl.)', money(vat), W);
+      const vat = Math.round(grand * 15 / 115 * 100) / 100;
+      if (vat > 0) e.row('Incl. VAT (15%)', money(vat), W);
     }
+    e.rule(W);
     // Payment summary
+    const cap = (s: string) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
     if ((order.payments?.length ?? 0) > 1) {
-      e.text('Paid: ' + order.payments.map((p: any) => `${p.method} ${money(p.amount)}`).join(' + '));
+      e.text('Payment: ' + order.payments.map((p: any) => `${cap(p.method)} ${money(p.amount)}`).join(' + '));
     } else {
       const m = order.paymentMethod === 'account' ? 'Account' : (order.paymentMethod === 'cash' ? 'Cash' : 'Card');
-      e.text('Paid: ' + m);
+      e.text('Payment: ' + m);
     }
-    if (order.amountReceived != null) e.row('Received', money(order.amountReceived), W);
+    if (order.amountReceived != null) e.row('Cash received', money(order.amountReceived), W);
     if (order.changeGiven != null) e.row('Change', money(order.changeGiven), W);
-    e.feed().align('center').text(shop?.receiptFooter || 'Thank you!');
+    // Collection number, prominent.
+    e.feed().align('center').text('Order number').size(2).text(`#${order.id}`).size(1);
+    e.feed().text(shop?.receiptFooter || 'Thank you - see you again soon!');
     if (shop?.receiptShowQr !== false && shop?.receiptQrUrl) {
       const url = /^https?:\/\//i.test(shop.receiptQrUrl) ? shop.receiptQrUrl : 'https://' + shop.receiptQrUrl;
-      e.feed().qr(url);
+      e.feed().qr(url).text('Scan for more');
     }
+    e.feed().text('Powered by CoffeeShop Pro');
     e.feed(3).cut();
     return e.bytes();
   }
