@@ -366,7 +366,7 @@ export class AdminComponent implements OnInit {
     const shopName = this.escapeHtml(this.shopInfo?.name ?? 'Our shop');
     const reward = this.escapeHtml(this.loyReward?.trim() || 'a free item');
     const required = Math.min(100, Math.max(2, Math.round(Number(this.loyRequired) || 10)));
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Join our loyalty programme</title>
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Loyalty — join or check points</title>
 <style>
   @page { margin: 18mm; }
   * { box-sizing: border-box; }
@@ -384,11 +384,11 @@ export class AdminComponent implements OnInit {
 </style></head><body>
   <div class="poster">
     <h1>${shopName}</h1>
-    <p class="sub">Join our loyalty programme</p>
-    <img class="qr" src="${qr}" alt="Sign-up QR code" />
-    <p class="scan">📱 Scan to sign up</p>
-    <p class="steps">Point your phone camera at the code, fill in your details,
-       and you'll get your own loyalty QR to show at the till.</p>
+    <p class="sub">Loyalty programme</p>
+    <img class="qr" src="${qr}" alt="Loyalty QR code" />
+    <p class="scan">📱 Scan to join or check your points</p>
+    <p class="steps">New here? Scan to sign up and get your loyalty card.
+       Already a member? Scan any time to check your stamps and show your code at the till.</p>
     <p class="reward">Collect ${required} stamps → ${reward}</p>
     <p class="url">${this.escapeHtml(this.joinUrl())}</p>
   </div>

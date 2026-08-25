@@ -28,7 +28,18 @@ import { MenuItemService } from '../../menu-item.service';
           <div class="j-qr"><img [src]="qr()" alt="Your loyalty QR" /></div>
         }
         <p class="j-code">Your code: <strong>{{ d.loyaltyCode }}</strong></p>
-        <p class="j-muted">Show this QR (screenshot it!) or give your phone number at the till to collect stamps.</p>
+        <p class="j-muted">Show this QR at the till — or just give your phone number to the cashier — to collect stamps.</p>
+        <button class="j-link" (click)="showAddHome.set(!showAddHome())">📲 Add my card to home screen</button>
+        @if (showAddHome()) {
+          <p class="j-muted j-addhome">
+            @if (isIos) {
+              Tap the <strong>Share</strong> icon at the bottom of Safari, then <strong>Add to Home Screen</strong>.
+            } @else {
+              Open the browser menu <strong>⋮</strong> (top-right), then <strong>Add to Home screen</strong>.
+            }
+            Your card then opens with one tap — no link to find.
+          </p>
+        }
         <button class="j-link" (click)="signOut()">Sign out</button>
       } @else if (loading()) {
         <p class="j-muted">Loading…</p>
@@ -86,6 +97,7 @@ import { MenuItemService } from '../../menu-item.service';
     .j-field input { padding:.8rem .9rem; border:1px solid var(--border-hover, #444); border-radius:.7rem; background:var(--surface, #141414); color:var(--text, #eee); font-family:inherit; font-size:1rem; outline:none; }
     .j-field input:focus { border-color:var(--accent, #c88738); }
     .j-hint { font-size:.72rem; color:var(--muted, #888); }
+    .j-addhome { background:var(--surface, #141414); border:1px solid var(--border, #333); border-radius:.6rem; padding:.7rem .85rem; font-size:.82rem; text-align:left; }
     .j-consent { display:flex; gap:.6rem; align-items:flex-start; margin:1rem 0; font-size:.82rem; color:var(--muted,#aaa); line-height:1.45; cursor:pointer; }
     .j-consent input { width:20px; height:20px; margin-top:1px; flex:0 0 auto; accent-color:var(--accent, #c88738); }
     .j-btn { width:100%; padding:.95rem; border:0; border-radius:.7rem; background:var(--accent, #c88738); color:#fff; font-family:inherit; font-size:1.05rem; font-weight:800; cursor:pointer; margin-top:.5rem; }
@@ -113,6 +125,8 @@ export class SignupComponent implements OnInit {
   readonly qr = signal<string>('');
   readonly mode = signal<'signup' | 'member'>('signup');
   readonly welcomeBack = signal(false);
+  readonly showAddHome = signal(false);
+  get isIos(): boolean { return /iphone|ipad|ipod/i.test(navigator.userAgent); }
 
   name = ''; phone = ''; email = ''; consent = false; password = '';
   lookup = ''; loginPassword = '';
