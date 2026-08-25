@@ -411,12 +411,16 @@ export class MenuItemService {
   getPublicShop(code: string): Observable<any> {
     return this.http.get<any>(`${API}/public/shop/${encodeURIComponent(code)}`);
   }
-  publicSignup(code: string, data: { name: string; phone?: string | null; email?: string | null; consent: boolean }): Observable<any> {
+  publicSignup(code: string, data: { name: string; phone?: string | null; email?: string | null; consent: boolean; password: string }): Observable<any> {
     return this.http.post<any>(`${API}/public/signup/${encodeURIComponent(code)}`, data);
   }
-  // Returning customer checks their loyalty card by phone number or personal code.
-  publicMemberLookup(code: string, phoneOrCode: string): Observable<any> {
-    return this.http.post<any>(`${API}/public/member/${encodeURIComponent(code)}`, { phoneOrCode });
+  // Returning customer signs in with phone/email/code + password.
+  publicMemberLookup(code: string, identifier: string, password: string): Observable<any> {
+    return this.http.post<any>(`${API}/public/member/${encodeURIComponent(code)}`, { identifier, password });
+  }
+  // Refresh a card for a device that already signed in (stored loyalty code; no password).
+  publicMemberResume(code: string, loyaltyCode: string): Observable<any> {
+    return this.http.post<any>(`${API}/public/member-resume/${encodeURIComponent(code)}`, { loyaltyCode });
   }
   // Admin rotates the shop's public join token (invalidates old printed posters).
   regenerateJoinToken(): Observable<any> {

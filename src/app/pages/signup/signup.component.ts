@@ -47,8 +47,9 @@ import { MenuItemService } from '../../menu-item.service';
           @if (shop()?.logoUrl) { <img [src]="shop()!.logoUrl" alt="" class="j-logo" /> }
           <h1>My loyalty card</h1>
         </div>
-        <p class="j-muted">Enter the phone number or code you signed up with at {{ shop()?.name }}.</p>
-        <div class="j-field"><label>Phone number or code</label><input [(ngModel)]="lookup" autocapitalize="characters" autocomplete="off" /></div>
+        <p class="j-muted">Sign in with the phone, email or code you used at {{ shop()?.name }}, plus your password.</p>
+        <div class="j-field"><label>Phone, email or code</label><input [(ngModel)]="lookup" autocomplete="off" /></div>
+        <div class="j-field"><label>Password</label><input [(ngModel)]="loginPassword" type="password" autocomplete="current-password" /></div>
         @if (err()) { <p class="j-err">{{ err() }}</p> }
         <button class="j-btn" [disabled]="busy()" (click)="checkPoints()">{{ busy() ? 'Checking…' : 'View my points' }}</button>
         <button class="j-link" (click)="setMode('signup')">New here? Sign up</button>
@@ -62,6 +63,7 @@ import { MenuItemService } from '../../menu-item.service';
         <div class="j-field"><label>Your name</label><input [(ngModel)]="name" autocomplete="name" /></div>
         <div class="j-field"><label>Phone number</label><input [(ngModel)]="phone" type="tel" inputmode="tel" autocomplete="tel" /></div>
         <div class="j-field"><label>Email (optional)</label><input [(ngModel)]="email" type="email" inputmode="email" autocomplete="email" /></div>
+        <div class="j-field"><label>Password</label><input [(ngModel)]="password" type="password" autocomplete="new-password" /><span class="j-hint">At least 6 characters — you'll use it to check your points.</span></div>
         <label class="j-consent"><input type="checkbox" [(ngModel)]="consent" /> <span>I agree to {{ shop()?.name }} storing my details for their loyalty programme and contacting me about it. I can ask them to remove my details anytime.</span></label>
         @if (err()) { <p class="j-err">{{ err() }}</p> }
         <button class="j-btn" [disabled]="busy()" (click)="submit()">{{ busy() ? 'Joining…' : 'Join now' }}</button>
@@ -83,6 +85,7 @@ import { MenuItemService } from '../../menu-item.service';
     .j-field label { font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--muted, #999); }
     .j-field input { padding:.8rem .9rem; border:1px solid var(--border-hover, #444); border-radius:.7rem; background:var(--surface, #141414); color:var(--text, #eee); font-family:inherit; font-size:1rem; outline:none; }
     .j-field input:focus { border-color:var(--accent, #c88738); }
+    .j-hint { font-size:.72rem; color:var(--muted, #888); }
     .j-consent { display:flex; gap:.6rem; align-items:flex-start; margin:1rem 0; font-size:.82rem; color:var(--muted,#aaa); line-height:1.45; cursor:pointer; }
     .j-consent input { width:20px; height:20px; margin-top:1px; flex:0 0 auto; accent-color:var(--accent, #c88738); }
     .j-btn { width:100%; padding:.95rem; border:0; border-radius:.7rem; background:var(--accent, #c88738); color:#fff; font-family:inherit; font-size:1.05rem; font-weight:800; cursor:pointer; margin-top:.5rem; }
@@ -111,7 +114,8 @@ export class SignupComponent implements OnInit {
   readonly mode = signal<'signup' | 'member'>('signup');
   readonly welcomeBack = signal(false);
 
-  name = ''; phone = ''; email = ''; consent = false; lookup = '';
+  name = ''; phone = ''; email = ''; consent = false; password = '';
+  lookup = ''; loginPassword = '';
 
   // Per-shop key so a stored session only ever restores the right shop's card.
   private get storeKey() { return `loy_member_${this.code}`; }
@@ -126,7 +130,9 @@ export class SignupComponent implements OnInit {
         // code, silently reload their card instead of showing "join" again.
         const saved = this.readSaved();
         if (s?.loyaltyEnabled && saved) {
-          this.service.publicMemberLookup(this.code, saved).subscribe({
+          // Resume by stored loyalty code (no password needed on a device that
+          // already signed in).
+          this.service.publicMemberResume(this.code, saved).subscribe({
             next: (res) => { this.loading.set(false); this.welcomeBack.set(true); void this.showCard(res); },
             error: () => { this.clearSaved(); this.loading.set(false); }, // card gone → fall back to join
           });
@@ -148,7 +154,8 @@ export class SignupComponent implements OnInit {
   signOut() {
     this.clearSaved();
     this.done.set(null); this.qr.set(''); this.err.set(''); this.welcomeBack.set(false);
-    this.name = ''; this.phone = ''; this.email = ''; this.consent = false; this.lookup = '';
+    this.name = ''; this.phone = ''; this.email = ''; this.consent = false; this.password = '';
+    this.lookup = ''; this.loginPassword = '';
     this.mode.set('signup');
   }
 
@@ -173,9 +180,10 @@ export class SignupComponent implements OnInit {
     if (!phone && !email) { this.err.set('Please give a phone number or email.'); return; }
     if (phone && !this.validPhone(phone)) { this.err.set('Please enter a valid phone number.'); return; }
     if (email && !this.validEmail(email)) { this.err.set('Please enter a valid email address.'); return; }
+    if (this.password.length < 6) { this.err.set('Please set a password of at least 6 characters.'); return; }
     if (!this.consent) { this.err.set('Please tick the box to join.'); return; }
     this.busy.set(true);
-    this.service.publicSignup(this.code, { name, phone: phone || null, email: email || null, consent: this.consent }).subscribe({
+    this.service.publicSignup(this.code, { name, phone: phone || null, email: email || null, consent: this.consent, password: this.password }).subscribe({
       next: (res) => { this.busy.set(false); this.welcomeBack.set(false); void this.showCard(res); },
       error: (e) => { this.busy.set(false); this.err.set(e.error?.error || 'Could not sign you up. Please try again.'); },
     });
@@ -183,9 +191,10 @@ export class SignupComponent implements OnInit {
 
   checkPoints() {
     this.err.set('');
-    if (!this.lookup.trim()) { this.err.set('Enter your phone number or code.'); return; }
+    if (!this.lookup.trim()) { this.err.set('Enter your phone, email or code.'); return; }
+    if (!this.loginPassword) { this.err.set('Enter your password.'); return; }
     this.busy.set(true);
-    this.service.publicMemberLookup(this.code, this.lookup.trim()).subscribe({
+    this.service.publicMemberLookup(this.code, this.lookup.trim(), this.loginPassword).subscribe({
       next: (res) => { this.busy.set(false); this.welcomeBack.set(true); void this.showCard(res); },
       error: (e) => { this.busy.set(false); this.err.set(e.error?.error || 'No card found. Please sign up.'); },
     });
