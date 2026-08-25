@@ -58,6 +58,7 @@ import java.util.concurrent.Executors;
 public class FastBarcodeActivity extends ComponentActivity {
 
     public static final String EXTRA_RESULT = "scan_result";
+    public static final String EXTRA_MODE = "scan_mode"; // "qr" or "product"
     private static final int PERMISSION_REQUEST = 100;
 
     private PreviewView previewView;
@@ -113,12 +114,20 @@ public class FastBarcodeActivity extends ComponentActivity {
 
         analysisExecutor = Executors.newSingleThreadExecutor();
         try {
-            // Products use EAN-13; CODE_128 stays on for legacy "SKU-..." labels.
-            // QR_CODE is enabled too so the SAME scanner reads a customer's
-            // loyalty QR (encodes "LOY:<code>") at checkout.
-            BarcodeScannerOptions options = new BarcodeScannerOptions.Builder()
-                .setBarcodeFormats(Barcode.FORMAT_EAN_13, Barcode.FORMAT_CODE_128, Barcode.FORMAT_QR_CODE)
-                .build();
+            // Two separate scanners, chosen by the launch mode:
+            //   "qr"      → customer loyalty QR only (FORMAT_QR_CODE)
+            //   "product" → product barcodes (EAN-13 + legacy CODE-128)
+            // Restricting each to its own symbology keeps them distinct and
+            // makes ML Kit faster/less ambiguous (a product scan never grabs a
+            // stray QR, and vice-versa).
+            boolean qrMode = "qr".equals(getIntent().getStringExtra(EXTRA_MODE));
+            BarcodeScannerOptions options = qrMode
+                ? new BarcodeScannerOptions.Builder()
+                    .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
+                    .build()
+                : new BarcodeScannerOptions.Builder()
+                    .setBarcodeFormats(Barcode.FORMAT_EAN_13, Barcode.FORMAT_CODE_128)
+                    .build();
             mlScanner = BarcodeScanning.getClient(options);
         } catch (Throwable t) {
             Toast.makeText(this, "Scanner unavailable: " + t.getMessage(), Toast.LENGTH_LONG).show();

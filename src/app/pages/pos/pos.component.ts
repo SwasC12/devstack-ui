@@ -714,7 +714,8 @@ export class PosComponent implements OnInit, OnDestroy {
     if (Capacitor.isNativePlatform()) {
       const fast = (Capacitor as any).Plugins?.FastBarcodeScanner;
       if (!fast) { this.dialog.toast('Scanner is unavailable on this build', 'error'); return; }
-      fast.scan().then((res: any) => {
+      // 'qr' mode: a dedicated QR scanner, separate from the product barcode scanner.
+      fast.scan({ mode: 'qr' }).then((res: any) => {
         const code = res?.ScanResult ?? '';
         this.handleLoyaltyScan(code);
       }).catch((e: any) => {

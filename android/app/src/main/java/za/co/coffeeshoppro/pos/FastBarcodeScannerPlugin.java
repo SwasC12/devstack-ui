@@ -20,6 +20,11 @@ public class FastBarcodeScannerPlugin extends Plugin {
     @PluginMethod
     public void scan(PluginCall call) {
         Intent intent = new Intent(getActivity(), FastBarcodeActivity.class);
+        // Scanner mode decides which symbologies are read: "qr" for the customer
+        // loyalty QR, anything else (default) for product barcodes (EAN-13 /
+        // CODE-128). Keeps the two scanners genuinely separate.
+        String mode = call.getString("mode", "product");
+        intent.putExtra(FastBarcodeActivity.EXTRA_MODE, mode);
         startActivityForResult(call, intent, "scanResult");
     }
 
