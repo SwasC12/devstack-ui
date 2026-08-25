@@ -126,7 +126,6 @@ export class PrintService {
     if (shop?.code) e.text(shop.code);
     if (shop?.receiptHeader) e.text(shop.receiptHeader);
     e.feed().align('left');
-    e.text(`Order #${order.id}`);
     e.text(this.fmtDate(order.createdAt));
     if (shop?.receiptShowCashier !== false) e.text(`Cashier: ${cashierName || '-'}`);
     if (order.dineMode === 'dinein' || order.tableNumber) {

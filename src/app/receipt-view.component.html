@@ -9,7 +9,6 @@
       <div class="r-rule"></div>
 
       <div class="r-meta">
-        <div><span>Order</span><span>#{{ order.id }}</span></div>
         <div><span>Date</span><span>{{ order.createdAt | date:'medium' }}</span></div>
         @if (shop?.receiptShowCashier !== false) { <div><span>Served by</span><span>{{ cashierName || '—' }}</span></div> }
         @if (order.dineMode === 'dinein' || order.tableNumber) {
