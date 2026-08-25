@@ -29,7 +29,7 @@ import { MenuItemService } from '../../menu-item.service';
         }
         <p class="j-code">Your code: <strong>{{ d.loyaltyCode }}</strong></p>
         <p class="j-muted">Show this QR (screenshot it!) or give your phone number at the till to collect stamps.</p>
-        <button class="j-link" (click)="reset()">Back</button>
+        <button class="j-link" (click)="signOut()">Sign out</button>
       } @else if (loading()) {
         <p class="j-muted">Loading…</p>
       } @else if (notFound()) {
@@ -48,7 +48,7 @@ import { MenuItemService } from '../../menu-item.service';
           <h1>My loyalty card</h1>
         </div>
         <p class="j-muted">Enter the phone number or code you signed up with at {{ shop()?.name }}.</p>
-        <div class="j-field"><label>Phone number or code</label><input [(ngModel)]="lookup" placeholder="082 123 4567 or ABCD1234" autocomplete="tel" /></div>
+        <div class="j-field"><label>Phone number or code</label><input [(ngModel)]="lookup" autocapitalize="characters" autocomplete="off" /></div>
         @if (err()) { <p class="j-err">{{ err() }}</p> }
         <button class="j-btn" [disabled]="busy()" (click)="checkPoints()">{{ busy() ? 'Checking…' : 'View my points' }}</button>
         <button class="j-link" (click)="setMode('signup')">New here? Sign up</button>
@@ -59,9 +59,9 @@ import { MenuItemService } from '../../menu-item.service';
           <h1>Join {{ shop()?.name }}</h1>
         </div>
         <p class="j-muted">Collect {{ shop()?.loyaltyStampsRequired }} stamps and get: <strong>{{ shop()?.loyaltyReward }}</strong>.</p>
-        <div class="j-field"><label>Your name</label><input [(ngModel)]="name" placeholder="e.g. Thabo M." autocomplete="name" /></div>
-        <div class="j-field"><label>Phone number</label><input [(ngModel)]="phone" type="tel" inputmode="tel" placeholder="e.g. 082 123 4567" autocomplete="tel" /></div>
-        <div class="j-field"><label>Email (optional)</label><input [(ngModel)]="email" type="email" inputmode="email" placeholder="you@example.com" autocomplete="email" /></div>
+        <div class="j-field"><label>Your name</label><input [(ngModel)]="name" autocomplete="name" /></div>
+        <div class="j-field"><label>Phone number</label><input [(ngModel)]="phone" type="tel" inputmode="tel" autocomplete="tel" /></div>
+        <div class="j-field"><label>Email (optional)</label><input [(ngModel)]="email" type="email" inputmode="email" autocomplete="email" /></div>
         <label class="j-consent"><input type="checkbox" [(ngModel)]="consent" /> <span>I agree to {{ shop()?.name }} storing my details for their loyalty programme and contacting me about it. I can ask them to remove my details anytime.</span></label>
         @if (err()) { <p class="j-err">{{ err() }}</p> }
         <button class="j-btn" [disabled]="busy()" (click)="submit()">{{ busy() ? 'Joining…' : 'Join now' }}</button>
@@ -113,38 +113,69 @@ export class SignupComponent implements OnInit {
 
   name = ''; phone = ''; email = ''; consent = false; lookup = '';
 
+  // Per-shop key so a stored session only ever restores the right shop's card.
+  private get storeKey() { return `loy_member_${this.code}`; }
+
   ngOnInit() {
     this.code = this.route.snapshot.paramMap.get('code') ?? '';
     if (!this.code) { this.loading.set(false); this.notFound.set(true); return; }
     this.service.getPublicShop(this.code).subscribe({
-      next: s => { this.shop.set(s); this.loading.set(false); },
+      next: s => {
+        this.shop.set(s);
+        // Stay signed in across refreshes: if we saved this shopper's loyalty
+        // code, silently reload their card instead of showing "join" again.
+        const saved = this.readSaved();
+        if (s?.loyaltyEnabled && saved) {
+          this.service.publicMemberLookup(this.code, saved).subscribe({
+            next: (res) => { this.loading.set(false); this.welcomeBack.set(true); void this.showCard(res); },
+            error: () => { this.clearSaved(); this.loading.set(false); }, // card gone → fall back to join
+          });
+        } else {
+          this.loading.set(false);
+        }
+      },
       error: () => { this.loading.set(false); this.notFound.set(true); },
     });
   }
 
+  private readSaved(): string | null { try { return localStorage.getItem(this.storeKey); } catch { return null; } }
+  private writeSaved(code: string) { try { localStorage.setItem(this.storeKey, code); } catch { /* private mode */ } }
+  private clearSaved() { try { localStorage.removeItem(this.storeKey); } catch { /* ignore */ } }
+
   setMode(m: 'signup' | 'member') { this.err.set(''); this.mode.set(m); }
 
-  // Back to the start (from a shown card): clear the result and inputs.
-  reset() {
+  // Explicit sign-out from the card: forget this device and return to join.
+  signOut() {
+    this.clearSaved();
     this.done.set(null); this.qr.set(''); this.err.set(''); this.welcomeBack.set(false);
-    this.lookup = ''; this.mode.set('signup');
+    this.name = ''; this.phone = ''; this.email = ''; this.consent = false; this.lookup = '';
+    this.mode.set('signup');
   }
 
   private async showCard(res: any) {
     this.done.set(res);
+    if (res?.loyaltyCode) this.writeSaved(res.loyaltyCode); // remember for refresh
     try {
       const QRCode = (await import('qrcode')).default ?? (await import('qrcode'));
       this.qr.set(await (QRCode as any).toDataURL(`LOY:${res.loyaltyCode}`, { width: 440, margin: 1 }));
     } catch { /* QR lib unavailable - the code text is still shown */ }
   }
 
+  // ── validation ──
+  private validEmail(e: string): boolean { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e); }
+  // SA-friendly: 10–13 digits, optional leading +. Strips spaces/dashes first.
+  private validPhone(p: string): boolean { const d = p.replace(/[\s-]/g, ''); return /^\+?\d{10,13}$/.test(d); }
+
   submit() {
     this.err.set('');
-    if (!this.name.trim()) { this.err.set('Please enter your name.'); return; }
-    if (!this.phone.trim() && !this.email.trim()) { this.err.set('Please give a phone number or email.'); return; }
+    const name = this.name.trim(), phone = this.phone.trim(), email = this.email.trim();
+    if (!name) { this.err.set('Please enter your name.'); return; }
+    if (!phone && !email) { this.err.set('Please give a phone number or email.'); return; }
+    if (phone && !this.validPhone(phone)) { this.err.set('Please enter a valid phone number.'); return; }
+    if (email && !this.validEmail(email)) { this.err.set('Please enter a valid email address.'); return; }
     if (!this.consent) { this.err.set('Please tick the box to join.'); return; }
     this.busy.set(true);
-    this.service.publicSignup(this.code, { name: this.name.trim(), phone: this.phone.trim() || null, email: this.email.trim() || null, consent: this.consent }).subscribe({
+    this.service.publicSignup(this.code, { name, phone: phone || null, email: email || null, consent: this.consent }).subscribe({
       next: (res) => { this.busy.set(false); this.welcomeBack.set(false); void this.showCard(res); },
       error: (e) => { this.busy.set(false); this.err.set(e.error?.error || 'Could not sign you up. Please try again.'); },
     });

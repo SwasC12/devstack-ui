@@ -94,9 +94,14 @@ export class AppComponent implements OnDestroy {
   // Public customer loyalty page (/join/:token) is a fully ISOLATED page: no
   // top bar, brand, POS/Kitchen/Admin nav or sign-in link — nothing that could
   // let a shopper reach the actual POS. Just the signup/points card.
-  publicPage = signal(false);
+  //
+  // Seeded SYNCHRONOUSLY from the real URL so the very first paint already knows
+  // it's a public page — otherwise the nav flashes (and, on a hard reload such
+  // as toggling "Desktop site", stays) before the first NavigationEnd flips it.
+  publicPage = signal(this.isPublicUrl(location?.pathname ?? ''));
+  private isPublicUrl(url: string): boolean { return url.startsWith('/join'); }
   private updatePublicPage(): void {
-    const isPublic = this.router.url.startsWith('/join');
+    const isPublic = this.isPublicUrl(this.router.url) || this.isPublicUrl(location?.pathname ?? '');
     if (isPublic !== this.publicPage()) this.publicPage.set(isPublic);
   }
   private async updateKioskLock(): Promise<void> {
