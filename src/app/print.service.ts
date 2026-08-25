@@ -126,6 +126,7 @@ export class PrintService {
     if (shop?.code) e.text(shop.code);
     if (shop?.receiptHeader) e.text(shop.receiptHeader);
     e.feed().align('left');
+    e.text(`Order #${order.id}`);
     e.text(this.fmtDate(order.createdAt));
     if (shop?.receiptShowCashier !== false) e.text(`Cashier: ${cashierName || '-'}`);
     if (order.dineMode === 'dinein' || order.tableNumber) {
@@ -167,13 +168,14 @@ export class PrintService {
     }
     if (order.amountReceived != null) e.row('Cash received', money(order.amountReceived), W);
     if (order.changeGiven != null) e.row('Change', money(order.changeGiven), W);
-    // Collection number, prominent.
-    e.feed().align('center').text('Order number').size(2).text(`#${order.id}`).size(1);
-    e.feed().text(shop?.receiptFooter || 'Thank you - see you again soon!');
+    e.rule(W);
+    e.align('center').text(shop?.receiptFooter || 'Thank you - see you again soon!');
     if (shop?.receiptShowQr !== false && shop?.receiptQrUrl) {
       const url = /^https?:\/\//i.test(shop.receiptQrUrl) ? shop.receiptQrUrl : 'https://' + shop.receiptQrUrl;
       e.feed().qr(url).text('Scan for more');
     }
+    // Order barcode (Code128) like a real till receipt.
+    e.feed().barcode128(String(order.id));
     e.feed().text('Powered by CoffeeShop Pro');
     e.feed(3).cut();
     return e.bytes();
@@ -222,6 +224,18 @@ class EscPos {
     this.push(0x1d, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x45, 0x31);       // error correction M
     store(data);
     this.push(0x1d, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x51, 0x30);       // print
+    return this;
+  }
+  // Code128 barcode via GS k (function B: length-prefixed). Prepends "{B" to
+  // select code set B (ASCII). HRI text printed below. Centred by the caller.
+  barcode128(data: string) {
+    const payload = '{B' + data;
+    const bytes: number[] = []; for (let i = 0; i < payload.length; i++) bytes.push(payload.charCodeAt(i) & 0xff);
+    this.push(0x1d, 0x68, 0x50);       // GS h 80 — barcode height
+    this.push(0x1d, 0x77, 0x02);       // GS w 2  — module width
+    this.push(0x1d, 0x48, 0x02);       // GS H 2  — HRI text below the barcode
+    this.push(0x1d, 0x66, 0x00);       // GS f 0  — HRI font A
+    this.push(0x1d, 0x6b, 0x49, (bytes.length) & 0xff, ...bytes); // GS k 73 (CODE128) n data
     return this;
   }
   cut() { return this.push(0x1d, 0x56, 0x01); } // partial cut (ignored by cutterless printers)

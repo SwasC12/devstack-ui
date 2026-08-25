@@ -18,8 +18,26 @@ export class ReceiptViewComponent implements OnInit {
   @Input() cashierName = '';
 
   qrDataUrl: string | null = null;
+  barcodeDataUrl: string | null = null;
 
-  ngOnInit() { this.renderQr(); }
+  ngOnInit() { this.renderQr(); void this.renderBarcode(); }
+
+  // Code128 barcode of the order number (like a real till receipt), rendered
+  // client-side with JsBarcode. Best-effort: no barcode if the lib/order is
+  // unavailable.
+  private async renderBarcode() {
+    if (!this.order?.id) return;
+    try {
+      const mod: any = await import('jsbarcode');
+      const JsBarcode = mod.default ?? mod;
+      const canvas = document.createElement('canvas');
+      JsBarcode(canvas, String(this.order.id), {
+        format: 'CODE128', width: 2, height: 48, displayValue: true,
+        fontSize: 13, margin: 0, background: '#fdfdf7', lineColor: '#111111',
+      });
+      this.barcodeDataUrl = canvas.toDataURL('image/png');
+    } catch { this.barcodeDataUrl = null; }
+  }
 
   modText(line: any): string {
     return (line.modifiers ?? []).map((m: any) => m.priceDelta > 0 ? `${m.name} +R${m.priceDelta}` : m.name).join(', ');

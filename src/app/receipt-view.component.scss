@@ -41,15 +41,14 @@
     .r-pay > div { display: flex; justify-content: space-between; gap: 1rem; }
     .r-pay > div span:first-child { opacity: 0.65; }
 
-    .r-collect { text-align: center; margin: 0.2rem 0 0.4rem; }
-    .r-collect-lbl { display: block; font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.15em; opacity: 0.6; }
-    .r-collect-no { display: block; font-size: 1.8rem; font-weight: 800; letter-spacing: 0.05em; }
-
     .r-thanks { text-align: center; margin: 0.7rem 0 0; font-size: 0.8rem; font-weight: 700; }
     .r-fineprint { text-align: center; margin: 0.35rem 0 0; font-size: 0.62rem; opacity: 0.6; }
 
     .r-qr { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; margin-top: 0.9rem; padding-top: 0.7rem; border-top: 1px dashed #999; }
     .r-qr img { width: 132px; height: 132px; border-radius: 6px; }
     .r-qr-sub { font-size: 0.65rem; opacity: 0.6; }
+
+    .r-barcode { display: flex; justify-content: center; margin-top: 0.9rem; padding-top: 0.7rem; border-top: 1px dashed #999; }
+    .r-barcode img { max-width: 90%; height: auto; }
 
     .r-powered { text-align: center; margin: 0.8rem 0 0; font-size: 0.6rem; opacity: 0.45; letter-spacing: 0.05em; }

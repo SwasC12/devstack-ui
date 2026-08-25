@@ -9,6 +9,7 @@
       <div class="r-rule"></div>
 
       <div class="r-meta">
+        <div><span>Order</span><span>#{{ order.id }}</span></div>
         <div><span>Date</span><span>{{ order.createdAt | date:'medium' }}</span></div>
         @if (shop?.receiptShowCashier !== false) { <div><span>Served by</span><span>{{ cashierName || '—' }}</span></div> }
         @if (order.dineMode === 'dinein' || order.tableNumber) {
@@ -67,11 +68,6 @@
 
       <div class="r-rule"></div>
 
-      <div class="r-collect">
-        <span class="r-collect-lbl">Order number</span>
-        <span class="r-collect-no">#{{ order.id }}</span>
-      </div>
-
       <p class="r-thanks">{{ shop?.receiptFooter || 'Thank you — see you again soon!' }}</p>
       @if (shop?.receiptShowVat !== false && vatOf(order) > 0 && !shop?.receiptHeader) {
         <p class="r-fineprint">This is a tax invoice. Prices include 15% VAT.</p>
@@ -81,6 +77,9 @@
           <img [src]="qrDataUrl" alt="Receipt QR" />
           <span class="r-qr-sub">Scan for more</span>
         </div>
+      }
+      @if (barcodeDataUrl) {
+        <div class="r-barcode"><img [src]="barcodeDataUrl" alt="Order barcode" /></div>
       }
       <p class="r-powered">Powered by CoffeeShop Pro</p>
     </div>
