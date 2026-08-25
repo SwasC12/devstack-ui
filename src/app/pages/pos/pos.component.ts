@@ -830,12 +830,13 @@ export class PosComponent implements OnInit, OnDestroy {
             const updatedStamps = Math.max(0, (lc.loyaltyStamps ?? 0) - req);
             this.loyaltyCust.set({ ...lc, loyaltyStamps: updatedStamps });
             this.dialog.toast(`Reward redeemed for ${lc.name} — ${this.shopInfo()?.loyaltyReward ?? 'reward'}`, 'success');
-          } else {
-            // Stamp was earned: increment locally to match server state
+          } else if (!this.loyaltyRedeem()) {
+            // Stamp was earned: increment locally to match server state (only when not attempting to redeem)
             const now = (lc.loyaltyStamps ?? 0) + 1;
             this.loyaltyCust.set({ ...lc, loyaltyStamps: now });
             this.dialog.toast(`Loyalty: ${lc.name} now has ${now}/${req} stamp${now === 1 ? '' : 's'}${now >= req ? ' — reward ready!' : ''}`, 'success');
           }
+          // If trying to redeem but not enough stamps, server did nothing so we do nothing
         }
         this.clearLoyaltyCust();
         this.pingKitchen(order.id, order.items);

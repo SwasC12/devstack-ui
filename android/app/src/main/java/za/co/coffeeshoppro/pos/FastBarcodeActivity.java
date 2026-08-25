@@ -113,11 +113,11 @@ public class FastBarcodeActivity extends ComponentActivity {
 
         analysisExecutor = Executors.newSingleThreadExecutor();
         try {
-            // Products now use EAN-13. Restricting the format set makes ML Kit
-            // faster and less ambiguous; CODE_128 stays on so any legacy
-            // "SKU-..." labels still scan during the transition.
+            // Products use EAN-13; CODE_128 stays on for legacy "SKU-..." labels.
+            // QR_CODE is enabled too so the SAME scanner reads a customer's
+            // loyalty QR (encodes "LOY:<code>") at checkout.
             BarcodeScannerOptions options = new BarcodeScannerOptions.Builder()
-                .setBarcodeFormats(Barcode.FORMAT_EAN_13, Barcode.FORMAT_CODE_128)
+                .setBarcodeFormats(Barcode.FORMAT_EAN_13, Barcode.FORMAT_CODE_128, Barcode.FORMAT_QR_CODE)
                 .build();
             mlScanner = BarcodeScanning.getClient(options);
         } catch (Throwable t) {

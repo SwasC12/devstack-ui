@@ -439,7 +439,8 @@
               } @else {
                 <span class="pay-received-lbl">Loyalty customer</span>
                 <div class="loy-search-row">
-                  <input class="tbl-input" type="tel" inputmode="tel" placeholder="Phone number…" [ngModel]="loySearch()" (ngModelChange)="loySearch.set($event); searchLoyalty()" />
+                  <!-- Text (not tel): must accept an alphanumeric loyalty code, not just a phone number -->
+                  <input class="tbl-input" type="text" inputmode="text" autocapitalize="characters" autocomplete="off" placeholder="Phone or loyalty code…" [ngModel]="loySearch()" (ngModelChange)="loySearch.set($event); searchLoyalty()" />
                   <app-btn size="sm" (onClick)="scanLoyaltyQR()" title="Scan customer QR code"><app-icon name="qr-code" [size]="16" /></app-btn>
                 </div>
                 @if (loyResults().length) {
