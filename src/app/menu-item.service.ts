@@ -367,6 +367,7 @@ export class MenuItemService {
     return this.http.put(`${API}/brands/${id}`, data);
   }
   regenerateBrandToken(id: number): Observable<any> { return this.http.post(`${API}/brands/${id}/regenerate-token`, {}); }
+  deleteBrand(id: number): Observable<any> { return this.http.delete(`${API}/brands/${id}`); }
   assignShopBrand(shopId: number, brandId: number): Observable<any> { return this.http.put(`${API}/shops/${shopId}/brand`, { brandId }); }
 
   // ── Orders (admin history) ────────────────────────────

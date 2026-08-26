@@ -112,6 +112,18 @@ export class ShopsComponent implements OnInit {
     });
   }
   brandJoinUrl(b: any): string { return `${environment.webBase}/join/${b.joinToken ?? ''}`; }
+  deleteBrand(b: any) {
+    const msg = b.shopCount > 0
+      ? `"${b.name}" still has ${b.shopCount} shop${b.shopCount === 1 ? '' : 's'}. Move or delete those shops first — a brand with shops can't be deleted.`
+      : `Delete brand "${b.name}"? Its ${b.memberCount} loyalty member${b.memberCount === 1 ? '' : 's'} will be removed too. This can't be undone.`;
+    this.dialog.confirm('Delete brand', msg).then(ok => {
+      if (!ok) return;
+      this.service.deleteBrand(b.id).subscribe({
+        next: () => { this.loadBrands(); this.dialog.toast('Brand deleted', 'success'); },
+        error: (e) => this.dialog.toast(e.error?.error || 'Could not delete brand', 'error'),
+      });
+    });
+  }
 
   // ── Assign a shop to a brand (drawer) ──
   readonly assignOpen = signal(false);

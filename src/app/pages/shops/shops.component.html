@@ -481,7 +481,8 @@
             <div class="field wide"><label>Customer join link</label><p class="join-qr-url">{{ brandJoinUrl(b) }}</p></div>
             <div class="form-acts">
               <app-btn size="sm" variant="primary" (onClick)="saveBrand(b)">Save brand</app-btn>
-              <app-btn size="sm" variant="danger" (onClick)="regenBrandToken(b)">New join code</app-btn>
+              <app-btn size="sm" (onClick)="regenBrandToken(b)">New join code</app-btn>
+              <app-btn size="sm" variant="danger" (onClick)="deleteBrand(b)">Delete brand</app-btn>
             </div>
           </div>
         } @empty { <p class="rail-empty">No brands yet.</p> }
