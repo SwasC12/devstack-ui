@@ -355,6 +355,11 @@ export class MenuItemService {
     return this.http.delete(`${API}/shops/${shopId}/users/${userId}`);
   }
 
+  // Superadmin: shop subscription / billing.
+  updateShopBilling(id: number, data: { billingPlan?: string; monthlyPrice?: number; billingStatus?: string; trialEndsAt?: string | null; nextBillingAt?: string | null; billingNotes?: string | null }): Observable<any> {
+    return this.http.put(`${API}/shops/${id}/billing`, data);
+  }
+
   // ── Orders (admin history) ────────────────────────────
 
   // Orders (admin history) - paged. The API used to return every order ever

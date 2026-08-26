@@ -1,4 +1,5 @@
 import { Component, inject, signal, OnInit } from '@angular/core';
+import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MenuItemService } from '../../menu-item.service';
@@ -23,6 +24,7 @@ export class ShopsComponent implements OnInit {
   private service = inject(MenuItemService);
   private dialog = inject(DialogService);
   private sound = inject(SoundService);
+  private router = inject(Router);
   auth = inject(AuthService);
 
   readonly shops = signal<any[]>([]);
@@ -531,6 +533,15 @@ export class ShopsComponent implements OnInit {
     if (cur && cur.id === id) this.drawerShop.set({ ...cur, ...patch });
   }
 
+  // ── View as shop (impersonate) ──
+  viewAsShop(s: any) {
+    this.busyId.set(s.id);
+    this.auth.impersonate(s.id).subscribe({
+      next: () => { this.busyId.set(null); this.closeDrawer(); this.router.navigateByUrl('/admin'); this.dialog.toast(`Now viewing as ${s.name}`, 'success'); },
+      error: (e) => { this.busyId.set(null); this.dialog.toast(e.error?.error || 'Could not view as shop', 'error'); },
+    });
+  }
+
   // ── Edit shop (name / code) ──
   readonly editShopId = signal<number | null>(null);
   edName = ''; edCode = '';
@@ -568,6 +579,34 @@ export class ShopsComponent implements OnInit {
         next: () => { this.closeDrawer(); this.load(); this.loadOverview(); this.dialog.toast('Shop deleted', 'success'); },
         error: (e) => this.dialog.toast(e.error?.error || 'Could not delete', 'error'),
       });
+    });
+  }
+
+  // ── Billing / subscription ──
+  readonly billingOpen = signal(false);
+  biPlan = ''; biPrice = 0; biStatus = 'trial'; biTrial = ''; biNext = ''; biNotes = '';
+  readonly biBusy = signal(false);
+  openBilling(shop: any) {
+    this.biPlan = shop.billingPlan || 'Trial';
+    this.biPrice = shop.monthlyPrice ?? 0;
+    this.biStatus = shop.billingStatus || 'trial';
+    this.biTrial = shop.trialEndsAt ? String(shop.trialEndsAt).slice(0, 10) : '';
+    this.biNext = shop.nextBillingAt ? String(shop.nextBillingAt).slice(0, 10) : '';
+    this.biNotes = shop.billingNotes || '';
+    this.billingOpen.set(true);
+  }
+  saveBilling(shop: any) {
+    this.biBusy.set(true);
+    this.service.updateShopBilling(shop.id, {
+      billingPlan: this.biPlan.trim(),
+      monthlyPrice: Number(this.biPrice) || 0,
+      billingStatus: this.biStatus,
+      trialEndsAt: this.biTrial || null,
+      nextBillingAt: this.biNext || null,
+      billingNotes: this.biNotes.trim() || null,
+    }).subscribe({
+      next: () => { this.biBusy.set(false); this.billingOpen.set(false); this.openDetail(shop); this.load(); this.loadOverview(); this.dialog.toast('Billing updated', 'success'); },
+      error: (e) => { this.biBusy.set(false); this.dialog.toast(e.error?.error || 'Could not save billing', 'error'); },
     });
   }
 

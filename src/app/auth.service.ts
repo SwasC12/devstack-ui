@@ -126,8 +126,37 @@ export class AuthService {
     );
   }
 
+  // ── Impersonation ("view as shop") ───────────────────────────────────────
+  // The superadmin's own session is stashed in memory and the active session is
+  // swapped to a shop-admin token. A page reload restores the superadmin via the
+  // refresh cookie (impersonation is intentionally ephemeral), and Exit restores
+  // it immediately. No shop refresh token is stored, so nothing to clean up.
+  private _impBackup: { token: string; user: string | null } | null = null;
+  get impersonating(): boolean { return !!this._impBackup; }
+
+  impersonate(shopId: number): Observable<any> {
+    return this.http.post<any>(`${environment.apiBase}/shops/${shopId}/impersonate`, {}).pipe(
+      tap(res => {
+        this._impBackup = { token: this._token!, user: localStorage.getItem(USER_KEY) };
+        this._token = res.token;
+        localStorage.setItem(USER_KEY, JSON.stringify({ username: res.username, displayName: res.displayName, role: 'admin' }));
+        localStorage.setItem(SHOP_KEY, JSON.stringify({ id: res.shopId, name: res.shopName, code: res.shopCode }));
+      })
+    );
+  }
+
+  exitImpersonation(): void {
+    if (!this._impBackup) return;
+    this._token = this._impBackup.token;
+    if (this._impBackup.user) localStorage.setItem(USER_KEY, this._impBackup.user);
+    else localStorage.removeItem(USER_KEY);
+    localStorage.removeItem(SHOP_KEY);
+    this._impBackup = null;
+  }
+
   // Public so the interceptor can force-clear when a refresh fails.
   clearSession(): void {
+    this._impBackup = null;
     this._token = null;
     localStorage.removeItem(USER_KEY);
     localStorage.removeItem(SHOP_KEY);

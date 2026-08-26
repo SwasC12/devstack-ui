@@ -1,4 +1,10 @@
 <div class="shell" [class.public-shell]="publicPage()">
+  @if (auth.impersonating) {
+    <div class="imp-banner">
+      <span>👁 Viewing as <strong>{{ shop?.name || 'shop' }}</strong> — changes affect this shop.</span>
+      <button class="imp-exit" (click)="exitImpersonation()">Exit to platform</button>
+    </div>
+  }
   @if (!publicPage()) {
   <header class="top-bar">
     @if (!kioskLocked()) {

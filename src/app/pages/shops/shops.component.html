@@ -224,6 +224,9 @@
               <button class="ov-cell" (click)="explainMetric('notificationsSent30d')"><span class="ov-val">{{ overview()?.stats?.notificationsSent30d ?? '—' }}</span><span class="ov-lbl">Notifications 30d</span></button>
               <button class="ov-cell" (click)="explainMetric('passwordResets30d')"><span class="ov-val">{{ overview()?.stats?.passwordResets30d ?? '—' }}</span><span class="ov-lbl">Password resets</span></button>
               <button class="ov-cell" (click)="explainMetric('pushFailures30d')"><span class="ov-val" [class.warn]="(overview()?.stats?.pushFailures30d ?? 0) > 0">{{ overview()?.stats?.pushFailures30d ?? '—' }}</span><span class="ov-lbl">Push failures</span></button>
+              <div class="ov-cell"><span class="ov-val">R{{ (overview()?.stats?.mrr ?? 0) | number:'1.0-0' }}</span><span class="ov-lbl">Monthly revenue</span></div>
+              <div class="ov-cell"><span class="ov-val">{{ overview()?.stats?.trialShops ?? '—' }}</span><span class="ov-lbl">On trial</span></div>
+              <div class="ov-cell"><span class="ov-val" [class.warn]="(overview()?.stats?.overdueShops ?? 0) > 0">{{ overview()?.stats?.overdueShops ?? '—' }}</span><span class="ov-lbl">Overdue</span></div>
             </div>
           </div>
 
@@ -309,6 +312,7 @@
               <div class="drawer-acts">
                 @if (s.ownerEmail) { <app-btn size="sm" (onClick)="emailOwner(s); closeDrawer()">Email owner</app-btn> }
                 <app-btn size="sm" (onClick)="openOwnerEdit(s); closeDrawer()">Owner contact</app-btn>
+                <app-btn size="sm" variant="primary" (onClick)="viewAsShop(s)" [loading]="busyId() === s.id">View as shop</app-btn>
                 <app-btn size="sm" (onClick)="openEditShop(s)">Edit shop</app-btn>
                 <app-btn size="sm" (onClick)="resetPassword(s)">Reset admin pw</app-btn>
                 <app-btn size="sm" [variant]="s.isActive ? 'danger' : 'primary'" (onClick)="toggleStatus(s)">{{ s.isActive ? 'Suspend' : 'Activate' }}</app-btn>
@@ -329,6 +333,31 @@
                   <div class="drawer-acts">
                     <app-btn size="sm" variant="primary" (onClick)="saveEditShop(s)" [loading]="edBusy()">Save</app-btn>
                     <app-btn size="sm" (onClick)="editShopId.set(null)">Cancel</app-btn>
+                  </div>
+                </div>
+              }
+
+              <h4 class="drawer-sub">Billing <button class="link-btn" (click)="openBilling(d.shop)">Edit</button></h4>
+              <div class="drawer-stats">
+                <div class="dstat"><span class="ds-val">{{ d.shop.billingPlan || '—' }}</span><span class="ds-lbl">Plan</span></div>
+                <div class="dstat"><span class="ds-val">R{{ d.shop.monthlyPrice | number:'1.2-2' }}</span><span class="ds-lbl">Per month</span></div>
+                <div class="dstat"><span class="ds-val" [class.bill-overdue]="d.shop.billingStatus === 'overdue'">{{ d.shop.billingStatus }}</span><span class="ds-lbl">Status</span></div>
+                <div class="dstat"><span class="ds-val">{{ d.shop.nextBillingAt ? (d.shop.nextBillingAt | date:'mediumDate') : '—' }}</span><span class="ds-lbl">Next billing</span></div>
+              </div>
+              @if (d.shop.billingNotes) { <p class="muted" style="font-size:0.8rem">{{ d.shop.billingNotes }}</p> }
+              @if (billingOpen()) {
+                <div class="drawer-edit">
+                  <div class="field"><label>Plan</label><input [(ngModel)]="biPlan" placeholder="Trial / Basic / Pro" /></div>
+                  <div class="field"><label>Monthly price (R)</label><input [(ngModel)]="biPrice" type="number" inputmode="decimal" /></div>
+                  <div class="field"><label>Status</label>
+                    <select [(ngModel)]="biStatus"><option value="trial">Trial</option><option value="active">Active</option><option value="overdue">Overdue</option><option value="cancelled">Cancelled</option></select>
+                  </div>
+                  <div class="field"><label>Trial ends</label><input [(ngModel)]="biTrial" type="date" /></div>
+                  <div class="field"><label>Next billing date</label><input [(ngModel)]="biNext" type="date" /></div>
+                  <div class="field"><label>Notes</label><input [(ngModel)]="biNotes" placeholder="e.g. paid via EFT" /></div>
+                  <div class="drawer-acts">
+                    <app-btn size="sm" variant="primary" (onClick)="saveBilling(d.shop)" [loading]="biBusy()">Save billing</app-btn>
+                    <app-btn size="sm" (onClick)="billingOpen.set(false)">Cancel</app-btn>
                   </div>
                 </div>
               }

@@ -213,3 +213,5 @@
     .link-btn { background: none; border: 0; padding: 0 0.4rem; font: inherit; font-size: 0.78rem; font-weight: 700; color: var(--accent-2); cursor: pointer; }
     .link-btn.danger { color: var(--red); }
     .link-btn:hover { text-decoration: underline; }
+
+    .bill-overdue { color: var(--red); text-transform: capitalize; }

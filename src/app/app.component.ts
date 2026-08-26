@@ -150,6 +150,11 @@ export class AppComponent implements OnDestroy {
     return this.auth.isLoggedIn && !this.isAdmin;
   }
 
+  exitImpersonation(): void {
+    this.auth.exitImpersonation();
+    this.router.navigateByUrl('/shops');
+  }
+
   logout(): void {
     const isSuper = this.auth.getUser()?.role === 'superadmin';
     this.auth.logout()

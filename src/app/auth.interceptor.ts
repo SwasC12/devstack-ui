@@ -33,6 +33,13 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   return next(clone).pipe(
     finalize(() => { if (isApi && !isBackground) loading.hide(); }),
     catchError(err => {
+      // Impersonation session expired: don't refresh (the cookie is the
+      // superadmin's) — drop back to the platform as the superadmin.
+      if (err.status === 401 && isApi && !isRefresh && auth.impersonating) {
+        auth.exitImpersonation();
+        router.navigateByUrl('/shops');
+        return throwError(() => err);
+      }
       // Access token expired → try one refresh, then replay the request.
       if (err.status === 401 && isApi && !isRefresh && auth.token) {
         return auth.refresh().pipe(
