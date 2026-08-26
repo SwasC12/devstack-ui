@@ -132,10 +132,12 @@ export class ShopsComponent implements OnInit {
 
   ngOnInit() { this.load(); this.loadOverview(); this.loadHealth(); this.loadReleases(); this.loadRevenue(); this.loadBrands(); }
 
+  readonly loadErr = signal(false);
   private load() {
-    this.service.getShopsMeta().subscribe(r => {
-      this.currentVersion.set(r.currentVersion);
-      this.shops.set(r.shops);
+    this.loadErr.set(false);
+    this.service.getShopsMeta().subscribe({
+      next: r => { this.currentVersion.set(r.currentVersion); this.shops.set(r.shops); },
+      error: () => { this.loadErr.set(true); this.dialog.toast('Could not load shops — tap to retry', 'error'); },
     });
   }
 
