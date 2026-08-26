@@ -748,15 +748,33 @@ export class AdminComponent implements OnInit {
   }
   private resetInv() { this.fName = ''; this.fCategory = ''; this.fPrice = null; this.fStock = null; this.fLowStock = 5; this.fDesc = ''; this.fAvail = true; this.fImageUrl = ''; this.fImagePublicId = ''; this.fSizes = []; this.fGroups = []; this.fCostBasis = null; this.fRecipe = []; this.fSku = ''; this.clearPendingImage(); }
 
-  onImageSelected(event: Event) {
+  // Image shape: '1' = square (1:1), '1.3333' = 4:3, 'orig' = keep as-is.
+  fAspect = '1';
+  private pendingOriginal: File | null = null;
+
+  async onImageSelected(event: Event) {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
-    // No upload here - just keep the file locally for preview. It goes to
-    // Cloudinary only when the form is saved (see save()).
+    // Keep the original so changing the shape re-crops without re-picking. The
+    // cropped file goes to Cloudinary only when the form is saved (see save()).
     this.clearPendingImage();
-    this.pendingImage = file;
-    this.pendingImageUrl = URL.createObjectURL(file);
+    this.pendingOriginal = file;
+    await this.applyCrop();
+  }
+
+  async onAspectChange() { await this.applyCrop(); }
+
+  private async applyCrop() {
+    if (!this.pendingOriginal) return;
+    if (this.pendingImageUrl) { URL.revokeObjectURL(this.pendingImageUrl); this.pendingImageUrl = null; }
+    let out = this.pendingOriginal;
+    if (this.fAspect !== 'orig') {
+      const { cropToAspect } = await import('../../image-utils');
+      out = await cropToAspect(this.pendingOriginal, Number(this.fAspect));
+    }
+    this.pendingImage = out;
+    this.pendingImageUrl = URL.createObjectURL(out);
   }
 
   clearImage() { this.fImageUrl = ''; this.fImagePublicId = ''; this.clearPendingImage(); }
@@ -764,6 +782,7 @@ export class AdminComponent implements OnInit {
   private clearPendingImage() {
     if (this.pendingImageUrl) { URL.revokeObjectURL(this.pendingImageUrl); this.pendingImageUrl = null; }
     this.pendingImage = null;
+    this.pendingOriginal = null;
   }
 
   openUserForm() { this.resetUser(); this.showUserForm.set(true); }

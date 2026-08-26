@@ -183,9 +183,15 @@
               <div class="form-section">Photo</div>
               <div class="field wide">
                 <label>Photo</label>
+                <div class="img-shape">
+                  <span>Shape</span>
+                  <label><input type="radio" name="aspect" value="1" [(ngModel)]="fAspect" (ngModelChange)="onAspectChange()" /> Square 1:1</label>
+                  <label><input type="radio" name="aspect" value="1.3333" [(ngModel)]="fAspect" (ngModelChange)="onAspectChange()" /> 4:3</label>
+                  <label><input type="radio" name="aspect" value="orig" [(ngModel)]="fAspect" (ngModelChange)="onAspectChange()" /> Original</label>
+                </div>
                 <div class="img-upload">
                   @if (fImageUrl || pendingImageUrl) {
-                    <img [src]="pendingImageUrl ?? fImageUrl" alt="" class="img-preview" />
+                    <img [src]="pendingImageUrl ?? fImageUrl" alt="" class="img-preview" [class.sq]="fAspect === '1'" />
                   }
                   <input type="file" accept="image/*" (change)="onImageSelected($event)" #fileInput hidden />
                   <app-btn size="sm" (onClick)="fileInput.click()" [loading]="uploading()">
@@ -195,6 +201,7 @@
                     <app-btn size="sm" variant="danger" (onClick)="clearImage()">Remove</app-btn>
                   }
                 </div>
+                <span class="field-hint">Pick a shape — new photos are cropped and shrunk automatically for fast, tidy menu cards.</span>
               </div>
               <div class="field chk"><label class="checkbox"><input type="checkbox" [(ngModel)]="fAvail" /> <span>Available</span></label></div>
             </div>

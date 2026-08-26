@@ -73,6 +73,36 @@ async function encodeToBudget(original: File, bitmap: ImageBitmap): Promise<File
   return new File([best], `${base}.webp`, { type: 'image/webp' });
 }
 
+// Center-crop an image to a target aspect ratio (width/height, e.g. 1 for 1:1,
+// 4/3 for 4:3) and downscale to maxWidth, re-encoding as WebP. Used to give menu
+// photos a consistent shape. Returns the original on unsupported formats/decode
+// failure so an upload never breaks.
+export async function cropToAspect(file: File, aspect: number, maxWidth = 1080): Promise<File> {
+  const type = (file.type || '').toLowerCase();
+  if (type === 'image/gif') return file;
+  if (type && !/^image\/(jpeg|png|webp|bmp|avif)$/.test(type)) return file;
+  try {
+    const bitmap = await createImageBitmap(file);
+    try {
+      const cur = bitmap.width / bitmap.height;
+      let sx = 0, sy = 0, sw = bitmap.width, sh = bitmap.height;
+      if (cur > aspect) { sw = Math.round(bitmap.height * aspect); sx = Math.round((bitmap.width - sw) / 2); }
+      else { sh = Math.round(bitmap.width / aspect); sy = Math.round((bitmap.height - sh) / 2); }
+      const tw = Math.min(maxWidth, sw);
+      const th = Math.round(tw / aspect);
+      const canvas = document.createElement('canvas');
+      canvas.width = tw; canvas.height = th;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return file;
+      ctx.drawImage(bitmap, sx, sy, sw, sh, 0, 0, tw, th);
+      const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, 'image/webp', 0.85));
+      if (!blob) return file;
+      const base = file.name.replace(/\.[^.]+$/, '');
+      return new File([blob], `${base}.webp`, { type: 'image/webp' });
+    } finally { bitmap.close(); }
+  } catch { return file; }
+}
+
 function scaledDims(w: number, h: number, max: number): { width: number; height: number } {
   const scale = Math.min(1, max / Math.max(w, h));
   return {
