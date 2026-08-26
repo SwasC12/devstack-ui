@@ -622,7 +622,7 @@ export class ShopsComponent implements OnInit {
     });
   }
   deleteShop(s: any) {
-    this.dialog.confirm('Delete shop permanently', `PERMANENTLY delete "${s.name}"? This cannot be undone. Only shops with no sales history can be deleted — otherwise archive it instead.`).then(ok => {
+    this.dialog.confirm('Delete shop permanently', `PERMANENTLY delete "${s.name}" and ALL its data — staff, menu, customers and its entire sales history? This CANNOT be undone. To keep the data, Archive it instead.`).then(ok => {
       if (!ok) return;
       this.service.deleteShop(s.id).subscribe({
         next: () => { this.closeDrawer(); this.load(); this.loadOverview(); this.dialog.toast('Shop deleted', 'success'); },
