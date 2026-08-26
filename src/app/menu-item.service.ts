@@ -360,6 +360,15 @@ export class MenuItemService {
     return this.http.put(`${API}/shops/${id}/billing`, data);
   }
 
+  // Superadmin: brands (franchises / loyalty programmes).
+  getBrands(): Observable<any[]> { return this.http.get<any[]>(`${API}/brands`); }
+  createBrand(name: string): Observable<any> { return this.http.post(`${API}/brands`, { name }); }
+  updateBrand(id: number, data: { name?: string; loyaltyEnabled?: boolean; loyaltyStampsRequired?: number; loyaltyReward?: string; logoUrl?: string | null }): Observable<any> {
+    return this.http.put(`${API}/brands/${id}`, data);
+  }
+  regenerateBrandToken(id: number): Observable<any> { return this.http.post(`${API}/brands/${id}/regenerate-token`, {}); }
+  assignShopBrand(shopId: number, brandId: number): Observable<any> { return this.http.put(`${API}/shops/${shopId}/brand`, { brandId }); }
+
   // ── Orders (admin history) ────────────────────────────
 
   // Orders (admin history) - paged. The API used to return every order ever

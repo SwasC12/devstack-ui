@@ -78,15 +78,58 @@ export class ShopsComponent implements OnInit {
   // Shop search: name / code / owner email / owner phone
   search = '';
 
-  // Tabs: shops dashboard | app releases
-  readonly tab = signal<'shops' | 'releases'>('shops');
+  // Tabs: shops dashboard | brands | app releases
+  readonly tab = signal<'shops' | 'brands' | 'releases'>('shops');
+
+  // ── Brands (franchises / loyalty programmes) ──
+  readonly brands = signal<any[]>([]);
+  nbName = '';
+  readonly nbBusy = signal(false);
+  private loadBrands() { this.service.getBrands().subscribe(b => this.brands.set(b)); }
+  createBrand() {
+    const name = this.nbName.trim();
+    if (!name) { this.dialog.toast('Enter a brand name', 'error'); return; }
+    this.nbBusy.set(true);
+    this.service.createBrand(name).subscribe({
+      next: () => { this.nbBusy.set(false); this.nbName = ''; this.loadBrands(); this.dialog.toast('Brand created', 'success'); },
+      error: (e) => { this.nbBusy.set(false); this.dialog.toast(e.error?.error || 'Failed', 'error'); },
+    });
+  }
+  saveBrand(b: any) {
+    this.service.updateBrand(b.id, { name: b.name, loyaltyEnabled: b.loyaltyEnabled, loyaltyStampsRequired: Number(b.loyaltyStampsRequired) || 10, loyaltyReward: b.loyaltyReward, logoUrl: b.logoUrl || null }).subscribe({
+      next: () => { this.loadBrands(); this.dialog.toast('Brand saved', 'success'); },
+      error: (e) => this.dialog.toast(e.error?.error || 'Failed', 'error'),
+    });
+  }
+  regenBrandToken(b: any) {
+    this.dialog.confirm('New sign-up code', `Generate a new join code for "${b.name}"? Any printed poster for this brand stops working.`).then(ok => {
+      if (!ok) return;
+      this.service.regenerateBrandToken(b.id).subscribe({
+        next: () => { this.loadBrands(); this.dialog.toast('New code generated', 'success'); },
+        error: (e) => this.dialog.toast(e.error?.error || 'Failed', 'error'),
+      });
+    });
+  }
+  brandJoinUrl(b: any): string { return `${environment.webBase}/join/${b.joinToken ?? ''}`; }
+
+  // ── Assign a shop to a brand (drawer) ──
+  readonly assignOpen = signal(false);
+  assignBrandId: number | null = null;
+  openAssignBrand(s: any) { this.assignBrandId = s.brandId ?? null; this.assignOpen.set(true); if (!this.brands().length) this.loadBrands(); }
+  saveAssignBrand(s: any) {
+    if (!this.assignBrandId) { this.dialog.toast('Pick a brand', 'error'); return; }
+    this.service.assignShopBrand(s.id, this.assignBrandId).subscribe({
+      next: (r) => { this.assignOpen.set(false); this.patchDrawerShop(s.id, { brandId: this.assignBrandId, brandName: r.brandName }); this.load(); this.dialog.toast('Brand updated', 'success'); },
+      error: (e) => this.dialog.toast(e.error?.error || 'Failed', 'error'),
+    });
+  }
 
   // App releases (superadmin publish/rollback)
   readonly releases = signal<any[]>([]);
   rVersion = ''; rNotes = ''; rRequired = false; rApk: File | null = null;
   readonly rBusy = signal(false);
 
-  ngOnInit() { this.load(); this.loadOverview(); this.loadHealth(); this.loadReleases(); this.loadRevenue(); }
+  ngOnInit() { this.load(); this.loadOverview(); this.loadHealth(); this.loadReleases(); this.loadRevenue(); this.loadBrands(); }
 
   private load() {
     this.service.getShopsMeta().subscribe(r => {

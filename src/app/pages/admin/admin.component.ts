@@ -267,6 +267,7 @@ export class AdminComponent implements OnInit {
   readonly brMsg = signal(''); readonly brErr = signal(false); readonly brBusy = signal(false);
   // Loyalty programme settings (Settings tab)
   loyEnabled = false; loyRequired = 10; loyReward = 'Free item';
+  readonly brandName = signal<string | null>(null); // brand that owns the (read-only) loyalty rules
   readonly loyMsg = signal(''); readonly loyErr = signal(false); readonly loyBusy = signal(false);
   readonly joinQr = signal(''); // data-URI QR of the customer join URL
   // Receipt customisation (Settings tab)
@@ -1296,6 +1297,7 @@ export class AdminComponent implements OnInit {
       this.loyEnabled = !!shop.loyaltyEnabled;
       this.loyRequired = shop.loyaltyStampsRequired || 10;
       this.loyReward = shop.loyaltyReward || 'Free item';
+      this.brandName.set(shop.brandName ?? null);
       this.rcHeader = shop.receiptHeader ?? '';
       this.rcFooter = shop.receiptFooter ?? '';
       this.rcShowVat = shop.receiptShowVat !== false;

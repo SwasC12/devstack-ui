@@ -215,3 +215,6 @@
     .link-btn:hover { text-decoration: underline; }
 
     .bill-overdue { color: var(--red); text-transform: capitalize; }
+
+    .brand-new { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; }
+    .brand-new input { flex: 1; min-width: 200px; padding: 0.6em 0.8em; border: 0.125em solid var(--border-hover); border-radius: 0.75em; font-size: 0.9rem; font-family: inherit; color: var(--text); background: var(--surface-2); outline: none; }

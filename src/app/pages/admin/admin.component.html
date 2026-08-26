@@ -780,15 +780,11 @@
         </div>
         <div class="form-sheet">
           <div class="form-head"><h3>Loyalty programme</h3></div>
-          <p class="hint">A stamp card: each purchase with a customer attached earns one stamp; at the target they get the reward. Turn it on and the POS shows a customer's stamp count at checkout.</p>
+          <p class="hint">A stamp card shared across your brand{{ brandName() ? ' (' + brandName() + ')' : '' }}: each purchase with a customer attached earns one stamp; at the target they get the reward. The same card works at every shop of your brand. <strong>These rules are set for the whole brand by the platform owner.</strong></p>
           <div class="form-grid">
-            <div class="field"><label class="check-label"><input type="checkbox" [(ngModel)]="loyEnabled" /> Enable loyalty stamps</label></div>
-            <div class="field"><label>Stamps for a reward</label><input type="number" min="2" max="100" [(ngModel)]="loyRequired" placeholder="10" /></div>
-            <div class="field wide"><label>Reward</label><input [(ngModel)]="loyReward" placeholder="e.g. Free coffee" /><span class="field-hint">Shown to the cashier when a customer is eligible. Staff comp the item and tap Redeem.</span></div>
-          </div>
-          @if (loyMsg()) { <p class="form-msg" [class.err]="loyErr()">{{ loyMsg() }}</p> }
-          <div class="form-acts">
-            <app-btn variant="primary" size="sm" (onClick)="saveLoyalty()" [loading]="loyBusy()">Save loyalty</app-btn>
+            <div class="field"><label class="check-label"><input type="checkbox" [ngModel]="loyEnabled" disabled /> Loyalty stamps {{ loyEnabled ? 'enabled' : 'off' }}</label></div>
+            <div class="field"><label>Stamps for a reward</label><input type="number" [ngModel]="loyRequired" disabled /></div>
+            <div class="field wide"><label>Reward</label><input [ngModel]="loyReward" disabled /><span class="field-hint">Managed at the brand level. Ask the platform owner to change the loyalty rules.</span></div>
           </div>
           @if (loyEnabled && joinQr()) {
             <div class="field wide" style="margin-top:0.5rem">
@@ -796,13 +792,11 @@
               <div class="join-qr-box">
                 <img [src]="joinQr()" alt="Customer join QR" class="join-qr-img" />
                 <div>
-                  <p class="field-hint">Put this on the counter or table. New customers scan it to sign up; existing ones scan it any time to check their points and show their code at the till — no app needed.</p>
+                  <p class="field-hint">Put this on the counter or table. New customers scan it to sign up; existing ones scan it any time to check their points and show their code at the till — no app needed. It works across every shop in your brand.</p>
                   <p class="join-qr-url">{{ joinUrl() }}</p>
                   <div class="join-qr-acts">
                     <app-btn size="sm" (onClick)="printJoinPoster()">Print sign-up poster</app-btn>
-                    <app-btn size="sm" variant="danger" (onClick)="regenerateJoinCode()" [loading]="joinBusy()">New code</app-btn>
                   </div>
-                  <span class="field-hint">The link uses a private code, not your shop login code. Tap “New code” to reset it if a poster is misused.</span>
                 </div>
               </div>
             </div>

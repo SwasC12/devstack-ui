@@ -2,6 +2,7 @@
     <div class="shops">
       <div class="page-tabs">
         <button class="page-tab" [class.on]="tab() === 'shops'" (click)="tab.set('shops')">Shops</button>
+        <button class="page-tab" [class.on]="tab() === 'brands'" (click)="tab.set('brands')">Brands</button>
         <button class="page-tab" [class.on]="tab() === 'releases'" (click)="tab.set('releases')">App Releases</button>
       </div>
 
@@ -337,6 +338,23 @@
                 </div>
               }
 
+              <h4 class="drawer-sub">Brand <button class="link-btn" (click)="openAssignBrand(s)">Change</button></h4>
+              <p class="muted" style="font-size:0.85rem">{{ s.brandName || 'Not assigned to a brand' }}<span class="field-hint" style="display:block">Loyalty is shared across all shops of this brand.</span></p>
+              @if (assignOpen()) {
+                <div class="drawer-edit">
+                  <div class="field"><label>Move to brand</label>
+                    <select [(ngModel)]="assignBrandId">
+                      <option [ngValue]="null" disabled>Choose a brand…</option>
+                      @for (b of brands(); track b.id) { <option [ngValue]="b.id">{{ b.name }}</option> }
+                    </select>
+                  </div>
+                  <div class="drawer-acts">
+                    <app-btn size="sm" variant="primary" (onClick)="saveAssignBrand(s)">Save brand</app-btn>
+                    <app-btn size="sm" (onClick)="assignOpen.set(false)">Cancel</app-btn>
+                  </div>
+                </div>
+              }
+
               <h4 class="drawer-sub">Billing <button class="link-btn" (click)="openBilling(d.shop)">Edit</button></h4>
               <div class="drawer-stats">
                 <div class="dstat"><span class="ds-val">{{ d.shop.billingPlan || '—' }}</span><span class="ds-lbl">Plan</span></div>
@@ -416,6 +434,40 @@
           </div>
         </div>
       }
+      }
+
+      @if (tab() === 'brands') {
+        <div class="section-head"><h2 class="page-title">Brands &amp; loyalty programmes</h2></div>
+        <p class="hint" style="max-width:640px">A brand groups shops into one loyalty programme. A customer's card works at every shop of the brand and never at another. Set the loyalty rules here — they apply to all the brand's shops. Assign shops to a brand from the Shops tab (open a shop → Brand).</p>
+
+        <div class="form-sheet">
+          <div class="form-head"><h3>New brand</h3></div>
+          <div class="brand-new">
+            <input [(ngModel)]="nbName" placeholder="Brand name (e.g. Starbucks)" />
+            <app-btn size="sm" variant="primary" (onClick)="createBrand()" [loading]="nbBusy()">Create brand</app-btn>
+          </div>
+        </div>
+
+        @for (b of brands(); track b.id) {
+          <div class="form-sheet">
+            <div class="form-head">
+              <h3>{{ b.name }}</h3>
+              <span class="pill">{{ b.shopCount }} shop{{ b.shopCount === 1 ? '' : 's' }} · {{ b.memberCount }} member{{ b.memberCount === 1 ? '' : 's' }}</span>
+            </div>
+            <div class="form-grid">
+              <div class="field"><label>Brand name</label><input [(ngModel)]="b.name" /></div>
+              <div class="field"><label class="check-label"><input type="checkbox" [(ngModel)]="b.loyaltyEnabled" /> Loyalty enabled</label></div>
+              <div class="field"><label>Stamps for a reward</label><input type="number" min="2" max="100" [(ngModel)]="b.loyaltyStampsRequired" /></div>
+              <div class="field"><label>Reward</label><input [(ngModel)]="b.loyaltyReward" placeholder="e.g. Free coffee" /></div>
+              <div class="field wide"><label>Brand logo URL (optional)</label><input [(ngModel)]="b.logoUrl" placeholder="https://…" /></div>
+            </div>
+            <div class="field wide"><label>Customer join link</label><p class="join-qr-url">{{ brandJoinUrl(b) }}</p></div>
+            <div class="form-acts">
+              <app-btn size="sm" variant="primary" (onClick)="saveBrand(b)">Save brand</app-btn>
+              <app-btn size="sm" variant="danger" (onClick)="regenBrandToken(b)">New join code</app-btn>
+            </div>
+          </div>
+        } @empty { <p class="rail-empty">No brands yet.</p> }
       }
 
       @if (tab() === 'releases') {
