@@ -63,6 +63,17 @@
           <div class="form-grid">
             <div class="field"><label>Shop name</label><input [(ngModel)]="fName" placeholder="e.g. Rosebank Coffee" /></div>
             <div class="field"><label>Shop code</label><input [(ngModel)]="fCode" placeholder="e.g. ROSEBANK" (keyup)="fCode = fCode.toUpperCase()" /></div>
+            <div class="field"><label>Brand (loyalty programme)</label>
+              <select [(ngModel)]="fBrandSel">
+                <option value="own">Its own brand (standalone shop)</option>
+                <option value="new">➕ New brand…</option>
+                @for (b of brands(); track b.id) { <option [value]="b.id.toString()">{{ b.name }}</option> }
+              </select>
+              <span class="field-hint">Shops in the same brand share one loyalty card. Pick a franchise, or leave standalone.</span>
+            </div>
+            @if (fBrandSel === 'new') {
+              <div class="field"><label>New brand name</label><input [(ngModel)]="fNewBrand" placeholder="e.g. Starbucks" /></div>
+            }
             <div class="field"><label>First admin username</label><input [(ngModel)]="fAdminUser" placeholder="e.g. owner" /></div>
             <div class="field"><label>First admin password</label><app-password [(ngModel)]="fAdminPass" placeholder="Min 10 · upper + lower + digit" autocomplete="new-password" /></div>
             <div class="field"><label>Admin display name</label><input [(ngModel)]="fAdminDisplay" placeholder="e.g. Jane" /></div>

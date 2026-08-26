@@ -319,7 +319,7 @@ export class MenuItemService {
     return this.http.delete<void>(`${API}/app/releases/${id}`);
   }
 
-  createShop(data: { name: string; code: string; adminUsername: string; adminPassword: string; adminDisplayName: string; ownerEmail?: string | null }): Observable<any> {
+  createShop(data: { name: string; code: string; adminUsername: string; adminPassword: string; adminDisplayName: string; ownerEmail?: string | null; brandId?: number | null; newBrandName?: string | null }): Observable<any> {
     return this.http.post(`${API}/shops`, data);
   }
 

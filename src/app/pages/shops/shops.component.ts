@@ -31,6 +31,7 @@ export class ShopsComponent implements OnInit {
   readonly showForm = signal(false);
   readonly busyId = signal<number | null>(null);
   fName = ''; fCode = ''; fAdminUser = ''; fAdminPass = ''; fAdminDisplay = '';
+  fBrandSel = 'own'; fNewBrand = ''; // brand choice on create: 'own' | 'new' | '<brandId>'
 
   // Owner contact editor (superadmin; feeds future owner emails)
   ownerEdit: any | null = null;
@@ -341,13 +342,16 @@ export class ShopsComponent implements OnInit {
   closeForm() { this.showForm.set(false); }
 
   save() {
-    this.service.createShop({ name: this.fName, code: this.fCode, adminUsername: this.fAdminUser, adminPassword: this.fAdminPass, adminDisplayName: this.fAdminDisplay, ownerEmail: this.fOwnerEmail.trim() || null }).subscribe({
-      next: () => { this.load(); this.loadOverview(); this.closeForm(); this.reset(); },
+    const brandId = /^\d+$/.test(this.fBrandSel) ? Number(this.fBrandSel) : null;
+    const newBrandName = this.fBrandSel === 'new' ? (this.fNewBrand.trim() || null) : null;
+    if (this.fBrandSel === 'new' && !newBrandName) { this.dialog.toast('Enter the new brand name', 'error'); return; }
+    this.service.createShop({ name: this.fName, code: this.fCode, adminUsername: this.fAdminUser, adminPassword: this.fAdminPass, adminDisplayName: this.fAdminDisplay, ownerEmail: this.fOwnerEmail.trim() || null, brandId, newBrandName }).subscribe({
+      next: () => { this.load(); this.loadOverview(); this.loadBrands(); this.closeForm(); this.reset(); },
       error: (e) => this.dialog.toast(e.error?.error || 'Save failed', 'error')
     });
   }
 
-  private reset() { this.fName = ''; this.fCode = ''; this.fAdminUser = ''; this.fAdminPass = ''; this.fAdminDisplay = ''; this.fOwnerEmail = ''; }
+  private reset() { this.fName = ''; this.fCode = ''; this.fAdminUser = ''; this.fAdminPass = ''; this.fAdminDisplay = ''; this.fOwnerEmail = ''; this.fBrandSel = 'own'; this.fNewBrand = ''; }
 
   // ── Owner contact ────────────────────────────────────
 
