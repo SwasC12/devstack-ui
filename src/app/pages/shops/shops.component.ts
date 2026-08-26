@@ -503,7 +503,7 @@ export class ShopsComponent implements OnInit {
       if (!ok) return;
       this.busyId.set(s.id);
       this.service.setShopStatus(s.id, !s.isActive).subscribe({
-        next: () => { this.busyId.set(null); this.load(); this.loadOverview(); this.dialog.toast(action === 'suspend' ? 'Shop suspended' : 'Shop activated', 'success'); },
+        next: () => { this.busyId.set(null); this.patchDrawerShop(s.id, { isActive: !s.isActive }); this.load(); this.loadOverview(); this.dialog.toast(action === 'suspend' ? 'Shop suspended' : 'Shop activated', 'success'); },
         error: (e) => { this.busyId.set(null); this.dialog.toast(e.error?.error || 'Failed', 'error'); }
       });
     });
@@ -520,6 +520,86 @@ export class ShopsComponent implements OnInit {
           this.dialog.reveal('New password', `For ${res.username} (${res.displayName}) at ${s.name}. Relay it to the owner — this is the only time it's shown.`, res.password);
         },
         error: (e) => { this.busyId.set(null); this.dialog.toast(e.error?.error || 'Failed', 'error'); }
+      });
+    });
+  }
+
+  // Keep the open drawer's header in sync after an in-drawer action (the list
+  // reload replaces row objects, so mutating `s` alone wouldn't re-render).
+  private patchDrawerShop(id: number, patch: any) {
+    const cur = this.drawerShop();
+    if (cur && cur.id === id) this.drawerShop.set({ ...cur, ...patch });
+  }
+
+  // ── Edit shop (name / code) ──
+  readonly editShopId = signal<number | null>(null);
+  edName = ''; edCode = '';
+  readonly edBusy = signal(false); readonly edErr = signal(false); readonly edMsg = signal('');
+  openEditShop(s: any) { this.editShopId.set(s.id); this.edName = s.name; this.edCode = s.code; this.edErr.set(false); this.edMsg.set(''); }
+  saveEditShop(s: any) {
+    const name = this.edName.trim(), code = this.edCode.trim().toUpperCase();
+    if (!name || !code) { this.edErr.set(true); this.edMsg.set('Name and code are required.'); return; }
+    this.edBusy.set(true); this.edErr.set(false); this.edMsg.set('');
+    this.service.editShop(s.id, name, code).subscribe({
+      next: () => { this.edBusy.set(false); this.editShopId.set(null); this.patchDrawerShop(s.id, { name, code }); this.load(); this.dialog.toast('Shop updated', 'success'); },
+      error: (e) => { this.edBusy.set(false); this.edErr.set(true); this.edMsg.set(e.error?.error || 'Could not save.'); },
+    });
+  }
+
+  archiveShop(s: any) {
+    this.dialog.confirm('Archive shop', `Archive "${s.name}"? It's hidden from the list and staff can't sign in. Nothing is deleted — you can restore it any time.`).then(ok => {
+      if (!ok) return;
+      this.service.archiveShop(s.id).subscribe({
+        next: () => { this.patchDrawerShop(s.id, { isArchived: true, isActive: false }); this.load(); this.loadOverview(); this.dialog.toast('Shop archived', 'success'); },
+        error: (e) => this.dialog.toast(e.error?.error || 'Failed', 'error'),
+      });
+    });
+  }
+  restoreShop(s: any) {
+    this.service.restoreShop(s.id).subscribe({
+      next: () => { this.patchDrawerShop(s.id, { isArchived: false, isActive: true }); this.load(); this.loadOverview(); this.dialog.toast('Shop restored', 'success'); },
+      error: (e) => this.dialog.toast(e.error?.error || 'Failed', 'error'),
+    });
+  }
+  deleteShop(s: any) {
+    this.dialog.confirm('Delete shop permanently', `PERMANENTLY delete "${s.name}"? This cannot be undone. Only shops with no sales history can be deleted — otherwise archive it instead.`).then(ok => {
+      if (!ok) return;
+      this.service.deleteShop(s.id).subscribe({
+        next: () => { this.closeDrawer(); this.load(); this.loadOverview(); this.dialog.toast('Shop deleted', 'success'); },
+        error: (e) => this.dialog.toast(e.error?.error || 'Could not delete', 'error'),
+      });
+    });
+  }
+
+  // ── Staff management (any shop) ──
+  readonly addStaffOpen = signal(false);
+  stName = ''; stUser = ''; stPass = ''; stRole = 'cashier';
+  readonly stBusy = signal(false); readonly stErr = signal(false); readonly stMsg = signal('');
+  toggleAddStaff() { this.addStaffOpen.set(!this.addStaffOpen()); this.stName = ''; this.stUser = ''; this.stPass = ''; this.stRole = 'cashier'; this.stErr.set(false); this.stMsg.set(''); }
+  saveStaff(s: any) {
+    const displayName = this.stName.trim(), username = this.stUser.trim();
+    if (!displayName || !username || !this.stPass) { this.stErr.set(true); this.stMsg.set('Name, username and password are required.'); return; }
+    this.stBusy.set(true); this.stErr.set(false); this.stMsg.set('');
+    this.service.addStaff(s.id, { username, password: this.stPass, displayName, role: this.stRole }).subscribe({
+      next: () => { this.stBusy.set(false); this.addStaffOpen.set(false); this.openDetail(s); this.dialog.toast('Staff added', 'success'); },
+      error: (e) => { this.stBusy.set(false); this.stErr.set(true); this.stMsg.set(e.error?.error || 'Could not add staff.'); },
+    });
+  }
+  resetStaffPw(s: any, u: any) {
+    this.dialog.confirm('Reset password', `Generate a new password for ${u.displayName || u.username}?`).then(ok => {
+      if (!ok) return;
+      this.service.resetStaffPassword(s.id, u.id).subscribe({
+        next: (res) => this.dialog.reveal('New password', `For ${res.username} (${res.displayName}). Relay it — shown only once.`, res.password),
+        error: (e) => this.dialog.toast(e.error?.error || 'Failed', 'error'),
+      });
+    });
+  }
+  removeStaff(s: any, u: any) {
+    this.dialog.confirm('Remove staff', `Remove ${u.displayName || u.username} from ${s.name}? This deletes their login.`).then(ok => {
+      if (!ok) return;
+      this.service.deleteStaff(s.id, u.id).subscribe({
+        next: () => { this.openDetail(s); this.dialog.toast('Staff removed', 'success'); },
+        error: (e) => this.dialog.toast(e.error?.error || 'Failed', 'error'),
       });
     });
   }

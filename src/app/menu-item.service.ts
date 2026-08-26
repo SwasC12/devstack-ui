@@ -333,6 +333,28 @@ export class MenuItemService {
     return this.http.post<{ password: string; username: string; displayName: string }>(`${API}/shops/${id}/reset-admin-password`, {});
   }
 
+  // Superadmin: shop lifecycle management.
+  editShop(id: number, name: string, code: string): Observable<any> {
+    return this.http.put(`${API}/shops/${id}`, { name, code });
+  }
+  archiveShop(id: number): Observable<any> { return this.http.post(`${API}/shops/${id}/archive`, {}); }
+  restoreShop(id: number): Observable<any> { return this.http.post(`${API}/shops/${id}/restore`, {}); }
+  deleteShop(id: number): Observable<any> { return this.http.delete(`${API}/shops/${id}`); }
+
+  // Superadmin: manage any shop's staff.
+  addStaff(shopId: number, data: { username: string; password: string; displayName: string; role: string; wageRate?: number | null }): Observable<any> {
+    return this.http.post(`${API}/shops/${shopId}/users`, data);
+  }
+  updateStaff(shopId: number, userId: number, data: { displayName?: string; role?: string; wageRate?: number | null }): Observable<any> {
+    return this.http.put(`${API}/shops/${shopId}/users/${userId}`, data);
+  }
+  resetStaffPassword(shopId: number, userId: number): Observable<{ password: string; username: string; displayName: string }> {
+    return this.http.post<any>(`${API}/shops/${shopId}/users/${userId}/reset-password`, {});
+  }
+  deleteStaff(shopId: number, userId: number): Observable<any> {
+    return this.http.delete(`${API}/shops/${shopId}/users/${userId}`);
+  }
+
   // ── Orders (admin history) ────────────────────────────
 
   // Orders (admin history) - paged. The API used to return every order ever

@@ -158,7 +158,7 @@
                       }
                     </td>
                     <td><span class="pill">{{ s.code }}</span></td>
-                    <td><span class="status" [class.on]="s.isActive">{{ s.isActive ? 'Active' : 'Suspended' }}</span></td>
+                    <td><span class="status" [class.on]="s.isActive">{{ s.isArchived ? 'Archived' : (s.isActive ? 'Active' : 'Suspended') }}</span></td>
                     <td>{{ s.userCount }}</td>
                     <td>{{ s.orderCount }}</td>
                     <td class="num">R{{ (s.revenue ?? 0) | number:'1.2-2' }}</td>
@@ -286,7 +286,7 @@
               <div>
                 <h3>{{ s.name }}</h3>
                 <span class="pill">{{ s.code }}</span>
-                <span class="status" [class.on]="s.isActive">{{ s.isActive ? 'Active' : 'Suspended' }}</span>
+                <span class="status" [class.on]="s.isActive">{{ s.isArchived ? 'Archived' : (s.isActive ? 'Active' : 'Suspended') }}</span>
               </div>
               <button class="welcome-close" (click)="closeDrawer()" title="Close"><app-icon name="close" [size]="18" /></button>
             </div>
@@ -309,16 +309,59 @@
               <div class="drawer-acts">
                 @if (s.ownerEmail) { <app-btn size="sm" (onClick)="emailOwner(s); closeDrawer()">Email owner</app-btn> }
                 <app-btn size="sm" (onClick)="openOwnerEdit(s); closeDrawer()">Owner contact</app-btn>
-                <app-btn size="sm" (onClick)="resetPassword(s)">Reset password</app-btn>
-                <app-btn size="sm" [variant]="s.isActive ? 'danger' : 'primary'" (onClick)="toggleStatus(s); closeDrawer()">{{ s.isActive ? 'Suspend' : 'Activate' }}</app-btn>
+                <app-btn size="sm" (onClick)="openEditShop(s)">Edit shop</app-btn>
+                <app-btn size="sm" (onClick)="resetPassword(s)">Reset admin pw</app-btn>
+                <app-btn size="sm" [variant]="s.isActive ? 'danger' : 'primary'" (onClick)="toggleStatus(s)">{{ s.isActive ? 'Suspend' : 'Activate' }}</app-btn>
+                @if (s.isArchived) {
+                  <app-btn size="sm" variant="primary" (onClick)="restoreShop(s)">Restore</app-btn>
+                } @else {
+                  <app-btn size="sm" (onClick)="archiveShop(s)">Archive</app-btn>
+                }
+                <app-btn size="sm" variant="danger" (onClick)="deleteShop(s)">Delete</app-btn>
               </div>
 
-              <h4 class="drawer-sub">Staff ({{ d.users.length }})</h4>
+              <!-- Edit shop (name / code) -->
+              @if (editShopId() === s.id) {
+                <div class="drawer-edit">
+                  <div class="field"><label>Shop name</label><input [(ngModel)]="edName" /></div>
+                  <div class="field"><label>Shop code (login)</label><input [(ngModel)]="edCode" style="text-transform:uppercase" /></div>
+                  @if (edMsg()) { <p class="form-msg" [class.err]="edErr()">{{ edMsg() }}</p> }
+                  <div class="drawer-acts">
+                    <app-btn size="sm" variant="primary" (onClick)="saveEditShop(s)" [loading]="edBusy()">Save</app-btn>
+                    <app-btn size="sm" (onClick)="editShopId.set(null)">Cancel</app-btn>
+                  </div>
+                </div>
+              }
+
+              <h4 class="drawer-sub">Staff ({{ d.users.length }}) <button class="link-btn" (click)="toggleAddStaff()">+ Add</button></h4>
+              @if (addStaffOpen()) {
+                <div class="drawer-edit">
+                  <div class="field"><label>Display name</label><input [(ngModel)]="stName" /></div>
+                  <div class="field"><label>Username</label><input [(ngModel)]="stUser" autocapitalize="none" /></div>
+                  <div class="field"><label>Temp password</label><input [(ngModel)]="stPass" /></div>
+                  <div class="field"><label>Role</label>
+                    <select [(ngModel)]="stRole"><option value="cashier">Cashier</option><option value="manager">Manager</option><option value="admin">Admin</option></select>
+                  </div>
+                  @if (stMsg()) { <p class="form-msg" [class.err]="stErr()">{{ stMsg() }}</p> }
+                  <div class="drawer-acts">
+                    <app-btn size="sm" variant="primary" (onClick)="saveStaff(s)" [loading]="stBusy()">Add staff</app-btn>
+                    <app-btn size="sm" (onClick)="addStaffOpen.set(false)">Cancel</app-btn>
+                  </div>
+                </div>
+              }
               @if (d.users.length) {
                 <table class="drawer-table">
                   <tbody>
                     @for (u of d.users; track u.id) {
-                      <tr><td>{{ u.displayName || u.username }}</td><td class="muted">{{ u.username }}</td><td><span class="pill">{{ u.role }}</span></td></tr>
+                      <tr>
+                        <td>{{ u.displayName || u.username }}</td>
+                        <td class="muted">{{ u.username }}</td>
+                        <td><span class="pill">{{ u.role }}</span></td>
+                        <td class="num">
+                          <button class="link-btn" (click)="resetStaffPw(s, u)">Reset pw</button>
+                          <button class="link-btn danger" (click)="removeStaff(s, u)">Remove</button>
+                        </td>
+                      </tr>
                     }
                   </tbody>
                 </table>
