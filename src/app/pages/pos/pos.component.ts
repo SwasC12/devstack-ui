@@ -1,4 +1,4 @@
-import { Component, effect, inject, signal, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
+import { Component, computed, effect, inject, signal, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
 import { DEFAULT_PRODUCT_IMAGE } from '../../default-product-image';
 import { IconComponent } from '../../icon.component';
 import { CommonModule } from '@angular/common';
@@ -50,11 +50,11 @@ export class PosComponent implements OnInit, OnDestroy {
   readonly tableNumber = signal('');
 
   // Items & cart
-  items: MenuItem[] = [];
+  readonly items = signal<MenuItem[]>([]);
   readonly cart = signal<CartItem[]>([]);
   readonly busy = signal(false);
   readonly loading = signal(true);
-  activeCat = 'Hot Drinks';
+  readonly activeCat = signal('Hot Drinks');
   // Bottom drawer on narrow screens (open by default on wide screens).
   readonly cartOpen = signal(typeof window !== 'undefined' && window.innerWidth > 1024);
 
@@ -135,7 +135,7 @@ export class PosComponent implements OnInit, OnDestroy {
   private printer = inject(PrintService);
   private sound = inject(SoundService);
 
-  get categories(): string[] { return [...new Set(this.items.map(i => i.category))].sort(); }
+  readonly categories = computed(() => [...new Set(this.items().map(i => i.category))].sort());
   searching(): boolean { return this.query().trim().length > 0; }
 
   // Debounce the keystrokes, then publish the query.
@@ -144,25 +144,28 @@ export class PosComponent implements OnInit, OnDestroy {
     this.searchTimer = setTimeout(() => this.query.set(this.search), 200);
   }
 
-  // Search takes over from categories while text is typed; otherwise filter by the active category.
-  readonly filtered = () => {
+  // Search takes over from categories while text is typed; otherwise filter by the
+  // active category. Memoised (computed) so it only re-filters when items / query /
+  // category actually change — not on every change-detection tick.
+  readonly filtered = computed(() => {
     const q = this.query().trim().toLowerCase();
+    const items = this.items();
     return q
-      ? this.items.filter(i => i.name.toLowerCase().includes(q) || (i.sku ?? '').toLowerCase().includes(q))
-      : this.items.filter(i => i.category === this.activeCat);
-  };
-  readonly total = () => this.cart().reduce((s, i) => s + i.price * i.quantity, 0);
+      ? items.filter(i => i.name.toLowerCase().includes(q) || (i.sku ?? '').toLowerCase().includes(q))
+      : items.filter(i => i.category === this.activeCat());
+  });
+  readonly total = computed(() => this.cart().reduce((s, i) => s + i.price * i.quantity, 0));
 
   // "86" manage mode: tapping a tile flips its availability instead of selling it.
   readonly manageMode = signal(false);
   toggleManageMode() { this.manageMode.set(!this.manageMode()); }
   toggleAvailability(item: any) {
-    const prev = item.isAvailable;
-    const next = !prev;
-    item.isAvailable = next; // optimistic
+    const next = !item.isAvailable;
+    const flip = (v: boolean) => this.items.set(this.items().map(i => i.id === item.id ? { ...i, isAvailable: v } : i));
+    flip(next); // optimistic (immutable so the memoised grid updates)
     this.service.setAvailability(item.id, next).subscribe({
       next: () => this.dialog.toast(`${item.name} — ${next ? 'back on sale' : 'marked sold out'}`, next ? 'success' : 'info'),
-      error: () => { item.isAvailable = prev; this.dialog.toast('Could not update availability', 'error'); },
+      error: () => { flip(!next); this.dialog.toast('Could not update availability', 'error'); },
     });
   }
   skeletonCards(): number[] { return [0, 1, 2, 3, 4, 5, 6, 7]; }
@@ -179,7 +182,7 @@ export class PosComponent implements OnInit, OnDestroy {
 
   // Stock guardrails — the cart can never exceed what we have. Stock is shared
   // across sizes, so the guard sums every line of the same item.
-  stockOf(id: number): number { return this.items.find(i => i.id === id)?.stockQuantity ?? 0; }
+  stockOf(id: number): number { return this.items().find(i => i.id === id)?.stockQuantity ?? 0; }
 
   // Decrement on-hand stock locally after a sale (stock is shared across sizes,
   // so sum the quantities per item id). Avoids a full menu re-fetch per sale.
@@ -187,8 +190,8 @@ export class PosComponent implements OnInit, OnDestroy {
     if (!sold.length) return;
     const byId = new Map<number, number>();
     for (const line of sold) byId.set(line.id, (byId.get(line.id) ?? 0) + line.quantity);
-    this.items = this.items.map(i =>
-      byId.has(i.id) ? { ...i, stockQuantity: Math.max(0, i.stockQuantity - (byId.get(i.id) ?? 0)) } : i);
+    this.items.set(this.items().map(i =>
+      byId.has(i.id) ? { ...i, stockQuantity: Math.max(0, i.stockQuantity - (byId.get(i.id) ?? 0)) } : i));
   }
 
   // Cloudinary thumbnail. POS grid tiles are small, but uploaded images are
@@ -277,10 +280,10 @@ export class PosComponent implements OnInit, OnDestroy {
       next: rows => {
         if (!rows?.length) return;
         const byId = new Map(rows.map(r => [r.id, r]));
-        this.items = this.items.map(i => {
+        this.items.set(this.items().map(i => {
           const r = byId.get(i.id);
           return r ? { ...i, stockQuantity: r.stockQuantity, isAvailable: r.isAvailable } : i;
-        });
+        }));
       },
       error: () => { /* offline / transient - keep the counts we have */ },
     });
@@ -289,12 +292,12 @@ export class PosComponent implements OnInit, OnDestroy {
   private load() {
     this.loading.set(true);
     this.service.getItems(true).subscribe(items => {
-      this.items = items;
+      this.items.set(items);
       this.loading.set(false);
       // The default category is a guess ('Hot Drinks'); snap to the first real
       // one so a shop without it never stares at an empty grid.
-      const cats = this.categories;
-      if (cats.length && !cats.includes(this.activeCat)) this.activeCat = cats[0];
+      const cats = this.categories();
+      if (cats.length && !cats.includes(this.activeCat())) this.activeCat.set(cats[0]);
     });
   }
 
@@ -507,7 +510,7 @@ export class PosComponent implements OnInit, OnDestroy {
   }
 
   private findBySku(sku: string): MenuItem | undefined {
-    return this.items.find(i => (i as any).sku && (i as any).sku.toLowerCase() === sku.toLowerCase());
+    return this.items().find(i => (i as any).sku && (i as any).sku.toLowerCase() === sku.toLowerCase());
   }
 
   private handleScanValue(text: string) {
@@ -524,7 +527,7 @@ export class PosComponent implements OnInit, OnDestroy {
     // before giving up, so a freshly generated barcode scans without a restart.
     this.service.getItems().subscribe({
       next: items => {
-        this.items = items;
+        this.items.set(items);
         const again = this.findBySku(sku);
         if (again) { this.addToCart(again); this.dialog.toast(`${again.name} added`, 'success'); }
         else this.dialog.toast(`No item with barcode ${sku}`, 'error');

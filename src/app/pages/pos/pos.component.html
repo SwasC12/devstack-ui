@@ -141,8 +141,8 @@
       <!-- Main POS layout: categories · products · current order -->
       <div class="pos-layout">
         <aside class="cats">
-          @for (cat of categories; track cat) {
-            <button class="cat-btn" [class.active]="cat === activeCat" (click)="activeCat = cat">{{ cat }}</button>
+          @for (cat of categories(); track cat) {
+            <button class="cat-btn" [class.active]="cat === activeCat()" (click)="activeCat.set(cat)">{{ cat }}</button>
           }
         </aside>
 
