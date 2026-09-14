@@ -119,6 +119,7 @@
           <input [(ngModel)]="search" (ngModelChange)="onSearch()" placeholder="Search drinks…" />
         </div>
         <div class="pos-bar-right">
+          <app-btn size="sm" [variant]="manageMode() ? 'primary' : 'default'" (onClick)="toggleManageMode()" title="Mark items sold out / back on sale">{{ manageMode() ? 'Done' : '86' }}</app-btn>
           <app-btn size="sm" (onClick)="scanBarcode()" [loading]="scanning()" title="Scan a barcode to add the item">Scan</app-btn>
           @if (appVersion()) { <span class="app-ver">{{ appVersion() }}</span> }
           <button class="pos-reprint upd-btn" [class.has-update]="!!updateInfo()" (click)="forceCheckForUpdate()" title="Check for updates"><app-icon name="package" [size]="18" /></button>
@@ -162,10 +163,16 @@
               }
             </div>
           } @else {
-          <div class="items">
+          @if (manageMode()) {
+            <p class="manage-hint">🚫 <strong>86 mode</strong> — tap an item to mark it sold out; tap again to bring it back. Tap <strong>Done</strong> when finished.</p>
+          }
+          <div class="items" [class.managing]="manageMode()">
             @for (item of filtered(); track item.id) {
-              <button class="item" [class.sold]="!item.isAvailable || item.stockQuantity < 1 || inCartAtStock(item.id)"
-                (click)="addToCart(item)" [disabled]="!item.isAvailable || item.stockQuantity < 1 || inCartAtStock(item.id)">
+              <button class="item"
+                [class.sold]="!manageMode() && (!item.isAvailable || item.stockQuantity < 1 || inCartAtStock(item.id))"
+                [class.mgo]="manageMode() && !item.isAvailable"
+                (click)="manageMode() ? toggleAvailability(item) : addToCart(item)"
+                [disabled]="!manageMode() && (!item.isAvailable || item.stockQuantity < 1 || inCartAtStock(item.id))">
                 <img [src]="item.imageUrl ? thumb(item.imageUrl) : defaultProductImg" loading="lazy" decoding="async" alt="" class="item-img" />
                 <div class="item-body">
                   <span class="item-name">{{ item.name }}</span>
@@ -176,7 +183,11 @@
                     <span class="item-price">R{{ item.price | number:'1.2-2' }}</span>
                   }
                 </div>
-                @if (!item.isAvailable || item.stockQuantity < 1) { <span class="item-badge">Sold out</span> }
+                @if (manageMode()) {
+                  <span class="item-badge mgbadge" [class.on]="item.isAvailable">{{ item.isAvailable ? 'On sale' : '86' }}</span>
+                } @else if (!item.isAvailable || item.stockQuantity < 1) {
+                  <span class="item-badge">Sold out</span>
+                }
               </button>
             } @empty {
               <div class="items-empty">
@@ -365,8 +376,15 @@
           </div>
           <div class="pay-total">
             <span class="pay-total-lbl">Total due</span>
-            <span class="pay-total-val">R{{ netTotal() | number:'1.2-2' }}</span>
+            <span class="pay-total-val">R{{ payTotal() | number:'1.2-2' }}</span>
           </div>
+          @if (serviceAmount() > 0 || tipAmount() > 0) {
+            <div class="pay-breakdown">
+              <span>Subtotal R{{ netTotal() | number:'1.2-2' }}</span>
+              @if (serviceAmount() > 0) { <span>· Service R{{ serviceAmount() | number:'1.2-2' }}</span> }
+              @if (tipAmount() > 0) { <span>· Tip R{{ tipAmount() | number:'1.2-2' }}</span> }
+            </div>
+          }
 
           <!-- Dine-in / takeaway -->
           <div class="pay-methods">
@@ -405,7 +423,7 @@
                 }
               }
             </div>
-            <p class="pay-card-note">The full R{{ netTotal() | number:'1.2-2' }} goes on the customer's tab. Settle it later from Admin → Customers.</p>
+            <p class="pay-card-note">The full R{{ payTotal() | number:'1.2-2' }} goes on the customer's tab. Settle it later from Admin → Customers.</p>
           }
 
           @if (splitMode()) {
@@ -421,7 +439,7 @@
                 </div>
               }
               <app-btn size="sm" (onClick)="addSplitRow()">+ Payment</app-btn>
-              <div class="split-total">Allocated: <strong>R{{ splitTotal() | number:'1.2-2' }}</strong> of R{{ netTotal() | number:'1.2-2' }}</div>
+              <div class="split-total">Allocated: <strong>R{{ splitTotal() | number:'1.2-2' }}</strong> of R{{ payTotal() | number:'1.2-2' }}</div>
             </div>
           }
 
@@ -457,6 +475,28 @@
             </div>
           }
 
+          @if (!accountMode()) {
+            <!-- Tip + service charge (extras on top of the sale) -->
+            <div class="pay-extras">
+              <div class="pay-extra-row">
+                <span class="pay-received-lbl">Tip</span>
+                <div class="extra-chips">
+                  <button class="qk" [class.on]="tipAmount() === 0" (click)="setTipPct(0)">None</button>
+                  <button class="qk" (click)="setTipPct(10)">10%</button>
+                  <button class="qk" (click)="setTipPct(15)">15%</button>
+                  <input class="tbl-input tip-input" type="number" inputmode="decimal" placeholder="R" [ngModel]="tipText()" (ngModelChange)="tipText.set($event)" />
+                </div>
+              </div>
+              <div class="pay-extra-row">
+                <span class="pay-received-lbl">Service</span>
+                <div class="extra-chips">
+                  <button class="qk" [class.on]="servicePct() === 0" (click)="servicePct.set(0)">Off</button>
+                  <button class="qk" [class.on]="servicePct() === 10" (click)="servicePct.set(10)">10%</button>
+                </div>
+              </div>
+            </div>
+          }
+
           <!-- Method toggle -->
           <div class="pay-methods">
             <button class="pay-method" [class.on]="payMethod() === 'cash'" (click)="payMethod.set('cash')">Cash</button>
@@ -488,7 +528,7 @@
           }
 
           <button class="btn-checkout" [disabled]="busy() || !canConfirm()" (click)="confirmPayment()">
-            {{ busy() ? 'Placing order…' : accountMode() ? 'Charge R' + (netTotal() | number:'1.2-2') + ' to account' : splitMode() ? 'Confirm split payment' : payMethod() === 'cash' ? 'Charge R' + (netTotal() | number:'1.2-2') : 'Confirm card payment' }}
+            {{ busy() ? 'Placing order…' : accountMode() ? 'Charge R' + (payTotal() | number:'1.2-2') + ' to account' : splitMode() ? 'Confirm split payment' : payMethod() === 'cash' ? 'Charge R' + (payTotal() | number:'1.2-2') : 'Confirm card payment' }}
           </button>
         </div>
       </div>

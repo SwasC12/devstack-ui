@@ -152,6 +152,19 @@ export class PosComponent implements OnInit, OnDestroy {
       : this.items.filter(i => i.category === this.activeCat);
   };
   readonly total = () => this.cart().reduce((s, i) => s + i.price * i.quantity, 0);
+
+  // "86" manage mode: tapping a tile flips its availability instead of selling it.
+  readonly manageMode = signal(false);
+  toggleManageMode() { this.manageMode.set(!this.manageMode()); }
+  toggleAvailability(item: any) {
+    const prev = item.isAvailable;
+    const next = !prev;
+    item.isAvailable = next; // optimistic
+    this.service.setAvailability(item.id, next).subscribe({
+      next: () => this.dialog.toast(`${item.name} — ${next ? 'back on sale' : 'marked sold out'}`, next ? 'success' : 'info'),
+      error: () => { item.isAvailable = prev; this.dialog.toast('Could not update availability', 'error'); },
+    });
+  }
   skeletonCards(): number[] { return [0, 1, 2, 3, 4, 5, 6, 7]; }
 
   // Pull a human-readable message out of an API error. Our endpoints return
@@ -640,17 +653,26 @@ export class PosComponent implements OnInit, OnDestroy {
 
   netTotal(): number { return Math.max(0, this.total() - this.discountAmount()); }
 
+  // Tips + service charge (extras on top of the sale). Service % is applied to
+  // the post-discount subtotal — EXACTLY like the server, so amounts always match.
+  readonly servicePct = signal(0);   // 0 or 10 (dine-in service charge)
+  readonly tipText = signal('');     // custom tip amount (rand)
+  serviceAmount(): number { return Math.round(this.netTotal() * this.servicePct()) / 100; }
+  tipAmount(): number { return Math.round((parseFloat(this.tipText()) || 0) * 100) / 100; }
+  payTotal(): number { return Math.round((this.netTotal() + this.serviceAmount() + this.tipAmount()) * 100) / 100; }
+  setTipPct(pct: number) { this.tipText.set(pct <= 0 ? '' : (this.netTotal() * pct / 100).toFixed(2)); }
+
   applyDiscount(d: any) { this.selectedDiscount.set(d); this.discountOpen.set(false); }
 
   // ── Till / payment ──────────────────────────────────────
 
   readonly received = () => parseFloat(this.receivedText()) || 0;
-  readonly change = () => Math.max(0, this.received() - this.netTotal());
+  readonly change = () => Math.max(0, this.received() - this.payTotal());
   readonly splitTotal = () => this.splitRows.reduce((s, r) => s + (r.amount || 0), 0);
   readonly canConfirm = () => {
     if (this.accountMode()) return this.accountCustomerId() != null;
-    if (this.splitMode()) return Math.abs(this.splitTotal() - this.netTotal()) < 0.01;
-    return this.payMethod() === 'card' || this.received() >= this.netTotal();
+    if (this.splitMode()) return Math.abs(this.splitTotal() - this.payTotal()) < 0.01;
+    return this.payMethod() === 'card' || this.received() >= this.payTotal();
   };
 
   toNum(v: any): number { return parseFloat(v) || 0; }  pressKey(k: string) {
@@ -671,7 +693,7 @@ export class PosComponent implements OnInit, OnDestroy {
   setQuick(which: string) {
     // 'Exact' must use the DISCOUNTED total - charging pre-discount would
     // overcharge the customer and confuse the cashier.
-    if (which === 'exact') this.receivedText.set(this.netTotal().toFixed(2));
+    if (which === 'exact') this.receivedText.set(this.payTotal().toFixed(2));
     else this.receivedText.set(which);
   }
   addSplitRow() { this.splitRows = [...this.splitRows, { method: 'cash', amount: 0 }]; }
@@ -756,6 +778,8 @@ export class PosComponent implements OnInit, OnDestroy {
 
   // Checkout button: open the payment sheet instead of charging blindly.
   checkout() {
+    this.servicePct.set(0);
+    this.tipText.set('');
     if (this.cart().length === 0) return;
     this.payMethod.set('cash');
     this.receivedText.set('');
@@ -778,21 +802,24 @@ export class PosComponent implements OnInit, OnDestroy {
     // Build the tender list: account charge / split rows / single method.
     // Cash rows carry what was ACTUALLY tendered (may overpay - the server
     // computes change); card/account rows are exact.
+    const payDue = this.payTotal(); // items − discount + service + tip
     const payments: { method: string; amount: number }[] = [];
     if (this.accountMode()) {
-      payments.push({ method: 'account', amount: Math.round(this.netTotal() * 100) / 100 });
+      payments.push({ method: 'account', amount: Math.round(payDue * 100) / 100 });
     } else if (this.splitMode()) {
       this.splitRows.forEach(r => { if ((r.amount || 0) > 0) payments.push({ method: r.method, amount: Math.round(r.amount * 100) / 100 }); });
     } else if (this.payMethod() === 'cash') {
-      payments.push({ method: 'cash', amount: this.received() > 0 ? Math.round(this.received() * 100) / 100 : Math.round(this.netTotal() * 100) / 100 });
+      payments.push({ method: 'cash', amount: this.received() > 0 ? Math.round(this.received() * 100) / 100 : Math.round(payDue * 100) / 100 });
     } else {
-      payments.push({ method: 'card', amount: Math.round(this.netTotal() * 100) / 100 });
+      payments.push({ method: 'card', amount: Math.round(payDue * 100) / 100 });
     }
 
     this.service.placeOrder(this.cart(), {
       method: this.accountMode() ? 'card' : this.payMethod(),
       amountReceived: this.payMethod() === 'cash' && !this.accountMode() ? this.received() : null,
       payments,
+      tip: this.tipAmount() || null,
+      serviceChargePct: this.servicePct() || null,
       accountCustomerId: this.accountMode() ? this.accountCustomerId() : null,
       // Loyalty: the account customer (if any) earns; otherwise the optionally
       // attached loyalty customer earns/redeems. Redeem only on the loyalty path.
@@ -806,8 +833,10 @@ export class PosComponent implements OnInit, OnDestroy {
       total: this.netTotal(),
       discountAmount: Math.max(0, this.total() - this.netTotal()),
       discountName: this.selectedDiscount()?.name ?? null,
+      serviceChargeAmount: this.serviceAmount(),
+      tipAmount: this.tipAmount(),
       amountReceived: this.payMethod() === 'cash' ? this.received() : null,
-      changeGiven: this.payMethod() === 'cash' ? Math.max(0, this.received() - this.netTotal()) : null
+      changeGiven: this.payMethod() === 'cash' ? Math.max(0, this.received() - this.payTotal()) : null
     }).subscribe({
       next: (order) => {
         this.busy.set(false);

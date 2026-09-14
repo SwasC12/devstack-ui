@@ -81,6 +81,11 @@ export class MenuItemService {
     return this.http.delete<void>(`${API}/menuitems/${id}`);
   }
 
+  // Quick "86 / sold out" toggle from the POS.
+  setAvailability(id: number, isAvailable: boolean): Observable<any> {
+    return this.http.put(`${API}/menuitems/${id}/availability`, { isAvailable });
+  }
+
   // ── Categories ──────────────────────────────────────────────
 
   getCategories(): Observable<Category[]> {
