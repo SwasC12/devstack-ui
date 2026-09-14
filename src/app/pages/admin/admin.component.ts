@@ -289,6 +289,22 @@ export class AdminComponent implements OnInit {
     });
   }
 
+  // Checkout options (tips + service charge shown at the till)
+  coTips = false; coService = false; coServicePct = 10;
+  readonly coMsg = signal(''); readonly coErr = signal(false); readonly coBusy = signal(false);
+  saveCheckout() {
+    this.coBusy.set(true); this.coErr.set(false); this.coMsg.set('');
+    this.service.updateShopInfo({
+      name: this.brName,
+      tipsEnabled: this.coTips,
+      serviceChargeEnabled: this.coService,
+      serviceChargePct: Math.min(50, Math.max(1, Math.round(Number(this.coServicePct) || 10))),
+    }).subscribe({
+      next: (shop) => { this.coBusy.set(false); this.shopInfo = shop; this.coMsg.set('Checkout settings saved.'); },
+      error: (e) => { this.coBusy.set(false); this.coErr.set(true); this.coMsg.set(e.error?.error || 'Could not save checkout settings.'); },
+    });
+  }
+
   // ── Bluetooth thermal printer (POS tablet only) ──────────────────────────
   readonly btSupported = signal(false);
   readonly btPrinter = signal<BtDevice | null>(null);
@@ -1362,6 +1378,9 @@ export class AdminComponent implements OnInit {
       this.rcShowQr = shop.receiptShowQr !== false;
       this.rcShowCashier = shop.receiptShowCashier !== false;
       this.rcShowLogo = shop.receiptShowLogo !== false;
+      this.coTips = !!shop.tipsEnabled;
+      this.coService = !!shop.serviceChargeEnabled;
+      this.coServicePct = shop.serviceChargePct || 10;
       void this.genJoinQr();
     });
   }

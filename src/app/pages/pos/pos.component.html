@@ -386,6 +386,8 @@
             </div>
           }
 
+          <div class="pay-cols">
+          <div class="pay-col">
           <!-- Dine-in / takeaway -->
           <div class="pay-methods">
             <button class="pay-method" [class.on]="dineMode() === 'takeaway'" (click)="dineMode.set('takeaway')">Takeaway</button>
@@ -475,28 +477,35 @@
             </div>
           }
 
-          @if (!accountMode()) {
-            <!-- Tip + service charge (extras on top of the sale) -->
+          @if (!accountMode() && (shopInfo()?.tipsEnabled || shopInfo()?.serviceChargeEnabled)) {
+            <!-- Tip + service charge (only the ones the shop enabled in Admin) -->
             <div class="pay-extras">
-              <div class="pay-extra-row">
-                <span class="pay-received-lbl">Tip</span>
-                <div class="extra-chips">
-                  <button class="qk" [class.on]="tipAmount() === 0" (click)="setTipPct(0)">None</button>
-                  <button class="qk" (click)="setTipPct(10)">10%</button>
-                  <button class="qk" (click)="setTipPct(15)">15%</button>
-                  <input class="tbl-input tip-input" type="number" inputmode="decimal" placeholder="R" [ngModel]="tipText()" (ngModelChange)="tipText.set($event)" />
+              @if (shopInfo()?.tipsEnabled) {
+                <div class="pay-extra-row">
+                  <span class="pay-received-lbl">Tip</span>
+                  <div class="extra-chips">
+                    <button class="qk" [class.on]="tipAmount() === 0" (click)="setTipPct(0)">None</button>
+                    <button class="qk" (click)="setTipPct(10)">10%</button>
+                    <button class="qk" (click)="setTipPct(15)">15%</button>
+                    <input class="tbl-input tip-input" type="number" inputmode="decimal" placeholder="R" [ngModel]="tipText()" (ngModelChange)="tipText.set($event)" />
+                  </div>
                 </div>
-              </div>
-              <div class="pay-extra-row">
-                <span class="pay-received-lbl">Service</span>
-                <div class="extra-chips">
-                  <button class="qk" [class.on]="servicePct() === 0" (click)="servicePct.set(0)">Off</button>
-                  <button class="qk" [class.on]="servicePct() === 10" (click)="servicePct.set(10)">10%</button>
+              }
+              @if (shopInfo()?.serviceChargeEnabled) {
+                <div class="pay-extra-row">
+                  <span class="pay-received-lbl">Service</span>
+                  <div class="extra-chips">
+                    <button class="qk" [class.on]="servicePct() === 0" (click)="servicePct.set(0)">Off</button>
+                    <button class="qk" [class.on]="servicePct() > 0" (click)="servicePct.set(shopInfo()?.serviceChargePct || 10)">{{ shopInfo()?.serviceChargePct || 10 }}%</button>
+                  </div>
                 </div>
-              </div>
+              }
             </div>
           }
 
+          </div><!-- /pay-col left -->
+
+          <div class="pay-col">
           <!-- Method toggle -->
           <div class="pay-methods">
             <button class="pay-method" [class.on]="payMethod() === 'cash'" (click)="payMethod.set('cash')">Cash</button>
@@ -526,6 +535,8 @@
           } @else if (!accountMode() && !splitMode()) {
             <p class="pay-card-note">Take the card payment on the terminal, then confirm.</p>
           }
+          </div><!-- /pay-col right -->
+          </div><!-- /pay-cols -->
 
           <button class="btn-checkout" [disabled]="busy() || !canConfirm()" (click)="confirmPayment()">
             {{ busy() ? 'Placing order…' : accountMode() ? 'Charge R' + (payTotal() | number:'1.2-2') + ' to account' : splitMode() ? 'Confirm split payment' : payMethod() === 'cash' ? 'Charge R' + (payTotal() | number:'1.2-2') : 'Confirm card payment' }}

@@ -810,6 +810,19 @@
           }
         </div>
         <div class="form-sheet">
+          <div class="form-head"><h3>Checkout</h3></div>
+          <p class="hint">Choose what the till asks for at payment. Turn these off and they won't appear on the POS at all.</p>
+          <div class="form-grid">
+            <div class="field"><label class="check-label"><input type="checkbox" [(ngModel)]="coTips" /> Ask for a tip at checkout</label></div>
+            <div class="field"><label class="check-label"><input type="checkbox" [(ngModel)]="coService" /> Offer a service charge</label></div>
+            <div class="field"><label>Service charge %</label><input type="number" min="1" max="50" [(ngModel)]="coServicePct" [disabled]="!coService" /><span class="field-hint">Applied when the cashier turns service on for a sale.</span></div>
+          </div>
+          @if (coMsg()) { <p class="form-msg" [class.err]="coErr()">{{ coMsg() }}</p> }
+          <div class="form-acts">
+            <app-btn variant="primary" size="sm" (onClick)="saveCheckout()" [loading]="coBusy()">Save checkout</app-btn>
+          </div>
+        </div>
+        <div class="form-sheet">
           <div class="form-head"><h3>Receipt</h3></div>
           <p class="hint">Customise what prints on receipts for this shop. Leave the header/footer empty and keep the defaults for the standard layout.</p>
           <div class="form-grid">

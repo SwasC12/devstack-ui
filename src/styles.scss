@@ -7,28 +7,30 @@
    Defined on :root so the whole app (including <body>) themes.
    Light values live under :root[data-theme='light']. */
 :root {
-  --bg: #181818;
+  /* Vibrant neutral dark: clean charcoal surfaces (no brown tint) with a punchy
+     amber accent and deeper shadows so cards pop off the page. */
+  --bg: #151515;
   --surface: #232323;
-  --surface-2: #2f2f2f;
-  --surface-3: #3a3a3a;
-  --border: #2f2f2f;
-  --border-hover: #434343;
+  --surface-2: #303030;
+  --surface-3: #3c3c3c;
+  --border: #333333;
+  --border-hover: #474747;
   --text: #ffffff;
-  --text-2: #c8c8c8;
-  --muted: #8e8e8e;
-  --accent: #c88738;
-  --accent-hover: #d99a4d;
-  --accent-2: #d99a4d;
-  --accent-light: rgba(200, 135, 56, 0.14);
-  --green: #43b96d;
-  --green-bg: rgba(67, 185, 109, 0.12);
-  --red: #e65252;
-  --red-bg: rgba(230, 82, 82, 0.12);
-  --warning: #f2b94b;
-  --topbar-bg: rgba(24, 24, 24, 0.82);
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.15);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.18);
+  --text-2: #cccccc;
+  --muted: #909090;
+  --accent: #d68a34;
+  --accent-hover: #e79b45;
+  --accent-2: #edaa4f;
+  --accent-light: rgba(214, 138, 52, 0.16);
+  --green: #46c878;
+  --green-bg: rgba(70, 200, 120, 0.14);
+  --red: #f05555;
+  --red-bg: rgba(240, 85, 85, 0.14);
+  --warning: #f5bd4b;
+  --topbar-bg: rgba(21, 21, 21, 0.86);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.28);
+  --shadow-md: 0 10px 28px rgba(0, 0, 0, 0.38);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.45);
   --radius: 16px;
   --radius-sm: 12px;
   --radius-lg: 20px;
