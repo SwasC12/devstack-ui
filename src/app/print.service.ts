@@ -3,7 +3,9 @@ import { Capacitor } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
 
 export interface BtDevice { name: string; address: string; }
+export interface UsbDevice { name: string; vendorId: number; productId: number; hasPermission?: boolean; }
 const BT_PRINTER_KEY = 'pos_bt_printer';
+const USB_PRINTER_KEY = 'pos_usb_printer';
 
 // Central printing service. Handles anything the app prints - receipts, kitchen
 // tickets, barcode labels, and the admin analytics report - through one path.
@@ -113,6 +115,53 @@ export class PrintService {
       .text('Your printer is connected.')
       .feed(3).cut();
     await this.bt.print({ address, data: this.toBase64(e.bytes()) });
+  }
+
+  // ── USB thermal (ESC/POS) printing — printer connected via OTG/USB hub ──────
+  private get usb(): any { return (Capacitor as any).Plugins?.UsbPrinter; }
+  get usbAvailable(): boolean { return Capacitor.isNativePlatform() && !!this.usb; }
+
+  async getUsbPrinter(): Promise<UsbDevice | null> {
+    try { const { value } = await Preferences.get({ key: USB_PRINTER_KEY }); return value ? JSON.parse(value) : null; }
+    catch { return null; }
+  }
+  async saveUsbPrinter(d: UsbDevice | null): Promise<void> {
+    if (d) await Preferences.set({ key: USB_PRINTER_KEY, value: JSON.stringify(d) });
+    else await Preferences.remove({ key: USB_PRINTER_KEY });
+  }
+  async listUsbPrinters(): Promise<UsbDevice[]> {
+    if (!this.usbAvailable) throw new Error('USB printing is only available in the app.');
+    const res = await this.usb.listDevices();
+    return (res?.devices ?? []) as UsbDevice[];
+  }
+
+  async printReceiptToUsb(order: any, shop: any, cashierName: string): Promise<'ok' | 'error' | 'no-printer'> {
+    if (!this.usbAvailable) return 'no-printer';
+    const printer = await this.getUsbPrinter();
+    if (!printer) return 'no-printer';
+    try {
+      const bytes = this.buildReceiptEscPos(order, shop, cashierName);
+      await this.usb.print({ vendorId: printer.vendorId, productId: printer.productId, data: this.toBase64(bytes) });
+      return 'ok';
+    } catch { return 'error'; }
+  }
+
+  async testPrintUsb(vendorId: number, productId: number): Promise<void> {
+    const e = new EscPos();
+    e.init().align('center').bold(true).size(2).text('Test print').size(1).bold(false).feed()
+      .text('CoffeeShop Pro').feed()
+      .text('Your USB printer is connected.')
+      .feed(3).cut();
+    await this.usb.print({ vendorId, productId, data: this.toBase64(e.bytes()) });
+  }
+
+  // Print a receipt to whatever thermal printer is configured — Bluetooth first,
+  // then USB. Returns 'no-printer' when neither is set (caller falls back to the
+  // system/HTML print), 'ok', or 'error'.
+  async printReceiptThermal(order: any, shop: any, cashierName: string): Promise<'ok' | 'error' | 'no-printer'> {
+    const bt = await this.printReceiptToBt(order, shop, cashierName);
+    if (bt !== 'no-printer') return bt;
+    return this.printReceiptToUsb(order, shop, cashierName);
   }
 
   // Build the receipt as ESC/POS bytes, honouring the shop's receipt settings

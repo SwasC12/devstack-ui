@@ -9,7 +9,7 @@ import { AuthService } from '../../auth.service';
 import { BtnComponent } from '../../btn.component';
 import { PasswordInputComponent } from '../../password-input.component';
 import { ReceiptViewComponent } from '../../receipt-view.component';
-import { PrintService, BtDevice } from '../../print.service';
+import { PrintService, BtDevice, UsbDevice } from '../../print.service';
 import { DialogService } from '../../dialog.service';
 import { SoundService } from '../../sound.service';
 import { firstValueFrom } from 'rxjs';
@@ -328,6 +328,45 @@ export class AdminComponent implements OnInit {
     finally { this.btTesting.set(false); }
   }
 
+  // ── USB thermal printer (POS tablet only, via OTG/USB hub) ───────────────
+  readonly usbSupported = signal(false);
+  readonly usbPrinter = signal<UsbDevice | null>(null);
+  readonly usbDevices = signal<UsbDevice[]>([]);
+  readonly usbMsg = signal(''); readonly usbErr = signal(false);
+  readonly usbBusy = signal(false); readonly usbTesting = signal(false);
+
+  private async initUsbPrinter() {
+    this.usbSupported.set(this.printer.usbAvailable);
+    if (this.printer.usbAvailable) this.usbPrinter.set(await this.printer.getUsbPrinter());
+  }
+  async scanUsbPrinters() {
+    this.usbBusy.set(true); this.usbErr.set(false); this.usbMsg.set('');
+    try {
+      const list = await this.printer.listUsbPrinters();
+      this.usbDevices.set(list);
+      if (!list.length) this.usbMsg.set('No USB printer detected. Plug it in via the OTG cable/hub and try again.');
+    } catch (e: any) {
+      this.usbErr.set(true); this.usbMsg.set(e?.message || 'Could not list USB devices.');
+    } finally { this.usbBusy.set(false); }
+  }
+  async pickUsbPrinter(d: UsbDevice) {
+    await this.printer.saveUsbPrinter(d);
+    this.usbPrinter.set(d);
+    this.usbErr.set(false); this.usbMsg.set(`Saved “${d.name}” as the receipt printer.`);
+  }
+  async clearUsbPrinter() {
+    await this.printer.saveUsbPrinter(null);
+    this.usbPrinter.set(null);
+    this.usbMsg.set('USB printer removed.'); this.usbErr.set(false);
+  }
+  async testUsbPrinter() {
+    const p = this.usbPrinter(); if (!p) return;
+    this.usbTesting.set(true); this.usbErr.set(false); this.usbMsg.set('');
+    try { await this.printer.testPrintUsb(p.vendorId, p.productId); this.usbMsg.set('Test sent — check the printer (allow the USB prompt if it appears).'); }
+    catch (e: any) { this.usbErr.set(true); this.usbMsg.set(e?.message || 'Test print failed — is the printer connected and on?'); }
+    finally { this.usbTesting.set(false); }
+  }
+
   // Public join URL customers scan to self-enrol. On the web admin we can use
   // the live origin; the native app falls back to the configured webBase.
   joinUrl(): string {
@@ -626,7 +665,7 @@ export class AdminComponent implements OnInit {
   dName = ''; dType: 'percent' | 'fixed' = 'percent'; dValue: number | null = null;
   dDay: number | null = null; dStart = ''; dEnd = ''; dActive = true;
 
-  ngOnInit() { this.loadInv(); this.loadSum(); this.loadUsers(); this.loadCategories(); this.loadSettings(); this.loadOrders(); this.loadDiscounts(); this.loadNotifications(); this.startNotifPoll(); void this.initBtPrinter(); }
+  ngOnInit() { this.loadInv(); this.loadSum(); this.loadUsers(); this.loadCategories(); this.loadSettings(); this.loadOrders(); this.loadDiscounts(); this.loadNotifications(); this.startNotifPoll(); void this.initBtPrinter(); void this.initUsbPrinter(); }
 
   // Auto-scroll the tab bar so the active tab is always visible (14+ tabs,
   // horizontal scroll). inline:nearest keeps already-visible tabs still.
@@ -1127,9 +1166,9 @@ export class AdminComponent implements OnInit {
   async printReceipt() {
     const order = this.receiptOrder();
     // Prefer a paired Bluetooth thermal printer; fall back to system/HTML print.
-    const bt = await this.printer.printReceiptToBt(order, this.shopInfo, order?.cashierName ?? '');
-    if (bt === 'ok') { this.dialog.toast('Printing…', 'success'); return; }
-    if (bt === 'error') { this.dialog.toast('Bluetooth printer didn\'t respond — check it\'s on. Opening system print.', 'error'); }
+    const t = await this.printer.printReceiptThermal(order, this.shopInfo, order?.cashierName ?? '');
+    if (t === 'ok') { this.dialog.toast('Printing…', 'success'); return; }
+    if (t === 'error') { this.dialog.toast('Printer didn\'t respond — check it\'s on/connected. Opening system print.', 'error'); }
     const el = this.receiptBox?.nativeElement?.querySelector('.receipt-print') as HTMLElement | null;
     if (!el) { this.dialog.toast('Receipt not ready', 'error'); return; }
     void this.printer.printReceiptHtml(el.outerHTML).then(ok => {
